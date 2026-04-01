@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── UTILISATEUR ───────────────────────────────────────────
+
+model User {
+  id         String   @id @default(cuid())
+  nom        String
+  email      String   @unique
+  motDePasse String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  watchlist  Watchlist[]
+  journal    JournalTrade[]
+  strategies Strategie[]
+  alertes    Alerte[]
+}
+
+// ─── WATCHLIST ─────────────────────────────────────────────
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol    String   // ex: AAPL, BTC-USD, EUR/USD
+  nom       String   // ex: Apple Inc.
+  marche    Marche
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, symbol])
+}
+
+enum Marche {
+  ACTION_US
+  ACTION_EU
+  ETF
+  CRYPTO
+  FOREX
+  MATIERE_PREMIERE
+}
+
+// ─── STRATEGIES ────────────────────────────────────────────
+
+model Strategie {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nom         String
+  description String?
+  regles      String   // JSON des règles (conditions + actions)
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  signaux     Signal[]
+  backtests   Backtest[]
+}
+
+// ─── SIGNAUX ───────────────────────────────────────────────
+
+model Signal {
+  id          String      @id @default(cuid())
+  strategieId String?
+  strategie   Strategie?  @relation(fields: [strategieId], references: [id], onDelete: SetNull)
+  symbol      String
+  marche      Marche
+  type        TypeSignal
+  force       Int         @default(50) // 0-100, score de confiance
+  prix        Float       // prix au moment du signal
+  indicateurs String?     // JSON des valeurs d'indicateurs
+  raison      String?     // explication du signal
+  createdAt   DateTime    @default(now())
+}
+
+enum TypeSignal {
+  ACHAT
+  VENTE
+  ATTENTE
+}
+
+// ─── JOURNAL DE TRADING ────────────────────────────────────
+
+model JournalTrade {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol      String
+  marche      Marche
+  type        TypeTrade
+  prixEntree  Float
+  prixSortie  Float?
+  quantite    Float
+  stopLoss    Float?
+  takeProfit  Float?
+  resultat    Float?       // P&L en EUR
+  pourcentage Float?       // P&L en %
+  raison      String?      // pourquoi cette décision
+  lecons      String?      // ce qu'on a appris
+  statut      StatutTrade  @default(OUVERT)
+  dateEntree  DateTime     @default(now())
+  dateSortie  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+enum TypeTrade {
+  ACHAT
+  VENTE
+}
+
+enum StatutTrade {
+  OUVERT
+  FERME
+  ANNULE
+}
+
+// ─── BACKTESTING ───────────────────────────────────────────
+
+model Backtest {
+  id           String    @id @default(cuid())
+  strategieId  String
+  strategie    Strategie @relation(fields: [strategieId], references: [id], onDelete: Cascade)
+  symbol       String
+  periodeDebut DateTime
+  periodeFin   DateTime
+  capitalInitial Float
+  capitalFinal Float?
+  nbTrades     Int       @default(0)
+  nbGagnants   Int       @default(0)
+  nbPerdants   Int       @default(0)
+  rendement    Float?    // en %
+  maxDrawdown  Float?    // en %
+  sharpeRatio  Float?
+  resultats    String?   // JSON détaillé des trades simulés
+  statut       String    @default("EN_COURS") // EN_COURS, TERMINE, ERREUR
+  createdAt    DateTime  @default(now())
+}
+
+// ─── ALERTES ───────────────────────────────────────────────
+
+model Alerte {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol    String
+  condition String      // ex: "RSI < 30", "prix > 150"
+  active    Boolean     @default(true)
+  declenchee Boolean    @default(false)
+  createdAt DateTime    @default(now())
+}
+
+// ─── DONNÉES MARCHÉ (cache) ────────────────────────────────
+
+model DonneeMarche {
+  id       String   @id @default(cuid())
+  symbol   String
+  date     DateTime
+  open     Float
+  high     Float
+  low      Float
+  close    Float
+  volume   Float
+  source   String   @default("yahoo") // yahoo, binance, alphavantage
+
+  @@unique([symbol, date, source])
+  @@index([symbol, date])
+}
