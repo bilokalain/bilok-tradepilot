@@ -88,6 +88,10 @@ export default function Execution() {
   const totalPnl = positions.reduce((s, p) => s + p.pnl, 0);
   const totalValue = positions.reduce((s, p) => s + (p.current_price * p.quantity), 0);
 
+  // Filtrer les signaux : exclure les actifs déjà en position
+  const positionSymbols = new Set(positions.map((p) => p.symbol));
+  const availableSignals = signals.filter((s) => !positionSymbols.has(s.symbol));
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -138,7 +142,7 @@ export default function Execution() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <button
           onClick={handleExecuteAll}
-          disabled={executingAll || signals.length === 0}
+          disabled={executingAll || availableSignals.length === 0}
           className="flex items-center justify-center gap-3 p-5 bg-gold/10 border-2 border-gold/30 rounded-2xl text-gold hover:bg-gold/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
         >
           <div className="w-12 h-12 rounded-xl bg-gold/20 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -149,9 +153,11 @@ export default function Execution() {
               {executingAll ? "Exécution en cours..." : "Lancer le Trading"}
             </p>
             <p className="text-xs text-gold/70">
-              {signals.length > 0
-                ? `Exécuter les ${signals.length} signaux GO en paper trading`
-                : "Aucun signal GO disponible actuellement"}
+              {availableSignals.length > 0
+                ? `Exécuter ${availableSignals.length} nouveau${availableSignals.length > 1 ? "x" : ""} signal${availableSignals.length > 1 ? "s" : ""} GO`
+                : signals.length > 0
+                  ? `${signals.length} signal${signals.length > 1 ? "s" : ""} déjà en position`
+                  : "Aucun signal GO disponible actuellement"}
             </p>
           </div>
         </button>
@@ -168,8 +174,11 @@ export default function Execution() {
             </p>
           </div>
           <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-xs text-text-secondary mb-1">Signaux GO</p>
-            <p className="text-2xl font-mono font-semibold">{signals.length}</p>
+            <p className="text-xs text-text-secondary mb-1">Nouveaux signaux</p>
+            <p className="text-2xl font-mono font-semibold text-gold">{availableSignals.length}</p>
+            {signals.length > availableSignals.length && (
+              <p className="text-[10px] text-text-secondary mt-0.5">{signals.length - availableSignals.length} déjà en position</p>
+            )}
           </div>
           <div className="bg-card border border-border rounded-xl p-4">
             <p className="text-xs text-text-secondary mb-1">Valeur positions</p>
@@ -278,22 +287,26 @@ export default function Execution() {
 
         {/* Signaux disponibles */}
         <InfoCard
-          title="Signaux GO — Prêts à exécuter"
+          title={`Signaux GO — Nouveaux (${availableSignals.length})`}
           icon={<Zap size={18} />}
           description="Les signaux validés par les 6 modules du pipeline. Vous pouvez exécuter chaque signal individuellement ou tous d'un coup."
         >
           {loading ? (
             <p className="text-text-secondary text-sm py-4">Chargement...</p>
-          ) : signals.length === 0 ? (
+          ) : availableSignals.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-text-secondary mb-2">Aucun signal actif</p>
+              <p className="text-text-secondary mb-2">
+                {signals.length > 0
+                  ? "Tous les signaux sont déjà en position"
+                  : "Aucun signal actif"}
+              </p>
               <p className="text-xs text-text-secondary">
-                Le scanner analyse 51 actifs sur 9 critères. Les signaux apparaissent quand les conditions sont réunies.
+                De nouveaux signaux apparaîtront quand le scanner détectera de nouvelles opportunités.
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {signals.map((s) => (
+              {availableSignals.map((s) => (
                 <div key={s.symbol} className="flex items-center justify-between bg-surface rounded-xl p-3">
                   <div>
                     <span className="font-mono font-semibold text-gold">{s.symbol}</span>
