@@ -26,20 +26,34 @@ export default function Execution() {
   const [lastResult, setLastResult] = useState<ExecutionResult | null>(null);
   const [allResults, setAllResults] = useState<any>(null);
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    Promise.all([
-      executionApi.getPositions().catch(() => ({ data: [] })),
-      scoringApi.getSignals().catch(() => ({ data: [] })),
-      axios.get("/api/broker/status").catch(() => ({ data: null })),
-    ])
-      .then(([posRes, sigRes, brokerRes]) => {
-        setPositions(Array.isArray(posRes.data) ? posRes.data : []);
-        setSignals(Array.isArray(sigRes.data) ? sigRes.data : []);
-        setBrokerStatus(brokerRes.data);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+
+    // 1. Broker status (rapide, timeout 5s)
+    try {
+      const brokerRes = await axios.get("/api/broker/status", { timeout: 5000 });
+      setBrokerStatus(brokerRes.data);
+    } catch {
+      setBrokerStatus(null);
+    }
+
+    // 2. Positions (rapide)
+    try {
+      const posRes = await executionApi.getPositions();
+      setPositions(Array.isArray(posRes.data) ? posRes.data : []);
+    } catch {
+      setPositions([]);
+    }
+
+    // 3. Signaux (peut être lent)
+    try {
+      const sigRes = await scoringApi.getSignals();
+      setSignals(Array.isArray(sigRes.data) ? sigRes.data : []);
+    } catch {
+      setSignals([]);
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {

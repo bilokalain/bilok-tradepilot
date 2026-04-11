@@ -118,3 +118,34 @@ def get_active_signals(
         if "error" not in t and t.get("action") == "GO":
             results.append(t)
     return results
+
+
+@router.post("/ml/train")
+def train_ml_model(db: Session = Depends(get_sync_db)):
+    """Entraîne le modèle XGBoost sur les données historiques."""
+    from backend.modules.scoring.ml_scorer import get_ml_scorer, generate_training_data
+    scorer = get_ml_scorer()
+    training_data = generate_training_data(db)
+    if training_data.empty:
+        return {"status": "error", "message": "Pas de données d'entraînement"}
+    result = scorer.train(training_data)
+    return result
+
+
+@router.get("/ml/predict/{symbol}")
+def ml_predict(symbol: str, db: Session = Depends(get_sync_db)):
+    """Score ML pour un actif."""
+    from backend.modules.scoring.ml_scorer import get_ml_scorer
+    from backend.modules.scanner.cache import get_cached_results
+
+    scorer = get_ml_scorer()
+    cached = get_cached_results()
+    scan = next((r for r in cached if r.get("symbol") == symbol), None)
+
+    if not scan:
+        return {"symbol": symbol, "error": "Pas de scan en cache"}
+
+    scores = scan.get("scores", {})
+    result = scorer.predict(scores, regime="BULL")
+    result["symbol"] = symbol
+    return result
