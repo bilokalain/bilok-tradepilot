@@ -12,6 +12,8 @@ from backend.modules.execution.order_engine import (
     ExecutionMode, OrderType, OrderSide,
 )
 from backend.modules.execution.bias_detector import run_full_bias_check
+from backend.modules.execution.broker_alpaca import alpaca_broker
+from backend.modules.scanner.live_data import is_alpaca_symbol
 
 router = APIRouter()
 
@@ -71,49 +73,67 @@ def execute_trade(
     position_size = capital * 0.05
     quantity = round(position_size / entry_price, 4)
 
-    # Créer les ordres
-    orders = create_scaling_orders(symbol, side, quantity, entry_price, OrderType.MARKET)
+    # Quantité entière pour Alpaca (pas de fractions pour les actions)
+    if "-USD" not in symbol:
+        quantity = max(1, int(quantity))
 
-    # Simuler le fill de la tranche 1
-    orders[0] = simulate_fill(orders[0], entry_price)
+    # === ENVOI À ALPACA si le symbole est supporté ===
+    alpaca_executed = False
+    alpaca_result = None
+    broker_used = "local_paper"
 
-    # Sauvegarder en BDD
-    if orders[0].status.value == "FILLED":
-        db_order = Order(
-            asset_id=asset.id,
-            side=DBOrderSide.BUY if direction == "LONG" else DBOrderSide.SELL,
-            quantity=float(orders[0].quantity),
-            price=entry_price,
-            filled_price=float(orders[0].filled_price),
-            status=DBOrderStatus.FILLED,
-            tranche=1,
-            broker="paper",
+    if alpaca_broker.is_configured and is_alpaca_symbol(symbol):
+        alpaca_side = "buy" if direction == "LONG" else "sell"
+        alpaca_result = alpaca_broker.place_order(
+            symbol=symbol,
+            side=alpaca_side,
+            quantity=float(quantity),
+            order_type="market",
         )
-        db.add(db_order)
+        if alpaca_result and "error" not in alpaca_result:
+            alpaca_executed = True
+            broker_used = "alpaca_paper"
 
-        db_position = Position(
-            asset_id=asset.id,
-            direction=SignalDirection.LONG if direction == "LONG" else SignalDirection.SHORT,
-            entry_price=float(orders[0].filled_price),
-            quantity=float(orders[0].quantity),
-            stop_loss=stop_loss,
-            take_profit=take_profit,
-            status=PositionStatus.OPEN,
-        )
-        db.add(db_position)
-        db.commit()
+    # === Sauvegarde en BDD ===
+    filled_price = entry_price
+    db_order = Order(
+        asset_id=asset.id,
+        side=DBOrderSide.BUY if direction == "LONG" else DBOrderSide.SELL,
+        quantity=float(quantity),
+        price=entry_price,
+        filled_price=filled_price,
+        status=DBOrderStatus.FILLED,
+        tranche=1,
+        broker=broker_used,
+        broker_order_id=alpaca_result.get("broker_order_id") if alpaca_result else None,
+    )
+    db.add(db_order)
+
+    db_position = Position(
+        asset_id=asset.id,
+        direction=SignalDirection.LONG if direction == "LONG" else SignalDirection.SHORT,
+        entry_price=filled_price,
+        quantity=float(quantity),
+        stop_loss=stop_loss,
+        take_profit=take_profit,
+        status=PositionStatus.OPEN,
+    )
+    db.add(db_position)
+    db.commit()
 
     return {
         "symbol": symbol,
-        "executed": orders[0].status.value == "FILLED",
+        "executed": True,
+        "alpaca_executed": alpaca_executed,
+        "broker": broker_used,
         "direction": direction,
-        "entry_price": float(orders[0].filled_price) if orders[0].filled_price else entry_price,
-        "quantity": float(orders[0].quantity),
+        "entry_price": filled_price,
+        "quantity": float(quantity),
         "stop_loss": stop_loss,
         "take_profit": take_profit,
         "position_size": round(position_size, 2),
         "bias_check": bias_check,
-        "orders": [o.to_dict() for o in orders],
+        "alpaca_order": alpaca_result,
     }
 
 
