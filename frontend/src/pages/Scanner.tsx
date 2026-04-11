@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { scannerApi, type ScanResult } from "../services/api";
 
 export default function Scanner() {
@@ -43,9 +44,9 @@ export default function Scanner() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="font-mono font-semibold text-gold w-20">
+                      <Link to={`/asset/${r.symbol}`} className="font-mono font-semibold text-gold w-20 hover:underline">
                         {r.symbol}
-                      </span>
+                    </Link>
                       <span className="text-sm text-text-secondary">{r.name}</span>
                     </div>
                     <div className="flex items-center gap-4">

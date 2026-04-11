@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Scanner from "./pages/Scanner";
+import AssetDetail from "./pages/AssetDetail";
 import Analyser from "./pages/Analyser";
 import Scoring from "./pages/Scoring";
 import Execution from "./pages/Execution";
@@ -16,6 +17,7 @@ function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/scanner" element={<Scanner />} />
+        <Route path="/asset/:symbol" element={<AssetDetail />} />
         <Route path="/analyser" element={<Analyser />} />
         <Route path="/scoring" element={<Scoring />} />
         <Route path="/execution" element={<Execution />} />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { scannerApi, analyserApi, type ScanResult, type RegimeSummary } from "../services/api";
-import CandlestickChart from "../components/CandlestickChart";
+import TradingChart from "../components/TradingChart";
 import axios from "axios";
 
 export default function Dashboard() {
@@ -81,7 +82,7 @@ export default function Dashboard() {
             </select>
           </div>
           {ohlcv?.data ? (
-            <CandlestickChart data={ohlcv.data} height={300} />
+            <TradingChart data={ohlcv.data} height={300} />
           ) : (
             <div className="h-64 flex items-center justify-center text-text-secondary text-sm">Chargement...</div>
           )}
@@ -133,7 +134,9 @@ export default function Dashboard() {
                 {results.slice(0, 10).map((r, i) => (
                   <tr key={r.symbol} className="border-b border-border/50 hover:bg-surface transition-colors">
                     <td className="py-2.5 pr-4 font-mono text-text-secondary">{i + 1}</td>
-                    <td className="py-2.5 pr-4 font-mono font-semibold text-gold">{r.symbol}</td>
+                    <td className="py-2.5 pr-4 font-mono font-semibold text-gold">
+                      <Link to={`/asset/${r.symbol}`} className="hover:underline">{r.symbol}</Link>
+                    </td>
                     <td className="py-2.5 pr-4 text-sm">{r.name}</td>
                     <td className="py-2.5 pr-4 text-right font-mono">${r.last_close.toFixed(2)}</td>
                     <td className="py-2.5 pr-4 text-right font-mono">{r.scores.technical.toFixed(1)}</td>

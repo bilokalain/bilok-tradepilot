@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker info:*)",
+      "Bash(alembic init:*)",
+      "Bash(docker exec:*)",
+      "Bash(alembic revision:*)",
+      "Bash(alembic upgrade:*)",
+      "Bash(python scripts/load_historical_data.py)",
+      "Bash(python3 -m venv /Users/alainbilok/Projects/projet-trading/.venv)",
+      "Bash(curl -s http://localhost:8000/api/scanner/assets)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:8000/api/scanner/results/AAPL)"
+    ]
+  }
+}

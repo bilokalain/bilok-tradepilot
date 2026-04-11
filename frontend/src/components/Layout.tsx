@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Settings,
 } from "lucide-react";
+import Notifications from "./Notifications";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -57,9 +58,15 @@ export default function Layout() {
           </div>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto p-6">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col">
+        {/* Top bar avec notifications */}
+        <header className="h-12 bg-card border-b border-border flex items-center justify-end px-6">
+          <Notifications />
+        </header>
+        <main className="flex-1 overflow-auto p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
