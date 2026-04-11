@@ -1,0 +1,38 @@
+# TradePilot — Backend Python Dependencies
+
+# --- Framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic-settings==2.7.1
+
+# --- Base de données ---
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.1
+
+# --- Pipeline ---
+celery[redis]==5.4.0
+redis==5.2.1
+
+# --- Données marché ---
+yfinance==0.2.51
+ccxt==4.4.49
+pandas==2.2.3
+pyarrow==18.1.0
+numpy==2.2.1
+
+# --- ML / NLP ---
+torch>=2.2.0
+transformers>=4.40.0
+scikit-learn>=1.4.0
+
+# --- Sentiment ---
+praw==7.8.1
+
+# --- Macro ---
+fredapi==0.5.2
+
+# --- Utilitaires ---
+python-dotenv==1.0.1
+httpx==0.28.1
+python-dateutil==2.9.0

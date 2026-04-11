@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  # --- PostgreSQL ---
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tradepilot
+      POSTGRES_USER: tradepilot
+      POSTGRES_PASSWORD: tradepilot_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # --- Redis ---
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  # --- InfluxDB ---
+  influxdb:
+    image: influxdb:2.7-alpine
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: tradepilot
+      DOCKER_INFLUXDB_INIT_PASSWORD: tradepilot_dev
+      DOCKER_INFLUXDB_INIT_ORG: tradepilot
+      DOCKER_INFLUXDB_INIT_BUCKET: market_data
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+
+volumes:
+  postgres_data:
+  influxdb_data:
