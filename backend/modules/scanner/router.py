@@ -215,3 +215,52 @@ def get_multi_timeframe(symbol: str, db: Session = Depends(get_sync_db)):
     result = compute_mta_score(daily_close, hourly_close)
     result["symbol"] = symbol
     return result
+
+
+# ============================================================
+# Endpoints LIVE (Alpaca temps réel)
+# ============================================================
+
+from backend.modules.scanner.live_data import get_live_quote, get_live_bars, is_alpaca_symbol
+
+
+@router.get("/live/quote/{symbol}")
+def live_quote(symbol: str):
+    """Prix temps réel via Alpaca."""
+    quote = get_live_quote(symbol)
+    if quote:
+        return quote
+    return {"symbol": symbol, "error": "Pas de données live pour cet actif", "source": "unavailable"}
+
+
+@router.get("/live/quotes")
+def live_quotes_all(db: Session = Depends(get_sync_db)):
+    """Prix temps réel pour tous les actifs supportés par Alpaca."""
+    assets = db.query(Asset).filter_by(is_active=True).all()
+    results = []
+    for asset in assets:
+        quote = get_live_quote(asset.symbol)
+        if quote:
+            quote["name"] = asset.name
+            quote["asset_class"] = asset.asset_class.value
+            results.append(quote)
+        else:
+            # Fallback BDD
+            last = db.query(OHLCVDaily).filter_by(asset_id=asset.id).order_by(OHLCVDaily.date.desc()).first()
+            results.append({
+                "symbol": asset.symbol,
+                "name": asset.name,
+                "asset_class": asset.asset_class.value,
+                "price": float(last.close) if last else 0,
+                "source": "database",
+            })
+    return results
+
+
+@router.get("/live/bars/{symbol}")
+def live_bars(symbol: str, timeframe: str = "1Day", limit: int = 100):
+    """Barres OHLCV live via Alpaca."""
+    bars = get_live_bars(symbol, timeframe, limit)
+    if bars:
+        return {"symbol": symbol, "timeframe": timeframe, "count": len(bars), "data": bars, "source": "alpaca_live"}
+    return {"symbol": symbol, "error": "Pas de données live", "source": "unavailable"}
