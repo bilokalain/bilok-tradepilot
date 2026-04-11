@@ -8,16 +8,88 @@ from backend.database.models import Asset, OHLCVDaily
 from backend.modules.scanner.service import ScannerService
 from backend.modules.scanner.sentiment import fetch_reddit_mentions, compute_sentiment_score
 from backend.modules.scanner.multi_timeframe import compute_mta_score
+from backend.modules.scanner.cache import (
+    get_cached_results, is_cache_fresh, is_updating,
+    update_cache, set_updating,
+)
 from backend.database.models import OHLCV1H
+
+import threading
 
 router = APIRouter()
 
 
+def _run_scan_background(db_url: str):
+    """Exécute le scan en arrière-plan et met à jour le cache."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session as SyncSession
+    try:
+        engine = create_engine(db_url)
+        with SyncSession(engine) as db:
+            service = ScannerService(db)
+            results = service.scan_all()
+            update_cache(results)
+    except Exception as e:
+        from backend.modules.scanner.cache import _cache
+        _cache["updating"] = False
+        print(f"[SCANNER] Erreur scan background: {e}")
+
+
 @router.get("/scan")
 def scan_market(db: Session = Depends(get_sync_db)):
-    """Lance un scan complet de tous les actifs."""
-    service = ScannerService(db)
-    return service.scan_all()
+    """Retourne les résultats du scanner (avec cache 5min)."""
+    if is_cache_fresh():
+        return get_cached_results()
+
+    # Si un scan tourne déjà, retourner le cache même périmé
+    if is_updating():
+        cached = get_cached_results()
+        if cached:
+            return cached
+
+    # Lancer le scan en arrière-plan
+    set_updating()
+    from backend.config.settings import settings
+    thread = threading.Thread(
+        target=_run_scan_background,
+        args=(settings.DATABASE_URL,),
+        daemon=True,
+    )
+    thread.start()
+
+    # Retourner le cache existant ou un message
+    cached = get_cached_results()
+    if cached:
+        return cached
+
+    # Premier scan — retourner les actifs sans score en attendant
+    assets = db.query(Asset).filter_by(is_active=True).all()
+    quick_results = []
+    for asset in assets:
+        last = (
+            db.query(OHLCVDaily)
+            .filter_by(asset_id=asset.id)
+            .order_by(OHLCVDaily.date.desc())
+            .first()
+        )
+        quick_results.append({
+            "symbol": asset.symbol,
+            "name": asset.name,
+            "asset_class": asset.asset_class.value,
+            "scores": {
+                "correlation": 50, "sentiment": 50, "technical": 50,
+                "genome": 50, "ipi": 50, "ivf": 50,
+                "mts": 50, "sgi": 50, "sus": 50, "final": 50,
+            },
+            "weights": {},
+            "vetoed": False,
+            "veto_reasons": [],
+            "last_close": float(last.close) if last else 0,
+            "data_points": 0,
+            "details": {},
+            "_loading": True,
+        })
+    return quick_results
 
 
 @router.get("/results/{symbol}")

@@ -11,6 +11,7 @@ import {
   Settings,
 } from "lucide-react";
 import Notifications from "./Notifications";
+import ErrorBoundary from "./ErrorBoundary";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -64,7 +65,9 @@ export default function Layout() {
           <Notifications />
         </header>
         <main className="flex-1 overflow-auto p-6">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>
