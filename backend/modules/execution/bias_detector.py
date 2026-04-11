@@ -140,11 +140,11 @@ def detect_fomo(entry_price: float, recent_prices: list[float]) -> dict:
     start_price = recent_prices[0]
     move_pct = abs(entry_price - start_price) / start_price * 100
 
-    if move_pct > 15:
+    if move_pct > 25:
         score = 85
         level = "BLOCK"
         detail = f"Mouvement de {move_pct:.1f}% déjà réalisé — entrée tardive"
-    elif move_pct > 8:
+    elif move_pct > 15:
         score = 60
         level = "WARNING"
         detail = f"Mouvement de {move_pct:.1f}% — attention FOMO"
