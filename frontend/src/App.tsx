@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Scanner from "./pages/Scanner";
 import AssetDetail from "./pages/AssetDetail";
@@ -12,9 +14,29 @@ import Performance from "./pages/Performance";
 import Settings from "./pages/Settings";
 
 function App() {
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("tradepilot_token")
+  );
+  const [user, setUser] = useState<{ email: string; name: string } | null>(null);
+
+  const handleLogin = (t: string, u: { email: string; name: string }) => {
+    setToken(t);
+    setUser(u);
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem("tradepilot_token");
+  };
+
+  if (!token) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route element={<Layout onLogout={handleLogout} user={user} />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/scanner" element={<Scanner />} />
         <Route path="/asset/:symbol" element={<AssetDetail />} />

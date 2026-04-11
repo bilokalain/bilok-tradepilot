@@ -33,10 +33,27 @@ BEARISH_KEYWORDS = [
 
 
 def analyse_text_sentiment(text: str) -> dict:
-    """Analyse le sentiment d'un texte avec des mots-clés (Phase 1).
+    """Analyse le sentiment d'un texte.
 
+    Essaie FinBERT d'abord, fallback sur mots-clés si indisponible.
     Retourne : polarity (-1 à +1), label (positive/negative/neutral)
     """
+    # Essayer FinBERT
+    try:
+        from backend.models.sentiment import get_finbert
+        finbert = get_finbert()
+        if finbert.is_available:
+            result = finbert.predict_one(text)
+            return {
+                "polarity": result["polarity"],
+                "label": result["label"],
+                "method": "finbert",
+                "confidence": result.get("confidence", 0),
+            }
+    except Exception:
+        pass
+
+    # Fallback : mots-clés
     text_lower = text.lower()
     words = re.findall(r'\w+', text_lower)
 
@@ -45,22 +62,15 @@ def analyse_text_sentiment(text: str) -> dict:
     total = bullish_count + bearish_count
 
     if total == 0:
-        return {"polarity": 0, "label": "neutral", "bullish": 0, "bearish": 0}
+        return {"polarity": 0, "label": "neutral", "method": "keywords"}
 
     polarity = (bullish_count - bearish_count) / total
-
-    if polarity > 0.2:
-        label = "positive"
-    elif polarity < -0.2:
-        label = "negative"
-    else:
-        label = "neutral"
+    label = "positive" if polarity > 0.2 else "negative" if polarity < -0.2 else "neutral"
 
     return {
         "polarity": round(polarity, 3),
         "label": label,
-        "bullish": bullish_count,
-        "bearish": bearish_count,
+        "method": "keywords",
     }
 
 

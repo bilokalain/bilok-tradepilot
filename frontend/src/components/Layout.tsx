@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Briefcase,
   TrendingUp,
+  LogOut,
   Settings,
 } from "lucide-react";
 import Notifications from "./Notifications";
@@ -25,7 +26,12 @@ const navItems = [
   { to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 
-export default function Layout() {
+interface LayoutProps {
+  onLogout?: () => void;
+  user?: { email: string; name: string } | null;
+}
+
+export default function Layout({ onLogout, user }: LayoutProps) {
   return (
     <div className="flex h-screen">
       <aside className="w-64 bg-card border-r border-border flex flex-col">
@@ -52,11 +58,20 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
             <span className="text-xs text-text-secondary">Pipeline actif</span>
           </div>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 text-xs text-text-secondary hover:text-red-400 transition-colors w-full"
+            >
+              <LogOut size={14} />
+              Déconnexion
+            </button>
+          )}
         </div>
       </aside>
       <div className="flex-1 flex flex-col">

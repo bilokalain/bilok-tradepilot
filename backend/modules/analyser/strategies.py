@@ -24,44 +24,29 @@ from backend.modules.scanner.indicators import (
 # Matrice régime → stratégies recommandées (poids)
 REGIME_STRATEGY_MATRIX = {
     "BULL": {
-        "trend_following": 0.35,
-        "momentum": 0.30,
-        "breakout": 0.20,
-        "mean_reversion": 0.10,
-        "microstructure": 0.03,
-        "cnn_pattern": 0.02,
+        "trend_following": 0.25, "momentum": 0.20, "breakout": 0.15,
+        "ichimoku": 0.12, "fibonacci": 0.10, "mean_reversion": 0.05,
+        "mean_reversion_v2": 0.05, "microstructure": 0.05, "cnn_pattern": 0.03,
     },
     "BEAR": {
-        "trend_following": 0.30,
-        "mean_reversion": 0.30,
-        "momentum": 0.15,
-        "breakout": 0.10,
-        "microstructure": 0.10,
-        "cnn_pattern": 0.05,
+        "trend_following": 0.20, "mean_reversion_v2": 0.18, "mean_reversion": 0.15,
+        "fibonacci": 0.12, "momentum": 0.10, "ichimoku": 0.10,
+        "breakout": 0.08, "microstructure": 0.05, "cnn_pattern": 0.02,
     },
     "RANGE": {
-        "mean_reversion": 0.40,
-        "breakout": 0.25,
-        "microstructure": 0.15,
-        "momentum": 0.10,
-        "trend_following": 0.05,
-        "cnn_pattern": 0.05,
+        "mean_reversion_v2": 0.22, "mean_reversion": 0.18, "fibonacci": 0.15,
+        "breakout": 0.15, "ichimoku": 0.10, "momentum": 0.08,
+        "trend_following": 0.05, "microstructure": 0.05, "cnn_pattern": 0.02,
     },
     "CRISIS": {
-        "mean_reversion": 0.10,
-        "trend_following": 0.35,
-        "momentum": 0.20,
-        "microstructure": 0.15,
-        "breakout": 0.10,
-        "cnn_pattern": 0.10,
+        "mean_reversion_v2": 0.20, "trend_following": 0.20, "fibonacci": 0.15,
+        "momentum": 0.12, "ichimoku": 0.10, "mean_reversion": 0.08,
+        "breakout": 0.08, "microstructure": 0.05, "cnn_pattern": 0.02,
     },
     "TRANSITION": {
-        "breakout": 0.30,
-        "momentum": 0.25,
-        "trend_following": 0.20,
-        "mean_reversion": 0.15,
-        "microstructure": 0.05,
-        "cnn_pattern": 0.05,
+        "breakout": 0.20, "momentum": 0.15, "ichimoku": 0.15,
+        "fibonacci": 0.12, "trend_following": 0.12, "mean_reversion_v2": 0.10,
+        "mean_reversion": 0.08, "microstructure": 0.05, "cnn_pattern": 0.03,
     },
 }
 
@@ -301,11 +286,18 @@ def strategy_cnn_pattern(close: pd.Series) -> dict:
     }
 
 
+from backend.modules.analyser.strategies_advanced import (
+    strategy_mean_reversion_v2, strategy_fibonacci, strategy_ichimoku,
+)
+
 ALL_STRATEGIES = {
     "trend_following": strategy_trend_following,
     "mean_reversion": strategy_mean_reversion,
     "breakout": strategy_breakout,
     "momentum": strategy_momentum,
+    "mean_reversion_v2": strategy_mean_reversion_v2,
+    "fibonacci": strategy_fibonacci,
+    "ichimoku": strategy_ichimoku,
     "microstructure": strategy_microstructure,
     "cnn_pattern": strategy_cnn_pattern,
 }
@@ -327,8 +319,10 @@ def run_all_strategies(close: pd.Series, high: pd.Series,
             signal = func(close, volume)
         elif name == "cnn_pattern":
             signal = func(close)
+        elif name in ("breakout", "mean_reversion_v2"):
+            signal = func(close, high, low, volume)
         else:
-            signal = func(close, high, low) if name != "breakout" else func(close, high, low, volume)
+            signal = func(close, high, low)
 
         weight = weights.get(name, 0)
         weighted_score = signal.get("conviction", 0) * weight

@@ -35,7 +35,9 @@ from backend.modules.performance.router import router as performance_router
 from backend.modules.analyser.backtest_router import router as backtest_router
 from backend.tasks.router import router as pipeline_router
 from backend.modules.execution.broker_router import router as broker_router
+from backend.auth_router import router as auth_router
 
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentification"])
 app.include_router(scanner_router, prefix="/api/scanner", tags=["Scanner"])
 app.include_router(analyser_router, prefix="/api/analyser", tags=["Analyseur"])
 app.include_router(scoring_router, prefix="/api/scoring", tags=["Scoring"])
