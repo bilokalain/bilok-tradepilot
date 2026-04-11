@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { createChart, type IChartApi, type ISeriesApi, ColorType } from "lightweight-charts";
+import { createChart, type IChartApi, ColorType, CandlestickSeries, LineSeries, HistogramSeries } from "lightweight-charts";
 
 interface OHLCVBar {
   date: string;
@@ -29,7 +29,6 @@ export default function TradingChart({
   useEffect(() => {
     if (!containerRef.current || data.length === 0) return;
 
-    // Nettoyer le chart précédent
     if (chartRef.current) {
       chartRef.current.remove();
       chartRef.current = null;
@@ -64,7 +63,6 @@ export default function TradingChart({
 
     chartRef.current = chart;
 
-    // Données formatées
     const candleData = data.map((d) => ({
       time: d.date as any,
       open: d.open,
@@ -73,8 +71,8 @@ export default function TradingChart({
       close: d.close,
     }));
 
-    // Chandeliers
-    const candleSeries = chart.addCandlestickSeries({
+    // Chandeliers — API v5
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#D4AF37",
       downColor: "#FFFFFF22",
       borderUpColor: "#D4AF37",
@@ -88,41 +86,35 @@ export default function TradingChart({
     if (showSMA && data.length >= 20) {
       const sma20 = computeSMA(data.map((d) => d.close), 20);
       const smaData = data
-        .map((d, i) => ({
-          time: d.date as any,
-          value: sma20[i],
-        }))
+        .map((d, i) => ({ time: d.date as any, value: sma20[i] }))
         .filter((d) => d.value !== null) as { time: any; value: number }[];
 
-      const smaSeries = chart.addLineSeries({
+      const sma20Series = chart.addSeries(LineSeries, {
         color: "#D4AF3788",
         lineWidth: 1,
         crosshairMarkerVisible: false,
       });
-      smaSeries.setData(smaData);
+      sma20Series.setData(smaData);
     }
 
     // SMA 50
     if (showSMA && data.length >= 50) {
       const sma50 = computeSMA(data.map((d) => d.close), 50);
       const smaData = data
-        .map((d, i) => ({
-          time: d.date as any,
-          value: sma50[i],
-        }))
+        .map((d, i) => ({ time: d.date as any, value: sma50[i] }))
         .filter((d) => d.value !== null) as { time: any; value: number }[];
 
-      const smaSeries = chart.addLineSeries({
+      const sma50Series = chart.addSeries(LineSeries, {
         color: "#F5D06066",
         lineWidth: 1,
         crosshairMarkerVisible: false,
       });
-      smaSeries.setData(smaData);
+      sma50Series.setData(smaData);
     }
 
     // Volume
     if (showVolume) {
-      const volumeSeries = chart.addHistogramSeries({
+      const volumeSeries = chart.addSeries(HistogramSeries, {
         priceFormat: { type: "volume" },
         priceScaleId: "volume",
       });
@@ -142,13 +134,11 @@ export default function TradingChart({
 
     chart.timeScale().fitContent();
 
-    // Resize
-    const handleResize = () => {
+    const observer = new ResizeObserver(() => {
       if (containerRef.current) {
         chart.applyOptions({ width: containerRef.current.clientWidth });
       }
-    };
-    const observer = new ResizeObserver(handleResize);
+    });
     observer.observe(containerRef.current);
 
     return () => {
