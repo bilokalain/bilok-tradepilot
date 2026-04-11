@@ -12,6 +12,7 @@ import Backtest from "./pages/Backtest";
 import Portfolio from "./pages/Portfolio";
 import Performance from "./pages/Performance";
 import Settings from "./pages/Settings";
+import Guide from "./pages/Guide";
 
 function App() {
   const [token, setToken] = useState<string | null>(
@@ -47,6 +48,7 @@ function App() {
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/performance" element={<Performance />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/guide" element={<Guide />} />
       </Route>
     </Routes>
   );

@@ -1,0 +1,500 @@
+import { useState } from "react";
+import { BookOpen, ChevronDown, ChevronRight, Zap, ScanSearch, Brain, Target, Briefcase, TrendingUp, Shield, BarChart3, Settings, HelpCircle } from "lucide-react";
+
+const SECTIONS = [
+  {
+    id: "start",
+    title: "Premiers pas",
+    icon: <BookOpen size={18} />,
+    content: (
+      <>
+        <H3>Connexion</H3>
+        <P>Ouvrez <Code>http://localhost:5173</Code> et connectez-vous avec <Code>admin@tradepilot.local</Code> / <Code>tradepilot2024</Code>.</P>
+
+        <H3>Ce que vous voyez sur le Dashboard</H3>
+        <Table headers={["Élément", "Signification"]}>
+          <TR><TD b>Actifs scannés</TD><TD>Nombre d'actifs analysés (51 = actions, crypto, forex, matières premières)</TD></TR>
+          <TR><TD b>Score moyen</TD><TD>La "note" moyenne de tous les actifs. Au-dessus de 60 = marché globalement favorable</TD></TR>
+          <TR><TD b>Signaux GO</TD><TD>Nombre d'actifs qui remplissent TOUTES les conditions pour trader. <B>C'est le chiffre le plus important</B></TD></TR>
+          <TR><TD b>Régime</TD><TD>L'état du marché : Haussier (prix montent), Baissier (descendent), Latéral (stagnent)</TD></TR>
+          <TR><TD b>Santé système</TD><TD>Note 0-100 de la fiabilité du système. En dessous de 40 = pause automatique</TD></TR>
+        </Table>
+
+        <H3>Le pipeline en un mot</H3>
+        <div className="bg-surface rounded-xl p-4 my-4 font-mono text-xs leading-relaxed text-gold">
+          51 actifs → Scanner (9 critères) → Analyseur (stratégie) → Scoring (GO/ATTENTE) → Exécution (ordre) → Portefeuille (risque) → Rentabilité (feedback) → retour au Scanner
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "scanner",
+    title: "Module 1 — Scanner de Marché",
+    icon: <ScanSearch size={18} />,
+    content: (
+      <>
+        <P>Le scanner est le <B>filtre d'entrée</B>. Sur 51 actifs, il identifie ceux qui méritent votre attention. Chaque actif reçoit une note de 0 à 100 basée sur 9 dimensions indépendantes.</P>
+
+        <H3>Les 9 critères</H3>
+
+        <CriterionCard emoji="📊" name="1. Analyse Technique (AT)" description="Étudie les mouvements de prix passés pour prédire les futurs.">
+          <Table headers={["Indicateur", "Ce qu'il mesure", "Comment le lire"]}>
+            <TR><TD b>SMA 20/50/200</TD><TD>Moyennes mobiles (tendance lissée)</TD><TD>Prix &gt; SMA 200 = tendance haussière</TD></TR>
+            <TR><TD b>RSI</TD><TD>Momentum (0-100)</TD><TD>&gt; 70 = suracheté, &lt; 30 = survendu</TD></TR>
+            <TR><TD b>MACD</TD><TD>Accélération de la tendance</TD><TD>Histogramme positif = hausse accélère</TD></TR>
+            <TR><TD b>Bollinger</TD><TD>Volatilité</TD><TD>Prix sur bande basse = possible rebond</TD></TR>
+            <TR><TD b>ATR</TD><TD>Volatilité en dollars</TD><TD>Sert à calculer les stop-loss</TD></TR>
+          </Table>
+          <ScoreGuide high="Forte dynamique haussière, indicateurs alignés" low="Dynamique baissière, momentum négatif" />
+        </CriterionCard>
+
+        <CriterionCard emoji="🔗" name="2. Corrélation" description="Compare le comportement de l'actif avec les autres. Un actif qui se découple du groupe est intéressant.">
+          <ScoreGuide high="L'actif a un comportement très indépendant — opportunité unique" low="Forte corrélation — suit le marché, difficile de trouver un avantage" />
+        </CriterionCard>
+
+        <CriterionCard emoji="💬" name="3. Sentiment" description="Analyse ce que les gens disent sur Reddit et les actualités. Utilise FinBERT (IA spécialisée en finance).">
+          <ScoreGuide high="Sentiment très positif, beaucoup de buzz optimiste" low="Sentiment négatif — prudence ou opportunité contrariante" />
+        </CriterionCard>
+
+        <CriterionCard emoji="🧬" name="4. Génome Explosif" description="Analyse l'ADN comportemental pour détecter les configurations pré-explosives : compression de volatilité, volume en contraction, divergences.">
+          <Table headers={["Composante", "Ce qu'elle cherche"]}>
+            <TR><TD b>Phase de cycle</TD><TD>Accumulation = les gros investisseurs achètent discrètement</TD></TR>
+            <TR><TD b>Sismographe</TD><TD>6 micro-signaux de compression (Bollinger squeeze, inside bars...)</TD></TR>
+            <TR><TD b>Mémoire fractale</TD><TD>L'actif répète-t-il un pattern pré-explosion du passé ?</TD></TR>
+          </Table>
+          <ScoreGuide high="Configuration explosive ! Plusieurs micro-signaux actifs" low="Pas de configuration explosive" />
+        </CriterionCard>
+
+        <CriterionCard emoji="🏦" name="5. Capital Institutionnel (IPI)" description="Détecte si les fonds et banques achètent ou vendent discrètement.">
+          <Table headers={["Signal", "Signification"]}>
+            <TR><TD b>A/D Line en hausse</TD><TD>Plus d'argent entre qu'il n'en sort = accumulation</TD></TR>
+            <TR><TD b>Smart Money Flow</TD><TD>Gros volumes sans mouvement de prix = accumulation silencieuse</TD></TR>
+            <TR><TD b>Anomalie de volume</TD><TD>Volume &gt; 2x la normale = activité institutionnelle</TD></TR>
+          </Table>
+          <ScoreGuide high="Les institutionnels accumulent. Suivez l'argent intelligent." low="Distribution — les gros vendent" />
+        </CriterionCard>
+
+        <CriterionCard emoji="⚡" name="6. Vélocité Fondamentale (IVF)" description="Ne regarde pas si les fondamentaux sont bons mais s'ils s'améliorent de plus en plus vite.">
+          <ScoreGuide high="Accélération fondamentale forte, surperformance du benchmark" low="Décélération — l'actif perd de l'élan" />
+        </CriterionCard>
+
+        <CriterionCard emoji="🌍" name="7. Macro Tailwind (MTS)" description="Le vent macro-économique souffle-t-il dans le bon sens ?">
+          <Table headers={["Facteur", "Impact"]}>
+            <TR><TD b>Cycle économique</TD><TD>Expansion = favorable aux actions</TD></TR>
+            <TR><TD b>Taux d'intérêt</TD><TD>Taux en baisse = favorable</TD></TR>
+            <TR><TD b>VIX</TD><TD>&lt; 20 = marché calme, &gt; 30 = panique</TD></TR>
+            <TR><TD b>Appétit risque</TD><TD>SPY &gt; GLD = risk-on (favorable)</TD></TR>
+          </Table>
+          <ScoreGuide high="Vent macro très favorable" low="Vent contraire — conditions défavorables" />
+        </CriterionCard>
+
+        <CriterionCard emoji="👥" name="8. Topologie Sociale (SGI)" description="Mesure la qualité de la communauté, pas juste la quantité de mentions.">
+          <ScoreGuide high="Communauté active et de qualité, discussions pertinentes" low="Peu d'intérêt social ou discussions négatives" />
+        </CriterionCard>
+
+        <CriterionCard emoji="💎" name="9. Unicité du Signal (SUS)" description="Un signal que tout le monde voit est déjà dans le prix = pas d'avantage.">
+          <Table headers={["Composante", "Ce qu'elle mesure"]}>
+            <TR><TD b>Crowding</TD><TD>Combien d'actifs ont le même signal ? Moins = mieux</TD></TR>
+            <TR><TD b>Novelty</TD><TD>Comportement inhabituel historiquement ?</TD></TR>
+            <TR><TD b>Timeframe Neglect</TD><TD>Signal visible sur des TF que personne ne regarde ?</TD></TR>
+            <TR><TD b>Complexity Premium</TD><TD>Faut-il une analyse complexe pour le voir ?</TD></TR>
+          </Table>
+          <ScoreGuide high="Signal unique — avantage informationnel probable" low="Signal crowdé — tout le monde l'a vu, pas d'avantage" />
+        </CriterionCard>
+
+        <H3>Vetos</H3>
+        <P>Certains critères peuvent <B>bloquer</B> un actif même si son score global est bon :</P>
+        <Table headers={["Critère", "Seuil", "Raison"]}>
+          <TR><TD b>MTS &lt; 20</TD><TD>Veto</TD><TD>Vent macro trop contraire</TD></TR>
+          <TR><TD b>SUS &lt; 25</TD><TD>Veto</TD><TD>Signal trop crowdé</TD></TR>
+          <TR><TD b>IPI &lt; 20</TD><TD>Veto</TD><TD>Distribution institutionnelle massive</TD></TR>
+        </Table>
+      </>
+    ),
+  },
+  {
+    id: "analyser",
+    title: "Module 2 — Analyseur",
+    icon: <Brain size={18} />,
+    content: (
+      <>
+        <P>Détecte le <B>régime de marché</B> et choisit la meilleure <B>stratégie</B> pour chaque actif.</P>
+
+        <H3>Les 5 régimes de marché</H3>
+        <Table headers={["Régime", "Ce que ça signifie"]}>
+          <TR><TD b>🟢 BULL</TD><TD>Les prix montent, tendance positive</TD></TR>
+          <TR><TD b>🔴 BEAR</TD><TD>Les prix descendent, tendance négative</TD></TR>
+          <TR><TD b>🔵 RANGE</TD><TD>Le prix oscille, pas de tendance</TD></TR>
+          <TR><TD b>⚫ CRISIS</TD><TD>Chute brutale + volatilité extrême</TD></TR>
+          <TR><TD b>🟡 TRANSITION</TD><TD>Changement de régime en cours</TD></TR>
+        </Table>
+        <P>La détection est <B>probabiliste</B>. Un actif peut être "BULL à 46%, TRANSITION à 30%". Plus c'est haut, plus on est sûr.</P>
+
+        <H3>Les 7 stratégies</H3>
+        <Table headers={["Stratégie", "Quand elle fonctionne", "Comment elle entre"]}>
+          <TR><TD b>Trend Following</TD><TD>Marché en tendance claire</TD><TD>Croisement des moyennes mobiles</TD></TR>
+          <TR><TD b>Mean Reversion</TD><TD>Prix en excès</TD><TD>Prix trop loin de sa moyenne</TD></TR>
+          <TR><TD b>Mean Reversion V2</TD><TD>Idem + confirmations</TD><TD>Z-score + Keltner + volume</TD></TR>
+          <TR><TD b>Breakout</TD><TD>Cassure d'un range</TD><TD>Prix sort d'une zone + volume</TD></TR>
+          <TR><TD b>Momentum</TD><TD>Force relative</TD><TD>Plusieurs indicateurs alignés</TD></TR>
+          <TR><TD b>Fibonacci</TD><TD>Niveaux naturels</TD><TD>Rebond sur 0.382 / 0.5 / 0.618</TD></TR>
+          <TR><TD b>Ichimoku</TD><TD>Système complet</TD><TD>Prix au-dessus du "nuage"</TD></TR>
+        </Table>
+
+        <H3>Sharpe Ratio</H3>
+        <P>Mesure le rendement ajusté au risque. C'est la métrique la plus importante pour comparer les stratégies :</P>
+        <Table headers={["Sharpe", "Verdict"]}>
+          <TR><TD b>&gt; 1.5</TD><TD>Excellent</TD></TR>
+          <TR><TD b>&gt; 1.0</TD><TD>Bon</TD></TR>
+          <TR><TD b>&gt; 0.5</TD><TD>Correct</TD></TR>
+          <TR><TD b>&lt; 0</TD><TD>La stratégie perd de l'argent</TD></TR>
+        </Table>
+      </>
+    ),
+  },
+  {
+    id: "scoring",
+    title: "Module 3 — Scoring",
+    icon: <Target size={18} />,
+    content: (
+      <>
+        <P>Produit la <B>Thèse de Trade</B> — la décision finale avec prix d'entrée, stop-loss et objectifs.</P>
+
+        <H3>Le Verdict</H3>
+        <div className="grid grid-cols-3 gap-3 my-4">
+          <div className="bg-gold/10 border border-gold/20 rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-gold">GO</p>
+            <p className="text-xs text-text-secondary mt-1">Toutes les conditions réunies</p>
+          </div>
+          <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-yellow-400">ATTENTE</p>
+            <p className="text-xs text-text-secondary mt-1">Presque bon, surveiller</p>
+          </div>
+          <div className="bg-surface border border-border rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-text-secondary">PAS DE TRADE</p>
+            <p className="text-xs text-text-secondary mt-1">Rester à l'écart</p>
+          </div>
+        </div>
+
+        <H3>Composantes du score</H3>
+        <Table headers={["Composante", "Poids", "Ce qu'elle mesure"]}>
+          <TR><TD b>Score Bayésien</TD><TD>50%</TD><TD>Combine l'historique de l'actif + observations actuelles du scanner</TD></TR>
+          <TR><TD b>Qualité du Contexte (SQC)</TD><TD>20%</TD><TD>Liquidité + timing + volatilité — les conditions pratiques</TD></TR>
+          <TR><TD b>Conviction stratégie</TD><TD>30%</TD><TD>À quel point la stratégie est sûre de son signal</TD></TR>
+        </Table>
+
+        <H3>Position Sizing — Kelly</H3>
+        <P>La taille de position est <B>cruciale</B>. Le critère de Kelly calcule la taille optimale :</P>
+        <Table headers={["Paramètre", "Signification"]}>
+          <TR><TD b>Kelly fraction</TD><TD>% du capital à risquer (ex: 8.9%)</TD></TR>
+          <TR><TD b>Position size</TD><TD>Montant en $ (ex: $8 932)</TD></TR>
+          <TR><TD b>R:R</TD><TD>Ratio risque/récompense. 1:1.5 = 1$ risqué → 1.50$ de gain potentiel</TD></TR>
+          <TR><TD b>Win rate</TD><TD>Probabilité de gain (ex: 61%)</TD></TR>
+          <TR><TD b>Expected Value</TD><TD>Si positif = le trade est statistiquement rentable à long terme</TD></TR>
+        </Table>
+        <Callout>Règle d'or : ne risquez JAMAIS plus de 2% de votre capital sur un seul trade.</Callout>
+      </>
+    ),
+  },
+  {
+    id: "execution",
+    title: "Module 4 — Exécution",
+    icon: <Zap size={18} />,
+    content: (
+      <>
+        <P>Passe les ordres en paper trading via Alpaca. Chaque trade passe par 3 étapes :</P>
+
+        <H3>1. Vérification des biais comportementaux</H3>
+        <Table headers={["Biais", "Ce que c'est", "Comment le système le détecte"]}>
+          <TR><TD b>🎰 Disposition</TD><TD>Couper les gains trop tôt, garder les pertes</TD><TD>Compare la durée gagnants vs perdants</TD></TR>
+          <TR><TD b>😤 Revenge Trading</TD><TD>Augmenter le risque après une perte</TD><TD>Taille de position augmente après perte ?</TD></TR>
+          <TR><TD b>😱 FOMO</TD><TD>Entrer tard dans un mouvement</TD><TD>Prix déjà bougé de &gt; 25% ?</TD></TR>
+          <TR><TD b>🔄 Over-Trading</TD><TD>Trop de trades = frais excessifs</TD><TD>Compte les trades par jour</TD></TR>
+        </Table>
+
+        <H3>2. Scaling 3 tranches</H3>
+        <P>Le système n'entre pas tout d'un coup :</P>
+        <Table headers={["Tranche", "Taille", "Quand"]}>
+          <TR><TD b>T1</TD><TD>40%</TD><TD>Immédiatement</TD></TR>
+          <TR><TD b>T2</TD><TD>35%</TD><TD>Ordre limit — quand le prix confirme</TD></TR>
+          <TR><TD b>T3</TD><TD>25%</TD><TD>Ordre stop — sur momentum fort</TD></TR>
+        </Table>
+
+        <H3>3. Gestion post-entrée</H3>
+        <P>Une fois en position, le <B>trailing stop</B> monte automatiquement avec le prix pour protéger vos gains.</P>
+      </>
+    ),
+  },
+  {
+    id: "portfolio",
+    title: "Module 5 — Portefeuille",
+    icon: <Briefcase size={18} />,
+    content: (
+      <>
+        <H3>Risk Parity</H3>
+        <P>Au lieu de mettre le même <B>montant</B>, le système met le même <B>risque</B> sur chaque position. Un actif volatile (crypto) = petite position. Un actif stable (obligation) = grosse position.</P>
+
+        <H3>Stress Tests</H3>
+        <P>Simule 4 catastrophes sur votre portefeuille :</P>
+        <Table headers={["Scénario", "Ce qui se passe", "Perte typique"]}>
+          <TR><TD b>COVID 2020</TD><TD>Crash -34% en 23 jours</TD><TD>Actions -34%, Crypto -50%</TD></TR>
+          <TR><TD b>Bear 2022</TD><TD>Baisse prolongée + hausse taux</TD><TD>Actions -25%, Crypto -65%</TD></TR>
+          <TR><TD b>Black Swan Crypto</TD><TD>Effondrement type Luna/FTX</TD><TD>Crypto -80%</TD></TR>
+          <TR><TD b>Flash Crash</TD><TD>Chute brutale intraday</TD><TD>Actions -10%</TD></TR>
+        </Table>
+
+        <H3>Régime du portefeuille</H3>
+        <Table headers={["Régime", "Signification", "Action"]}>
+          <TR><TD b>ALPHA</TD><TD>Surperformance</TD><TD>Maintenir les positions</TD></TR>
+          <TR><TD b>BETA</TD><TD>Performance marché</TD><TD>Normal</TD></TR>
+          <TR><TD b>STRESS</TD><TD>Drawdown &gt; 10%</TD><TD>Réduire les positions</TD></TR>
+        </Table>
+      </>
+    ),
+  },
+  {
+    id: "performance",
+    title: "Module 6 — Rentabilité",
+    icon: <TrendingUp size={18} />,
+    content: (
+      <>
+        <H3>Meta-Score (0-100)</H3>
+        <P>La note de santé globale du système. <B>C'est le chiffre le plus important</B> car il pilote tout :</P>
+        <Table headers={["Score", "Engagement", "Ce que fait le système"]}>
+          <TR><TD b>&gt; 80</TD><TD>FULL</TD><TD>Taille de position maximale</TD></TR>
+          <TR><TD b>60-80</TD><TD>NORMAL</TD><TD>Paramètres standard</TD></TR>
+          <TR><TD b>40-60</TD><TD>PRUDENT</TD><TD>Taille réduite de moitié</TD></TR>
+          <TR><TD b>&lt; 40</TD><TD>MINIMAL</TD><TD>Pause partielle</TD></TR>
+        </Table>
+
+        <H3>Early Warning System (EWS)</H3>
+        <P>5 indicateurs d'alerte. Si un atteint <B>CRITIQUE</B>, le pipeline se met en pause automatiquement :</P>
+        <Table headers={["Indicateur", "ATTENTION", "ALERTE", "CRITIQUE"]}>
+          <TR><TD b>Drawdown</TD><TD>-5%</TD><TD>-10%</TD><TD>-20%</TD></TR>
+          <TR><TD b>Série de pertes</TD><TD>3 trades</TD><TD>5 trades</TD><TD>8 trades</TD></TR>
+          <TR><TD b>Déclin Win Rate</TD><TD>-10pp</TD><TD>-20pp</TD><TD>-30pp</TD></TR>
+          <TR><TD b>Spike Volatilité</TD><TD>1.5x</TD><TD>2.5x</TD><TD>4x</TD></TR>
+        </Table>
+
+        <H3>Feedback Loop</H3>
+        <P>Le Module 6 renvoie des informations au Module 1 pour s'améliorer :</P>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-text-secondary">
+          <li>Scanner sélectionne mal → réduire son poids</li>
+          <li>Timing mauvais → raccourcir la shelf life</li>
+          <li>Système CRITIQUE → pause automatique</li>
+        </ul>
+        <Callout>C'est ce qui fait que le système apprend de ses erreurs.</Callout>
+      </>
+    ),
+  },
+  {
+    id: "glossary",
+    title: "Glossaire",
+    icon: <HelpCircle size={18} />,
+    content: (
+      <>
+        <P>Les termes essentiels expliqués simplement :</P>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <GlossaryItem term="ATR" def="Volatilité en dollars. ATR = $5 = le prix bouge de ~$5/jour" />
+          <GlossaryItem term="Backtest" def="Tester une stratégie sur le passé" />
+          <GlossaryItem term="Drawdown" def="Perte depuis le plus haut. -10% = vous avez perdu 10% depuis le pic" />
+          <GlossaryItem term="FOMO" def="Peur de rater un mouvement → entrer trop tard" />
+          <GlossaryItem term="Kelly" def="Formule pour la taille de position optimale" />
+          <GlossaryItem term="LONG" def="Parier que le prix va monter (acheter)" />
+          <GlossaryItem term="MACD" def="Indicateur de momentum — croisement haut = hausse accélère" />
+          <GlossaryItem term="Paper Trading" def="Trading simulé, argent fictif, aucun risque" />
+          <GlossaryItem term="P&L" def="Profit & Loss — votre gain ou perte" />
+          <GlossaryItem term="RSI" def="Momentum 0-100. > 70 suracheté, < 30 survendu" />
+          <GlossaryItem term="R:R" def="Risk/Reward. 1:2 = risquer 1$ pour gagner 2$" />
+          <GlossaryItem term="Sharpe" def="Rendement ajusté au risque. > 1 = bon, > 2 = excellent" />
+          <GlossaryItem term="SHORT" def="Parier que le prix va descendre (vendre)" />
+          <GlossaryItem term="Slippage" def="Différence entre prix voulu et prix obtenu" />
+          <GlossaryItem term="Stop Loss" def="Sortie automatique si le prix va contre vous" />
+          <GlossaryItem term="Take Profit" def="Sortie automatique quand l'objectif est atteint" />
+          <GlossaryItem term="Trailing Stop" def="Stop qui monte avec le prix — protège les gains" />
+          <GlossaryItem term="VIX" def="Indice de la peur. < 20 calme, > 30 panique" />
+          <GlossaryItem term="Win Rate" def="% de trades gagnants. 55% = 55 sur 100 gagnants" />
+          <GlossaryItem term="Z-score" def="Mesure l'extrémité. > 2 = très loin de la moyenne" />
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "settings",
+    title: "Paramètres",
+    icon: <Settings size={18} />,
+    content: (
+      <>
+        <H3>Clés API à configurer dans .env</H3>
+        <Table headers={["Variable", "Où l'obtenir", "Impact"]}>
+          <TR><TD b>ALPACA_API_KEY</TD><TD>app.alpaca.markets</TD><TD>Connexion broker (paper trading)</TD></TR>
+          <TR><TD b>FRED_API_KEY</TD><TD>fred.stlouisfed.org</TD><TD>Données macro réelles (VIX, taux)</TD></TR>
+          <TR><TD b>REDDIT_CLIENT_ID</TD><TD>reddit.com/prefs/apps</TD><TD>Sentiment Reddit réel</TD></TR>
+        </Table>
+
+        <H3>Commandes</H3>
+        <div className="bg-surface rounded-xl p-4 font-mono text-xs space-y-2">
+          <div><span className="text-gold">bash scripts/start_all.sh</span> <span className="text-text-secondary">— Démarrer tout</span></div>
+          <div><span className="text-gold">bash scripts/stop_all.sh</span> <span className="text-text-secondary">— Arrêter tout</span></div>
+          <div><span className="text-gold">bash scripts/status.sh</span> <span className="text-text-secondary">— Vérifier l'état</span></div>
+          <div><span className="text-gold">make worker</span> <span className="text-text-secondary">— Lancer le pipeline automatique</span></div>
+          <div><span className="text-gold">make beat</span> <span className="text-text-secondary">— Lancer le scheduler</span></div>
+          <div><span className="text-gold">pytest tests/</span> <span className="text-text-secondary">— Lancer les 123 tests</span></div>
+        </div>
+
+        <Callout>TradePilot est un outil d'aide à la décision, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas perdre. Commencez toujours par le paper trading.</Callout>
+      </>
+    ),
+  },
+];
+
+// ============================================================
+// Page principale
+// ============================================================
+
+export default function Guide() {
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["start"]));
+
+  const toggle = (id: string) => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const openAll = () => setOpenSections(new Set(SECTIONS.map(s => s.id)));
+  const closeAll = () => setOpenSections(new Set());
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold">Guide Utilisateur</h2>
+          <p className="text-text-secondary text-sm mt-1">
+            Tout comprendre sur TradePilot, même sans expérience en trading
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={openAll} className="text-xs px-3 py-1.5 bg-surface border border-border rounded-lg hover:bg-gold/10 transition-colors">
+            Tout ouvrir
+          </button>
+          <button onClick={closeAll} className="text-xs px-3 py-1.5 bg-surface border border-border rounded-lg hover:bg-gold/10 transition-colors">
+            Tout fermer
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {SECTIONS.map((section) => {
+          const isOpen = openSections.has(section.id);
+          return (
+            <div key={section.id} className="bg-card border border-border rounded-xl overflow-hidden">
+              <button
+                onClick={() => toggle(section.id)}
+                className="w-full flex items-center gap-3 p-5 text-left hover:bg-surface/50 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-lg bg-gold/10 text-gold flex items-center justify-center flex-shrink-0">
+                  {section.icon}
+                </div>
+                <span className="text-sm font-semibold flex-1">{section.title}</span>
+                {isOpen ? <ChevronDown size={16} className="text-text-secondary" /> : <ChevronRight size={16} className="text-text-secondary" />}
+              </button>
+              {isOpen && (
+                <div className="px-5 pb-5 border-t border-border/30 pt-4">
+                  {section.content}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Sous-composants
+// ============================================================
+
+function H3({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-sm font-semibold mt-5 mb-2">{children}</h3>;
+}
+
+function P({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm text-text-secondary leading-relaxed mb-3">{children}</p>;
+}
+
+function B({ children }: { children: React.ReactNode }) {
+  return <strong className="text-text-primary font-semibold">{children}</strong>;
+}
+
+function Code({ children }: { children: React.ReactNode }) {
+  return <code className="bg-surface px-1.5 py-0.5 rounded text-xs font-mono text-gold">{children}</code>;
+}
+
+function Callout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="my-4 p-4 bg-gold/5 border-l-4 border-gold/40 rounded-r-lg text-sm text-text-secondary">
+      {children}
+    </div>
+  );
+}
+
+function Table({ headers, children }: { headers: string[]; children: React.ReactNode }) {
+  return (
+    <div className="overflow-x-auto my-3">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border">
+            {headers.map((h) => (
+              <th key={h} className="text-left pb-2 pr-3 text-text-secondary font-medium">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function TR({ children }: { children: React.ReactNode }) {
+  return <tr className="border-b border-border/30">{children}</tr>;
+}
+
+function TD({ children, b }: { children: React.ReactNode; b?: boolean }) {
+  return <td className={`py-2 pr-3 ${b ? "font-semibold text-text-primary" : "text-text-secondary"}`}>{children}</td>;
+}
+
+function CriterionCard({ emoji, name, description, children }: {
+  emoji: string; name: string; description: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="my-4 bg-surface rounded-xl p-4 border border-border/30">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-lg">{emoji}</span>
+        <span className="text-sm font-semibold">{name}</span>
+      </div>
+      <p className="text-xs text-text-secondary mb-3">{description}</p>
+      {children}
+    </div>
+  );
+}
+
+function ScoreGuide({ high, low }: { high: string; low: string }) {
+  return (
+    <div className="mt-2 space-y-1 text-xs">
+      <div className="flex gap-2"><span className="text-gold font-semibold w-16">Score &gt; 70</span><span className="text-text-secondary">{high}</span></div>
+      <div className="flex gap-2"><span className="text-red-400 font-semibold w-16">Score &lt; 40</span><span className="text-text-secondary">{low}</span></div>
+    </div>
+  );
+}
+
+function GlossaryItem({ term, def }: { term: string; def: string }) {
+  return (
+    <div className="py-1.5 border-b border-border/20">
+      <span className="font-mono font-semibold text-gold">{term}</span>
+      <span className="text-text-secondary ml-2">{def}</span>
+    </div>
+  );
+}

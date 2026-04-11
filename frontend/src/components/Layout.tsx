@@ -9,6 +9,7 @@ import {
   Briefcase,
   TrendingUp,
   LogOut,
+  BookOpen,
   Settings,
 } from "lucide-react";
 import Notifications from "./Notifications";
@@ -24,6 +25,7 @@ const navItems = [
   { to: "/portfolio", icon: Briefcase, label: "Portefeuille" },
   { to: "/performance", icon: TrendingUp, label: "Performance" },
   { to: "/settings", icon: Settings, label: "Paramètres" },
+  { to: "/guide", icon: BookOpen, label: "Guide" },
 ];
 
 interface LayoutProps {
