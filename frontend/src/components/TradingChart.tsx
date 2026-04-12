@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { createChart, type IChartApi, ColorType, CandlestickSeries, LineSeries, HistogramSeries } from "lightweight-charts";
+import { useEffect, useRef, useState } from "react";
+import { createChart, type IChartApi, ColorType, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries } from "lightweight-charts";
 
 interface OHLCVBar {
   date: string;
@@ -17,6 +17,8 @@ interface Props {
   showSMA?: boolean;
 }
 
+type ChartType = "candles" | "line" | "area";
+
 export default function TradingChart({
   data,
   height = 400,
@@ -25,6 +27,9 @@ export default function TradingChart({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const [chartType, setChartType] = useState<ChartType>("candles");
+  const [smaVisible, setSmaVisible] = useState(showSMA);
+  const [volumeVisible, setVolumeVisible] = useState(showVolume);
 
   useEffect(() => {
     if (!containerRef.current || data.length === 0) return;
@@ -53,7 +58,7 @@ export default function TradingChart({
       },
       rightPriceScale: {
         borderColor: "#1F1F1F",
-        scaleMargins: { top: 0.1, bottom: showVolume ? 0.25 : 0.05 },
+        scaleMargins: { top: 0.1, bottom: volumeVisible ? 0.25 : 0.05 },
       },
       timeScale: {
         borderColor: "#1F1F1F",
@@ -71,49 +76,74 @@ export default function TradingChart({
       close: d.close,
     }));
 
-    // Chandeliers — API v5
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#D4AF37",
-      downColor: "#FFFFFF22",
-      borderUpColor: "#D4AF37",
-      borderDownColor: "#555555",
-      wickUpColor: "#D4AF37",
-      wickDownColor: "#555555",
-    });
-    candleSeries.setData(candleData);
+    const lineData = data.map((d) => ({
+      time: d.date as any,
+      value: d.close,
+    }));
 
-    // SMA 20
-    if (showSMA && data.length >= 20) {
-      const sma20 = computeSMA(data.map((d) => d.close), 20);
-      const smaData = data
-        .map((d, i) => ({ time: d.date as any, value: sma20[i] }))
-        .filter((d) => d.value !== null) as { time: any; value: number }[];
-
-      const sma20Series = chart.addSeries(LineSeries, {
-        color: "#D4AF3788",
-        lineWidth: 1,
-        crosshairMarkerVisible: false,
+    // === Type de graphique ===
+    if (chartType === "candles") {
+      const series = chart.addSeries(CandlestickSeries, {
+        upColor: "#D4AF37",
+        downColor: "#FFFFFF22",
+        borderUpColor: "#D4AF37",
+        borderDownColor: "#555555",
+        wickUpColor: "#D4AF37",
+        wickDownColor: "#555555",
       });
-      sma20Series.setData(smaData);
+      series.setData(candleData);
+    } else if (chartType === "line") {
+      const series = chart.addSeries(LineSeries, {
+        color: "#D4AF37",
+        lineWidth: 2,
+        crosshairMarkerVisible: true,
+        crosshairMarkerRadius: 4,
+      });
+      series.setData(lineData);
+    } else if (chartType === "area") {
+      const series = chart.addSeries(AreaSeries, {
+        topColor: "rgba(212, 175, 55, 0.3)",
+        bottomColor: "rgba(212, 175, 55, 0.02)",
+        lineColor: "#D4AF37",
+        lineWidth: 2,
+        crosshairMarkerVisible: true,
+      });
+      series.setData(lineData);
     }
 
-    // SMA 50
-    if (showSMA && data.length >= 50) {
-      const sma50 = computeSMA(data.map((d) => d.close), 50);
-      const smaData = data
-        .map((d, i) => ({ time: d.date as any, value: sma50[i] }))
-        .filter((d) => d.value !== null) as { time: any; value: number }[];
+    // === SMA ===
+    if (smaVisible) {
+      if (data.length >= 20) {
+        const sma20 = computeSMA(data.map((d) => d.close), 20);
+        const smaData = data
+          .map((d, i) => ({ time: d.date as any, value: sma20[i] }))
+          .filter((d) => d.value !== null) as { time: any; value: number }[];
 
-      const sma50Series = chart.addSeries(LineSeries, {
-        color: "#F5D06066",
-        lineWidth: 1,
-        crosshairMarkerVisible: false,
-      });
-      sma50Series.setData(smaData);
+        const sma20Series = chart.addSeries(LineSeries, {
+          color: "#D4AF3788",
+          lineWidth: 1,
+          crosshairMarkerVisible: false,
+        });
+        sma20Series.setData(smaData);
+      }
+
+      if (data.length >= 50) {
+        const sma50 = computeSMA(data.map((d) => d.close), 50);
+        const smaData = data
+          .map((d, i) => ({ time: d.date as any, value: sma50[i] }))
+          .filter((d) => d.value !== null) as { time: any; value: number }[];
+
+        const sma50Series = chart.addSeries(LineSeries, {
+          color: "#F5D06066",
+          lineWidth: 1,
+          crosshairMarkerVisible: false,
+        });
+        sma50Series.setData(smaData);
+      }
     }
 
-    // Volume
-    if (showVolume) {
+    // === Volume ===
+    if (volumeVisible) {
       const volumeSeries = chart.addSeries(HistogramSeries, {
         priceFormat: { type: "volume" },
         priceScaleId: "volume",
@@ -146,9 +176,51 @@ export default function TradingChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, height, showVolume, showSMA]);
+  }, [data, height, chartType, smaVisible, volumeVisible]);
 
-  return <div ref={containerRef} className="w-full rounded-lg overflow-hidden" />;
+  return (
+    <div>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex gap-1">
+          {(["candles", "line", "area"] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => setChartType(type)}
+              className={`px-3 py-1 text-[10px] rounded-lg transition-colors ${
+                chartType === type
+                  ? "bg-gold/10 text-gold border border-gold/20"
+                  : "text-text-secondary hover:text-text-primary bg-surface"
+              }`}
+            >
+              {type === "candles" ? "Bougies" : type === "line" ? "Ligne" : "Zone"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSmaVisible(!smaVisible)}
+            className={`px-2 py-1 text-[10px] rounded-lg transition-colors ${
+              smaVisible ? "bg-gold/10 text-gold border border-gold/20" : "text-text-secondary bg-surface"
+            }`}
+          >
+            SMA
+          </button>
+          <button
+            onClick={() => setVolumeVisible(!volumeVisible)}
+            className={`px-2 py-1 text-[10px] rounded-lg transition-colors ${
+              volumeVisible ? "bg-gold/10 text-gold border border-gold/20" : "text-text-secondary bg-surface"
+            }`}
+          >
+            Volume
+          </button>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div ref={containerRef} className="w-full rounded-lg overflow-hidden" />
+    </div>
+  );
 }
 
 function computeSMA(values: number[], period: number): (number | null)[] {
