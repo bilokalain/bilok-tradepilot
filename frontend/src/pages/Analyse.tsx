@@ -234,25 +234,17 @@ function AnalyseResult({ data }: { data: any }) {
         </InfoCard>
       </div>
 
-      {/* Toutes les stratégies */}
+      {/* Toutes les stratégies — cliquables */}
       {data.all_strategies?.length > 0 && (
-        <InfoCard title="Toutes les stratégies" icon={<TrendingUp size={18} />} description="Chaque stratégie donne son avis : LONG (acheter), SHORT (vendre) ou NEUTRAL (rien faire).">
+        <InfoCard title="Toutes les stratégies" icon={<TrendingUp size={18} />} description="Cliquez sur une stratégie pour comprendre comment elle fonctionne et pourquoi elle donne ce signal.">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {data.all_strategies.map((s: any) => (
-              <div key={s.strategy} className={`bg-surface rounded-xl p-3 flex items-center justify-between ${s.strategy === best.name ? "border border-gold/20" : ""}`}>
-                <div>
-                  <p className="text-sm font-semibold">{STRATEGY_LABELS[s.strategy] || s.strategy}</p>
-                  {s.strategy === best.name && <p className="text-[10px] text-gold">Recommandée</p>}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2 py-0.5 border rounded font-semibold ${
-                    s.direction === "LONG" ? "text-gold bg-gold/10 border-gold/20" :
-                    s.direction === "SHORT" ? "text-red-400 bg-red-400/10 border-red-400/20" :
-                    "text-text-secondary bg-surface border-border"
-                  }`}>{s.direction}</span>
-                  <span className="font-mono text-sm w-8 text-right">{s.conviction}</span>
-                </div>
-              </div>
+              <StrategyCard
+                key={s.strategy}
+                strategy={s}
+                isBest={s.strategy === best.name}
+                lastPrice={data.last_price}
+              />
             ))}
           </div>
         </InfoCard>
@@ -291,6 +283,70 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+// Définitions des stratégies
+const STRATEGY_DEFINITIONS: Record<string, { definition: string; when: string; how: string }> = {
+  trend_following: {
+    definition: "Suit la tendance en cours. Quand les moyennes mobiles courtes (EMA 9) croisent au-dessus des longues (EMA 21), c'est un signal d'achat. Inversement pour la vente.",
+    when: "Marché en tendance claire (ADX > 25). Ne fonctionne PAS en range.",
+    how: "Croisement EMA 9/21 + prix au-dessus de la SMA 50 + confirmation OBV.",
+  },
+  mean_reversion: {
+    definition: "Parie que le prix revient toujours vers sa moyenne. Quand le prix s'éloigne trop (touche les bandes de Bollinger + RSI extrême), il devrait revenir.",
+    when: "Prix en excès (suracheté ou survendu). RSI < 30 ou > 70.",
+    how: "Prix sous la bande Bollinger basse + RSI < 30 = achat. Prix au-dessus + RSI > 70 = vente.",
+  },
+  breakout: {
+    definition: "Entre quand le prix casse un niveau clé (plus haut ou plus bas des 20 derniers jours) avec confirmation par le volume.",
+    when: "Fin de consolidation. Le prix sort d'un range après une période calme.",
+    how: "Prix > plus haut 20j + volume > 1.5x la moyenne = achat. Inversement pour la vente.",
+  },
+  momentum: {
+    definition: "Suit la force relative. Quand plusieurs indicateurs de momentum (RSI, MACD, Stochastic) pointent dans la même direction, on entre.",
+    when: "Momentum fort et cohérent sur plusieurs indicateurs.",
+    how: "RSI > 55 + MACD positif + Stochastic croisement + performance 20j positive = 4 signaux alignés.",
+  },
+  mean_reversion_v2: {
+    definition: "Version avancée du Mean Reversion. Utilise le Z-score (mesure statistique de l'excès), les canaux Keltner (plus robustes que Bollinger) et la contraction de volume (exhaustion du mouvement).",
+    when: "Excès de prix confirmé par 3+ indicateurs. Plus précis que la V1.",
+    how: "Z-score > 2 + sous Keltner + RSI < 25 + volume en contraction = signal fort.",
+  },
+  fibonacci: {
+    definition: "Les niveaux de Fibonacci (0.382, 0.5, 0.618) sont des niveaux 'naturels' où le prix a tendance à rebondir. Le 0.618 (Golden Ratio) est le plus puissant.",
+    when: "Après un mouvement fort, le prix retrace vers un niveau Fibonacci clé.",
+    how: "Prix touche le niveau 0.618 du retracement = zone de rebond probable. SL sous le 0.786.",
+  },
+  ichimoku: {
+    definition: "Système japonais complet qui combine 5 composantes : Tenkan (tendance courte), Kijun (tendance moyenne), nuage Senkou (support/résistance future), Chikou (confirmation).",
+    when: "Prix au-dessus du nuage + Tenkan > Kijun + nuage vert = tout aligné.",
+    how: "3 conditions : prix vs nuage, Tenkan vs Kijun, couleur du nuage. Minimum 2/3 pour un signal.",
+  },
+  adaptive_trend: {
+    definition: "Trend Following intelligent : les paramètres (périodes EMA, RSI, multiplicateurs ATR) s'adaptent automatiquement à la volatilité de l'actif. Marché calme = périodes longues. Marché nerveux = périodes courtes.",
+    when: "Tout marché — s'adapte automatiquement au contexte.",
+    how: "EMA 5/13 en haute volatilité, EMA 13/34 en basse volatilité. Confirmation par OBV.",
+  },
+  multi_signal: {
+    definition: "Exige que 4 indicateurs sur 6 soient d'accord AVANT d'entrer. C'est le filtre le plus strict — réduit les faux signaux de ~60%. Les 6 votes : EMA, RSI, MACD, SMA 50, OBV, Stochastic.",
+    when: "Consensus fort entre les indicateurs. Conviction max = 95.",
+    how: "6 indicateurs votent LONG ou SHORT. Minimum 4/6 d'accord pour agir.",
+  },
+  keltner_breakout: {
+    definition: "Breakout adaptatif basé sur les canaux Keltner (EMA + ATR) au lieu d'un range fixe. Les canaux s'adaptent à la volatilité de chaque actif. Plus robuste que le breakout classique.",
+    when: "Prix sort du canal Keltner avec volume > 1.5x la moyenne.",
+    how: "Prix > canal Keltner haut + volume fort = achat. Stop Loss = milieu du canal.",
+  },
+  vwap_reversion: {
+    definition: "Mean Reversion autour du VWAP (prix moyen pondéré par le volume). Le VWAP est le 'vrai' prix du marché utilisé par les institutionnels. Plus précis que les bandes de Bollinger.",
+    when: "Prix dévie de > 2% du VWAP + RSI extrême.",
+    how: "Prix sous VWAP de 3% + RSI < 30 = achat. Objectif = retour au VWAP.",
+  },
+  momentum_rotation: {
+    definition: "Classement cross-sectionnel : compare le momentum de TOUS les actifs et achète les top 20%, vend les bottom 20%. Prouvé académiquement (facteur momentum). C'est la stratégie la plus performante du système (48 actifs gagnés).",
+    when: "Toujours actif — classement mensuel des 218 actifs.",
+    how: "Score = rendement 3 mois / volatilité. Top 20% = LONG, Bottom 20% = SHORT.",
+  },
+};
 
 // Définitions des scores
 const SCORE_DEFINITIONS: Record<string, { emoji: string; name: string; definition: string; interpret: (score: number) => string }> = {
@@ -355,6 +411,69 @@ function ScoreCard({ name, score }: { name: string; score: number; price?: numbe
           <div className="p-2 bg-gold/5 rounded-lg border-l-2 border-gold/30">
             <p className="text-xs leading-relaxed">{config.interpret(score)}</p>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StrategyCard({ strategy, isBest, lastPrice }: {
+  strategy: any; isBest: boolean; lastPrice: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const s = strategy;
+  const def = STRATEGY_DEFINITIONS[s.strategy];
+  const label = STRATEGY_LABELS[s.strategy] || s.strategy;
+
+  return (
+    <div
+      onClick={() => setExpanded(!expanded)}
+      className={`bg-surface rounded-xl p-3 cursor-pointer transition-all hover:bg-gold/5 ${
+        isBest ? "border border-gold/20" : ""
+      } ${expanded ? "col-span-1 md:col-span-2 ring-1 ring-gold/20" : ""}`}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold">{label}</p>
+          {isBest && <p className="text-[10px] text-gold">Recommandée</p>}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`text-xs px-2 py-0.5 border rounded font-semibold ${
+            s.direction === "LONG" ? "text-gold bg-gold/10 border-gold/20" :
+            s.direction === "SHORT" ? "text-red-400 bg-red-400/10 border-red-400/20" :
+            "text-text-secondary bg-surface border-border"
+          }`}>{s.direction}</span>
+          <span className="font-mono text-sm w-8 text-right">{s.conviction}</span>
+        </div>
+      </div>
+
+      {expanded && def && (
+        <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
+          <div>
+            <p className="text-[10px] text-gold font-semibold mb-1">QU'EST-CE QUE C'EST ?</p>
+            <p className="text-xs text-text-secondary leading-relaxed">{def.definition}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-gold font-semibold mb-1">QUAND ÇA FONCTIONNE</p>
+            <p className="text-xs text-text-secondary leading-relaxed">{def.when}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-gold font-semibold mb-1">COMMENT ÇA ENTRE</p>
+            <p className="text-xs text-text-secondary leading-relaxed">{def.how}</p>
+          </div>
+          <div className="p-2 bg-gold/5 rounded-lg border-l-2 border-gold/30">
+            <p className="text-xs leading-relaxed">
+              {s.direction === "NEUTRAL"
+                ? `Cette stratégie ne voit pas de signal clair actuellement sur cet actif. Les conditions d'entrée ne sont pas réunies.`
+                : s.direction === "LONG"
+                  ? `Signal ACHAT avec ${s.conviction}/100 de conviction. ${s.entry ? `Entrée suggérée à $${s.entry}` : ""} ${s.stop_loss ? `— Stop Loss $${s.stop_loss}` : ""} ${s.take_profit ? `— Objectif $${s.take_profit}` : ""}`
+                  : `Signal VENTE avec ${s.conviction}/100 de conviction. ${s.entry ? `Entrée suggérée à $${s.entry}` : ""} ${s.stop_loss ? `— Stop Loss $${s.stop_loss}` : ""} ${s.take_profit ? `— Objectif $${s.take_profit}` : ""}`
+              }
+            </p>
+          </div>
+          {s.zscore !== undefined && <p className="text-[10px] text-text-secondary">Z-score: {s.zscore}</p>}
+          {s.volume_ratio !== undefined && <p className="text-[10px] text-text-secondary">Volume ratio: {s.volume_ratio}x</p>}
+          {s.signals && <p className="text-[10px] text-text-secondary">Signaux: {s.signals.join(", ")}</p>}
         </div>
       )}
     </div>
