@@ -64,7 +64,7 @@ export default function Dashboard() {
   }, [selectedSymbol]);
 
   if (loadingMain && results.length === 0) {
-    return <LoadingScreen message="Connexion au pipeline TradePilot..." />;
+    return <LoadingScreen message="Connexion au pipeline Bilok-TradePilot..." />;
   }
 
   const avgScore = results.length ? results.reduce((s, r) => s + r.scores.final, 0) / results.length : 0;
@@ -131,7 +131,7 @@ export default function Dashboard() {
         </InfoCard>
       </div>
 
-      <InfoCard title="Pipeline TradePilot" icon={<Activity size={18} />} description="6 modules automatisés avec feedback loop.">
+      <InfoCard title="Pipeline Bilok-TradePilot" icon={<Activity size={18} />} description="6 modules automatisés avec feedback loop.">
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           {[
             { name: "Scanner", desc: "9 critères, 51 actifs", icon: "🔍" },

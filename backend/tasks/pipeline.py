@@ -1,4 +1,4 @@
-"""Pipeline TradePilot — Chaîne des 6 modules automatisée via Celery
+"""Pipeline Bilok-TradePilot — Chaîne des 6 modules automatisée via Celery
 
 [ Scanner ] → [ Analyseur ] → [ Scoring ] → [ Exécution ] → [ Portefeuille ] → [ Rentabilité ]
      ↑_____________________________________________________________feedback loop____________________________|

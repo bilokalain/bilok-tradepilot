@@ -1,6 +1,6 @@
-# TradePilot — Guide Utilisateur Complet
+# Bilok-TradePilot — Guide Utilisateur Complet
 
-> **Votre copilote de trading intelligent.** Ce guide vous explique comment lire, comprendre et utiliser chaque module de TradePilot, même si vous n'avez aucune expérience en trading.
+> **Votre copilote de trading intelligent.** Ce guide vous explique comment lire, comprendre et utiliser chaque module de Bilok-TradePilot, même si vous n'avez aucune expérience en trading.
 
 ---
 
@@ -460,7 +460,7 @@ C'est la page la plus complète. Elle contient :
 - **Prix actuel** (live via Alpaca si disponible)
 - **Régime** détecté (Haussier/Baissier/etc.)
 
-### Verdict TradePilot
+### Verdict Bilok-TradePilot
 - **Jauge circulaire** du score global (0-100)
 - **Signal GO/ATTENTE/PAS DE TRADE** avec explication
 - **Stratégie sélectionnée** avec sa performance backtest
@@ -587,4 +587,4 @@ Tous les endpoints y sont listés avec la possibilité de les tester directement
 
 ---
 
-> **Rappel important :** TradePilot est un outil d'**aide à la décision**, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas vous permettre de perdre. Commencez toujours par le paper trading.
+> **Rappel important :** Bilok-TradePilot est un outil d'**aide à la décision**, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas vous permettre de perdre. Commencez toujours par le paper trading.

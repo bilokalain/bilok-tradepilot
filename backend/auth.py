@@ -1,4 +1,4 @@
-"""Authentification JWT pour TradePilot — comptes persistés en BDD"""
+"""Authentification JWT pour Bilok-TradePilot — comptes persistés en BDD"""
 
 import hashlib
 import json

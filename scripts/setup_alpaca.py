@@ -16,7 +16,7 @@ sys.path.insert(0, ".")
 
 def main():
     print("\n" + "=" * 60)
-    print("  TradePilot — Configuration Alpaca Paper Trading")
+    print("  Bilok-TradePilot — Configuration Alpaca Paper Trading")
     print("=" * 60)
 
     # Vérifier si déjà configuré

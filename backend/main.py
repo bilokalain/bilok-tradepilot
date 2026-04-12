@@ -1,4 +1,4 @@
-"""TradePilot — FastAPI Entry Point"""
+"""Bilok-TradePilot — FastAPI Entry Point"""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config.settings import settings
 
 app = FastAPI(
-    title="TradePilot",
+    title="Bilok-TradePilot",
     description="Système de trading automatisé — Pipeline 6 modules",
     version="0.1.0",
 )

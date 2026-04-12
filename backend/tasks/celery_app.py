@@ -1,4 +1,4 @@
-"""Configuration Celery — Orchestration du pipeline TradePilot"""
+"""Configuration Celery — Orchestration du pipeline Bilok-TradePilot"""
 
 from celery import Celery
 

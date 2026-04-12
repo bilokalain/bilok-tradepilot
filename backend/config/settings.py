@@ -1,4 +1,4 @@
-"""Configuration centralisée TradePilot"""
+"""Configuration centralisée Bilok-TradePilot"""
 
 from pydantic_settings import BaseSettings
 

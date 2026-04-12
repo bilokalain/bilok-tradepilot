@@ -1,4 +1,4 @@
-"""Modèles SQLAlchemy — 5 couches de données TradePilot
+"""Modèles SQLAlchemy — 5 couches de données Bilok-TradePilot
 
 1. Raw Market Data — assets, ohlcv_daily, ohlcv_1h, ohlcv_5min
 2. Features Précalculées — features_daily

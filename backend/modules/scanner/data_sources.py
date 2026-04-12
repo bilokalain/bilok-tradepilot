@@ -235,7 +235,7 @@ def fetch_reddit_live(symbol: str, limit: int = 50) -> list[dict]:
         reddit = praw.Reddit(
             client_id=settings.REDDIT_CLIENT_ID,
             client_secret=settings.REDDIT_CLIENT_SECRET,
-            user_agent="TradePilot/0.1",
+            user_agent="Bilok-TradePilot/0.1",
         )
 
         clean = symbol.replace("-USD", "").replace("=X", "").replace("=F", "")

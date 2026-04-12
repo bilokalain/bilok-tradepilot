@@ -216,7 +216,7 @@ export default function AssetDetail() {
 
       {/* ============ VERDICT ============ */}
       <InfoCard
-        title="Verdict TradePilot"
+        title="Verdict Bilok-TradePilot"
         icon={<Crosshair size={18} />}
         description="Le verdict combine tous les critères d'analyse (9 au total) pour produire une recommandation claire. Le score global va de 0 à 100 : au-dessus de 65, le système considère que les conditions sont favorables pour entrer en position. Le signal GO/ATTENTE/PAS DE TRADE indique la recommandation finale."
       >
@@ -313,7 +313,7 @@ export default function AssetDetail() {
         <InfoCard
           title="Radar des 9 critères"
           icon={<Sparkles size={18} />}
-          description="Ce radar montre les 9 dimensions d'analyse de TradePilot. Plus la forme dorée est large, plus l'actif est fort sur ce critère. Un radar bien rempli = un actif solide sur tous les plans. Un radar déséquilibré = des forces et des faiblesses à prendre en compte. Cliquez sur 'Comment lire cette section ?' sur chaque critère pour en savoir plus."
+          description="Ce radar montre les 9 dimensions d'analyse de Bilok-TradePilot. Plus la forme dorée est large, plus l'actif est fort sur ce critère. Un radar bien rempli = un actif solide sur tous les plans. Un radar déséquilibré = des forces et des faiblesses à prendre en compte. Cliquez sur 'Comment lire cette section ?' sur chaque critère pour en savoir plus."
         >
           <RadarChart data={radarData} size={320} />
         </InfoCard>
@@ -459,7 +459,7 @@ export default function AssetDetail() {
           <InfoCard
             title="Performance historique des stratégies"
             icon={<TrendingUp size={18} />}
-            description="Ce classement montre quelle stratégie a le mieux fonctionné pour cet actif dans le passé (backtest sur 2 ans). Le Sharpe ratio mesure le rendement ajusté au risque : au-dessus de 1 c'est bon, au-dessus de 1.5 c'est excellent. La stratégie en tête est celle que TradePilot utilise pour cet actif."
+            description="Ce classement montre quelle stratégie a le mieux fonctionné pour cet actif dans le passé (backtest sur 2 ans). Le Sharpe ratio mesure le rendement ajusté au risque : au-dessus de 1 c'est bon, au-dessus de 1.5 c'est excellent. La stratégie en tête est celle que Bilok-TradePilot utilise pour cet actif."
           >
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               {analysis.strategy_ranking.map((r: any, i: number) => (

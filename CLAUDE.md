@@ -1,8 +1,8 @@
-# TradePilot — Contexte Projet pour Claude Code
+# Bilok-TradePilot — Contexte Projet pour Claude Code
 
 ## Vue d'ensemble
 
-TradePilot est un système de trading automatisé full-stack organisé en pipeline de 6 modules enchaînés automatiquement avec feedback loop.
+Bilok-TradePilot est un système de trading automatisé full-stack organisé en pipeline de 6 modules enchaînés automatiquement avec feedback loop.
 
 ```
 [ Scanner ] → [ Analyseur ] → [ Scoring ] → [ Exécution ] → [ Gestion Portefeuille ] → [ Suivi Rentabilité ]

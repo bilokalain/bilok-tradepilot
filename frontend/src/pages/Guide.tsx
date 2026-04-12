@@ -410,7 +410,7 @@ const SECTIONS = [
     icon: <Shield size={18} />,
     content: (
       <>
-        <P>TradePilot utilise 3 couches d'IA pour améliorer les décisions :</P>
+        <P>Bilok-TradePilot utilise 3 couches d'IA pour améliorer les décisions :</P>
 
         <H3>1. FinBERT — Comprendre le langage financier</H3>
         <P>Modèle d'IA (BERT) entraîné spécifiquement sur des textes financiers. Il comprend que "beat expectations" est positif et "crash incoming" est négatif avec <B>94% de précision</B>.</P>
@@ -453,7 +453,7 @@ const SECTIONS = [
     icon: <BarChart3 size={18} />,
     content: (
       <>
-        <P>TradePilot se connecte à <B>Alpaca</B> pour les prix en temps réel et à <B>FRED</B> pour les données macro-économiques.</P>
+        <P>Bilok-TradePilot se connecte à <B>Alpaca</B> pour les prix en temps réel et à <B>FRED</B> pour les données macro-économiques.</P>
 
         <H3>Prix live (Alpaca)</H3>
         <Table headers={["Type", "Actifs supportés", "Fréquence"]}>
@@ -564,7 +564,7 @@ const SECTIONS = [
           <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP) + XGBoost (15K samples)</TD></TR>
         </Table>
 
-        <Callout>TradePilot est un outil d'aide à la décision, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas perdre. Commencez toujours par le paper trading.</Callout>
+        <Callout>Bilok-TradePilot est un outil d'aide à la décision, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas perdre. Commencez toujours par le paper trading.</Callout>
       </>
     ),
   },
@@ -594,7 +594,7 @@ export default function Guide() {
         <div>
           <h2 className="text-2xl font-bold">Guide Utilisateur</h2>
           <p className="text-text-secondary text-sm mt-1">
-            Tout comprendre sur TradePilot, même sans expérience en trading
+            Tout comprendre sur Bilok-TradePilot, même sans expérience en trading
           </p>
         </div>
         <div className="flex gap-2">

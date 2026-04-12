@@ -40,7 +40,7 @@ export default function Layout({ onLogout, user }: LayoutProps) {
     <div className="flex h-screen">
       <aside className="w-64 bg-card border-r border-border flex flex-col">
         <div className="p-6 border-b border-border">
-          <h1 className="text-xl font-bold text-gold">TradePilot</h1>
+          <h1 className="text-xl font-bold text-gold">Bilok-TradePilot</h1>
           <p className="text-xs text-text-secondary mt-1">Trading automatisé</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">

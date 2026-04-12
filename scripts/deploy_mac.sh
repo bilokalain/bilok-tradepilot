@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================================
-# TradePilot — Déploiement local MacBook
+# Bilok-TradePilot — Déploiement local MacBook
 #
-# Ce script installe les services TradePilot pour qu'ils tournent
+# Ce script installe les services Bilok-TradePilot pour qu'ils tournent
 # automatiquement au démarrage du Mac.
 #
 # Usage : bash scripts/deploy_mac.sh
@@ -17,7 +17,7 @@ LOG_DIR="$PROJECT_DIR/logs"
 
 echo ""
 echo "======================================================"
-echo "  TradePilot — Déploiement local Mac"
+echo "  Bilok-TradePilot — Déploiement local Mac"
 echo "======================================================"
 
 # Créer le dossier de logs
@@ -29,7 +29,7 @@ echo "  [OK] Dossier logs créé : $LOG_DIR"
 # ============================================================
 cat > "$PROJECT_DIR/scripts/start_all.sh" << 'STARTUP'
 #!/bin/bash
-# TradePilot — Script de démarrage complet
+# Bilok-TradePilot — Script de démarrage complet
 
 PROJECT_DIR="/Users/alainbilok/Projects/projet-trading"
 VENV="$PROJECT_DIR/.venv"
@@ -66,7 +66,7 @@ cd "$PROJECT_DIR/frontend"
 npm run dev >> "$LOG_DIR/frontend.log" 2>&1 &
 echo $! > "$LOG_DIR/frontend.pid"
 
-echo "[$(date)] TradePilot démarré" >> "$LOG_DIR/startup.log"
+echo "[$(date)] Bilok-TradePilot démarré" >> "$LOG_DIR/startup.log"
 STARTUP
 chmod +x "$PROJECT_DIR/scripts/start_all.sh"
 echo "  [OK] Script de démarrage créé"
@@ -76,12 +76,12 @@ echo "  [OK] Script de démarrage créé"
 # ============================================================
 cat > "$PROJECT_DIR/scripts/stop_all.sh" << 'STOP'
 #!/bin/bash
-# TradePilot — Arrêt propre
+# Bilok-TradePilot — Arrêt propre
 
 PROJECT_DIR="/Users/alainbilok/Projects/projet-trading"
 LOG_DIR="$PROJECT_DIR/logs"
 
-echo "Arrêt de TradePilot..."
+echo "Arrêt de Bilok-TradePilot..."
 
 for pidfile in backend.pid worker.pid beat.pid frontend.pid caffeinate.pid; do
   if [ -f "$LOG_DIR/$pidfile" ]; then
@@ -96,7 +96,7 @@ done
 
 docker compose -f "$PROJECT_DIR/docker-compose.yml" down 2>/dev/null
 echo "  [OK] Docker arrêté"
-echo "[$(date)] TradePilot arrêté" >> "$LOG_DIR/startup.log"
+echo "[$(date)] Bilok-TradePilot arrêté" >> "$LOG_DIR/startup.log"
 STOP
 chmod +x "$PROJECT_DIR/scripts/stop_all.sh"
 echo "  [OK] Script d'arrêt créé"
@@ -106,14 +106,14 @@ echo "  [OK] Script d'arrêt créé"
 # ============================================================
 cat > "$PROJECT_DIR/scripts/status.sh" << 'STATUS'
 #!/bin/bash
-# TradePilot — Statut des services
+# Bilok-TradePilot — Statut des services
 
 PROJECT_DIR="/Users/alainbilok/Projects/projet-trading"
 LOG_DIR="$PROJECT_DIR/logs"
 
 echo ""
 echo "======================================================"
-echo "  TradePilot — Statut des services"
+echo "  Bilok-TradePilot — Statut des services"
 echo "======================================================"
 
 check_service() {
