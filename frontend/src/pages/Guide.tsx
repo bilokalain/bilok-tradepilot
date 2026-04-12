@@ -135,16 +135,36 @@ const SECTIONS = [
         </Table>
         <P>La détection est <B>probabiliste</B>. Un actif peut être "BULL à 46%, TRANSITION à 30%". Plus c'est haut, plus on est sûr.</P>
 
-        <H3>Les 7 stratégies</H3>
+        <H3>Les 14 stratégies</H3>
+        <P>Le système dispose de 14 stratégies réparties en 3 niveaux :</P>
+
+        <H3>Stratégies Pro (les plus puissantes)</H3>
+        <Table headers={["Stratégie", "Edge", "Ce qui la rend supérieure"]}>
+          <TR><TD b>Adaptive Trend</TD><TD>Paramètres s'ajustent à la volatilité</TD><TD>EMA courtes quand le marché est nerveux, longues quand il est calme</TD></TR>
+          <TR><TD b>Multi-Signal</TD><TD>Exige 4+ indicateurs sur 6 d'accord</TD><TD>Réduit les faux signaux de ~60%. Conv. max = 95</TD></TR>
+          <TR><TD b>Keltner Breakout</TD><TD>Canaux adaptatifs (ATR)</TD><TD>S'adapte à chaque actif au lieu d'un range fixe 20j</TD></TR>
+          <TR><TD b>VWAP Reversion</TD><TD>Retour au prix moyen pondéré volume</TD><TD>Le "vrai" prix moyen du marché, plus précis que Bollinger</TD></TR>
+          <TR><TD b>Momentum Rotation</TD><TD>Classement des 218 actifs</TD><TD>Achète les top 20%, vend les bottom 20%. Prouvé académiquement</TD></TR>
+        </Table>
+
+        <H3>Stratégies avancées</H3>
+        <Table headers={["Stratégie", "Quand elle fonctionne", "Comment elle entre"]}>
+          <TR><TD b>Mean Reversion V2</TD><TD>Excès de prix confirmé</TD><TD>Z-score + Keltner + volume exhaustion</TD></TR>
+          <TR><TD b>Fibonacci</TD><TD>Niveaux de support naturels</TD><TD>Rebond sur 0.382 / 0.5 / 0.618 (Golden Ratio)</TD></TR>
+          <TR><TD b>Ichimoku</TD><TD>Système complet japonais</TD><TD>Prix vs nuage + Tenkan/Kijun crossover</TD></TR>
+          <TR><TD b>Regime-Aware</TD><TD>Filtre par régime</TD><TD>Refuse de trader en CRISIS et TRANSITION</TD></TR>
+          <TR><TD b>Pairs Arbitrage</TD><TD>Deux actifs corrélés divergent</TD><TD>Z-score du spread + cointégration + half-life</TD></TR>
+        </Table>
+
+        <H3>Stratégies classiques</H3>
         <Table headers={["Stratégie", "Quand elle fonctionne", "Comment elle entre"]}>
           <TR><TD b>Trend Following</TD><TD>Marché en tendance claire</TD><TD>Croisement des moyennes mobiles</TD></TR>
-          <TR><TD b>Mean Reversion</TD><TD>Prix en excès</TD><TD>Prix trop loin de sa moyenne</TD></TR>
-          <TR><TD b>Mean Reversion V2</TD><TD>Idem + confirmations</TD><TD>Z-score + Keltner + volume</TD></TR>
+          <TR><TD b>Mean Reversion</TD><TD>Prix en excès</TD><TD>Bollinger + RSI survendu/suracheté</TD></TR>
           <TR><TD b>Breakout</TD><TD>Cassure d'un range</TD><TD>Prix sort d'une zone + volume</TD></TR>
-          <TR><TD b>Momentum</TD><TD>Force relative</TD><TD>Plusieurs indicateurs alignés</TD></TR>
-          <TR><TD b>Fibonacci</TD><TD>Niveaux naturels</TD><TD>Rebond sur 0.382 / 0.5 / 0.618</TD></TR>
-          <TR><TD b>Ichimoku</TD><TD>Système complet</TD><TD>Prix au-dessus du "nuage"</TD></TR>
+          <TR><TD b>Momentum</TD><TD>Force relative</TD><TD>RSI + MACD + Stochastic alignés</TD></TR>
         </Table>
+
+        <Callout>Les stratégies Pro ont les poids les plus élevés dans la matrice (adaptive_trend 18%, multi_signal 15% en marché haussier). Les classiques sont maintenant des compléments.</Callout>
 
         <H3>Sharpe Ratio</H3>
         <P>Mesure le rendement ajusté au risque. C'est la métrique la plus importante pour comparer les stratégies :</P>
@@ -310,6 +330,81 @@ const SECTIONS = [
     ),
   },
   {
+    id: "backtest",
+    title: "Backtesting",
+    icon: <BarChart3 size={18} />,
+    content: (
+      <>
+        <P>Le backtesting teste les stratégies sur des <B>données du passé</B> pour vérifier si elles auraient gagné de l'argent. C'est l'étape de validation avant de risquer du capital.</P>
+
+        <H3>Ce qu'on a testé</H3>
+        <Table headers={["Paramètre", "Valeur"]}>
+          <TR><TD b>Actifs testés</TD><TD>190 (ceux avec 10+ ans de données)</TD></TR>
+          <TR><TD b>Période</TD><TD>10 ans (2 520 jours de trading)</TD></TR>
+          <TR><TD b>Stratégies</TD><TD>4 par actif (trend, mean reversion, breakout, momentum)</TD></TR>
+          <TR><TD b>Données totales</TD><TD>1.6 million de barres daily (depuis 1962)</TD></TR>
+          <TR><TD b>Durée du calcul</TD><TD>~5 heures</TD></TR>
+        </Table>
+
+        <H3>Top 10 — Les actifs les plus profitables sur 10 ans</H3>
+        <Table headers={["#", "Actif", "Stratégie", "Sharpe", "Return"]}>
+          <TR><TD b>1</TD><TD>ARKK (ETF Innovation)</TD><TD>Trend Following</TD><TD>0.997</TD></TR>
+          <TR><TD b>2</TD><TD>ETH (Ethereum)</TD><TD>Momentum</TD><TD>0.967</TD></TR>
+          <TR><TD b>3</TD><TD>ADA (Cardano)</TD><TD>Breakout</TD><TD>0.888</TD></TR>
+          <TR><TD b>4</TD><TD>DOGE (Dogecoin)</TD><TD>Trend Following</TD><TD>0.860</TD></TR>
+          <TR><TD b>5</TD><TD>AZN.L (AstraZeneca)</TD><TD>Mean Reversion</TD><TD>0.848</TD></TR>
+          <TR><TD b>6</TD><TD>BTC (Bitcoin)</TD><TD>Momentum</TD><TD>0.811</TD></TR>
+          <TR><TD b>7</TD><TD>CAT (Caterpillar)</TD><TD>Breakout</TD><TD>0.786</TD></TR>
+          <TR><TD b>8</TD><TD>MSFT (Microsoft)</TD><TD>Trend Following</TD><TD>0.706</TD></TR>
+          <TR><TD b>9</TD><TD>SPY (S&P 500)</TD><TD>Trend Following</TD><TD>0.692</TD></TR>
+          <TR><TD b>10</TD><TD>GOOGL (Google)</TD><TD>Trend Following</TD><TD>0.644</TD></TR>
+        </Table>
+
+        <H3>Saisonnalité — Quel mois trader ?</H3>
+        <P>Analyse des rendements moyens par mois sur 5 à 64 ans de données (215 actifs) :</P>
+        <Table headers={["Mois", "Rendement moyen", "% d'actifs positifs", "Verdict"]}>
+          <TR><TD b>Janvier</TD><TD>+4.21%</TD><TD>78%</TD><TD>Meilleur mois — effet "January"</TD></TR>
+          <TR><TD b>Avril</TD><TD>+2.49%</TD><TD>85%</TD><TD>Très bon — le plus régulier</TD></TR>
+          <TR><TD b>Mai</TD><TD>+2.28%</TD><TD>81%</TD><TD>Bon — "Sell in May" est un mythe</TD></TR>
+          <TR><TD b>Mars</TD><TD>+2.12%</TD><TD>75%</TD><TD>Bon</TD></TR>
+          <TR><TD b>Février</TD><TD>+1.92%</TD><TD>72%</TD><TD>Correct</TD></TR>
+          <TR><TD b>Août</TD><TD>+1.30%</TD><TD>58%</TD><TD>Moyen</TD></TR>
+          <TR><TD b>Juin</TD><TD>-0.04%</TD><TD>55%</TD><TD>Neutre</TD></TR>
+          <TR><TD b>Septembre</TD><TD>-0.42%</TD><TD>39%</TD><TD>Pire mois — éviter</TD></TR>
+        </Table>
+        <Callout>Conseil : privilégiez janvier et avril pour les nouvelles positions. Évitez septembre.</Callout>
+
+        <H3>Cycles économiques — Comment le marché se comporte en crise</H3>
+        <P>Performance de 217 actifs pendant les grandes périodes historiques :</P>
+        <Table headers={["Période", "Rendement moyen", "Ce qui se passe"]}>
+          <TR><TD b>Dot-com Crash (2000-02)</TD><TD>-16.7%</TD><TD>Tech s'effondre. UNH et LMT survivent (+255%)</TD></TR>
+          <TR><TD b>Crise 2008 (2007-09)</TD><TD>-43.7%</TD><TD>Banques détruites (Citi -98%). NFLX +69%</TD></TR>
+          <TR><TD b>COVID (Fév-Mars 2020)</TD><TD>-30.4%</TD><TD>Crash éclair. MRNA +40%, TLT +14%</TD></TR>
+          <TR><TD b>Bull 2009-2020</TD><TD>+685%</TD><TD>11 ans de hausse. NVDA +4017%</TD></TR>
+          <TR><TD b>Rally IA (2023-24)</TD><TD>+75%</TD><TD>NVDA +839%, PLTR +1084%, SOL +1796%</TD></TR>
+        </Table>
+
+        <H3>Walk-Forward — Le test de robustesse</H3>
+        <P>Le walk-forward découpe les données en <B>10 fenêtres glissantes</B> et teste chaque sous-période séparément. C'est le test le plus sévère.</P>
+        <P><B>Résultat : 0% de consistance.</B> Cela signifie que les stratégies qui marchent sur 10 ans ne marchent pas de façon régulière sur chaque sous-période. C'est un avertissement :</P>
+        <Callout>Un backtest positif sur 10 ans ne garantit PAS un profit régulier. Les performances passées ne préjugent pas des résultats futurs. C'est pour ça que le paper trading de 3 mois est indispensable.</Callout>
+
+        <H3>Comment lire les résultats du backtest</H3>
+        <Table headers={["Métrique", "Ce que ça mesure", "Bon signe si"]}>
+          <TR><TD b>Sharpe Ratio</TD><TD>Rendement ajusté au risque</TD><TD>&gt; 0.5 (correct), &gt; 1.0 (bon)</TD></TR>
+          <TR><TD b>Win Rate</TD><TD>% de trades gagnants</TD><TD>&gt; 50%</TD></TR>
+          <TR><TD b>Max Drawdown</TD><TD>Pire perte depuis le pic</TD><TD>&gt; -20% (supportable)</TD></TR>
+          <TR><TD b>Profit Factor</TD><TD>Gains bruts / pertes brutes</TD><TD>&gt; 1.5</TD></TR>
+          <TR><TD b>Calmar Ratio</TD><TD>Rendement / drawdown</TD><TD>&gt; 0.5</TD></TR>
+          <TR><TD b>Consistance (WF)</TD><TD>% de sous-périodes profitables</TD><TD>&gt; 60%</TD></TR>
+        </Table>
+
+        <H3>Page Backtesting dans l'app</H3>
+        <P>Allez sur <B>/backtest</B> pour tester vous-même : choisissez un actif, lancez le backtest, et comparez les 4 stratégies avec les equity curves.</P>
+      </>
+    ),
+  },
+  {
     id: "ai",
     title: "Intelligence Artificielle",
     icon: <Shield size={18} />,
@@ -336,8 +431,19 @@ const SECTIONS = [
         </Table>
 
         <H3>3. Ensemble Voting — Combiner les stratégies</H3>
-        <P>Au lieu de choisir UNE stratégie, le système fait <B>voter</B> toutes les stratégies profitables. Chaque vote est pondéré par le Sharpe historique de la stratégie. Plus les stratégies sont d'accord, plus le signal est fiable.</P>
+        <P>Au lieu de choisir UNE stratégie, le système fait <B>voter</B> les 14 stratégies. Chaque vote est pondéré par le Sharpe historique. Plus les stratégies sont d'accord, plus le signal est fiable.</P>
         <Callout>Quand &gt; 80% des stratégies votent dans la même direction = bonus de conviction de +15%.</Callout>
+
+        <H3>4. Stratégies Pro vs Basiques</H3>
+        <P>Les 5 stratégies pro apportent un avantage que les classiques n'ont pas :</P>
+        <Table headers={["Stratégie Pro", "Avantage vs basique"]}>
+          <TR><TD b>Adaptive Trend</TD><TD>Paramètres qui changent avec la volatilité (au lieu de EMA 9/21 fixe pour tout)</TD></TR>
+          <TR><TD b>Multi-Signal</TD><TD>Exige 4/6 indicateurs d'accord (au lieu d'un seul crossover)</TD></TR>
+          <TR><TD b>Keltner Breakout</TD><TD>Canaux ATR adaptatifs (au lieu d'un range fixe 20 jours)</TD></TR>
+          <TR><TD b>VWAP Reversion</TD><TD>Prix moyen pondéré par volume (au lieu de Bollinger simple)</TD></TR>
+          <TR><TD b>Momentum Rotation</TD><TD>Classement relatif des 218 actifs (prouvé académiquement)</TD></TR>
+        </Table>
+        <P>Exemple : sur AAPL, les basiques (Trend Following, Breakout) donnaient <B>NEUTRAL</B>. Multi-Signal donne <B>LONG avec 95 de conviction</B> car 5 indicateurs sur 6 sont alignés.</P>
       </>
     ),
   },
@@ -446,6 +552,17 @@ const SECTIONS = [
           <div><span className="text-gold">make beat</span> <span className="text-text-secondary">— Lancer le scheduler</span></div>
           <div><span className="text-gold">pytest tests/</span> <span className="text-text-secondary">— Lancer les 123 tests</span></div>
         </div>
+
+        <H3>Statistiques du système</H3>
+        <Table headers={["Métrique", "Valeur"]}>
+          <TR><TD b>Actifs en base</TD><TD>218 (US, EU, Crypto, Forex, Commodities)</TD></TR>
+          <TR><TD b>Barres daily</TD><TD>1 593 395 (depuis 1962)</TD></TR>
+          <TR><TD b>Barres intraday 1H</TD><TD>412 490</TD></TR>
+          <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques)</TD></TR>
+          <TR><TD b>Critères scanner</TD><TD>9 orthogonaux</TD></TR>
+          <TR><TD b>Tests unitaires</TD><TD>123 (100% pass)</TD></TR>
+          <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP) + XGBoost (15K samples)</TD></TR>
+        </Table>
 
         <Callout>TradePilot est un outil d'aide à la décision, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas perdre. Commencez toujours par le paper trading.</Callout>
       </>
