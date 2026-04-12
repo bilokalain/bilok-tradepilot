@@ -1,5 +1,8 @@
 # TradePilot — .gitignore
 
+# --- Données utilisateurs ---
+data/
+
 # --- Python ---
 __pycache__/
 *.py[cod]

@@ -34,7 +34,8 @@ def register(req: RegisterRequest):
     )
 
 
-@router.get("/me")
-def get_me():
-    """Route publique pour tester — en production, utiliser require_auth."""
-    return {"message": "Utilisez le header Authorization: Bearer <token>"}
+@router.get("/users")
+def list_users():
+    """Liste les utilisateurs inscrits."""
+    from backend.auth import get_all_users
+    return get_all_users()

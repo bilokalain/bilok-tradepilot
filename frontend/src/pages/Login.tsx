@@ -6,8 +6,10 @@ interface Props {
 }
 
 export default function Login({ onLogin }: Props) {
-  const [email, setEmail] = useState("admin@tradepilot.local");
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -17,7 +19,12 @@ export default function Login({ onLogin }: Props) {
     setLoading(true);
 
     try {
-      const res = await axios.post("/api/auth/login", { email, password });
+      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+      const payload = mode === "login"
+        ? { email, password }
+        : { email, password, name };
+
+      const res = await axios.post(endpoint, payload);
       const { access_token, user } = res.data;
       localStorage.setItem("tradepilot_token", access_token);
       onLogin(access_token, user);
@@ -37,11 +44,49 @@ export default function Login({ onLogin }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-card border border-border rounded-2xl p-8 space-y-5">
-          <h2 className="text-lg font-semibold text-center">Connexion</h2>
+          {/* Onglets Login / Inscription */}
+          <div className="flex border border-border rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => { setMode("login"); setError(""); }}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                mode === "login"
+                  ? "bg-gold/10 text-gold"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              Connexion
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("register"); setError(""); }}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                mode === "register"
+                  ? "bg-gold/10 text-gold"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              Créer un compte
+            </button>
+          </div>
 
           {error && (
             <div className="p-3 bg-red-400/10 border border-red-400/20 rounded-lg text-sm text-red-400 text-center">
               {error}
+            </div>
+          )}
+
+          {mode === "register" && (
+            <div>
+              <label className="text-xs text-text-secondary mb-1.5 block">Nom</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-gold/50 transition-colors"
+                placeholder="Votre nom"
+                required
+              />
             </div>
           )}
 
@@ -52,6 +97,7 @@ export default function Login({ onLogin }: Props) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-gold/50 transition-colors"
+              placeholder="email@exemple.com"
               required
             />
           </div>
@@ -63,7 +109,8 @@ export default function Login({ onLogin }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-gold/50 transition-colors"
-              placeholder="Entrez votre mot de passe"
+              placeholder={mode === "register" ? "Minimum 6 caractères" : "Votre mot de passe"}
+              minLength={mode === "register" ? 6 : undefined}
               required
             />
           </div>
@@ -73,12 +120,12 @@ export default function Login({ onLogin }: Props) {
             disabled={loading}
             className="w-full py-2.5 bg-gold/10 text-gold border border-gold/20 rounded-lg text-sm font-semibold hover:bg-gold/20 transition-colors disabled:opacity-50"
           >
-            {loading ? "Connexion..." : "Se connecter"}
+            {loading
+              ? "Chargement..."
+              : mode === "login"
+                ? "Se connecter"
+                : "Créer mon compte"}
           </button>
-
-          <p className="text-[10px] text-text-secondary text-center">
-            Compte par défaut : admin@tradepilot.local / tradepilot2024
-          </p>
         </form>
       </div>
     </div>
