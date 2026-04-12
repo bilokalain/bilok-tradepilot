@@ -1,0 +1,238 @@
+"""Analyse rapide d'un actif quelconque — pas besoin d'être en BDD.
+
+L'utilisateur tape un symbole (ex: ^GSPC, PLTR, COIN, AMC)
+et le système :
+1. Télécharge les données via Yahoo Finance
+2. Calcule les indicateurs techniques
+3. Détecte le régime
+4. Sélectionne la meilleure stratégie
+5. Produit un score et une recommandation
+
+Tout en une seule requête, sans sauvegarder en BDD.
+"""
+
+import numpy as np
+import pandas as pd
+import yfinance as yf
+
+from backend.modules.scanner.indicators import (
+    compute_technical_score, sma, rsi, macd, bollinger_bands, atr,
+)
+from backend.modules.analyser.regime import detect_regime
+from backend.modules.analyser.strategies import (
+    strategy_trend_following, strategy_mean_reversion,
+    strategy_breakout, strategy_momentum,
+)
+from backend.modules.analyser.strategies_advanced import (
+    strategy_mean_reversion_v2, strategy_fibonacci, strategy_ichimoku,
+)
+from backend.modules.scanner.genome import compute_genome_score
+from backend.modules.scanner.institutional import compute_ipi_score
+from backend.modules.scanner.fundamental_velocity import compute_ivf_score
+from backend.modules.scanner.uniqueness import compute_novelty_score, compute_timeframe_neglect, compute_complexity_premium
+
+
+# Symboles courants et leurs équivalents Yahoo Finance
+SYMBOL_ALIASES = {
+    "S&P 500": "^GSPC", "S&P500": "^GSPC", "SP500": "^GSPC",
+    "CAC 40": "^FCHI", "CAC40": "^FCHI",
+    "DAX": "^GDAXI", "DAX 40": "^GDAXI",
+    "NASDAQ": "^IXIC", "NASDAQ 100": "^NDX",
+    "DOW JONES": "^DJI", "DOW": "^DJI", "DJIA": "^DJI",
+    "NIKKEI": "^N225", "NIKKEI 225": "^N225",
+    "FTSE": "^FTSE", "FTSE 100": "^FTSE",
+    "BITCOIN": "BTC-USD", "BTC": "BTC-USD",
+    "ETHEREUM": "ETH-USD", "ETH": "ETH-USD",
+    "GOLD": "GC=F", "OR": "GC=F",
+    "OIL": "CL=F", "PETROLE": "CL=F", "CRUDE": "CL=F",
+    "SILVER": "SI=F", "ARGENT": "SI=F",
+    "EURO DOLLAR": "EURUSD=X", "EUR/USD": "EURUSD=X",
+}
+
+
+def resolve_symbol(query: str) -> str:
+    """Convertit un nom commun en symbole Yahoo Finance."""
+    upper = query.upper().strip()
+    return SYMBOL_ALIASES.get(upper, query.strip())
+
+
+def quick_analyse(query: str) -> dict:
+    """Analyse complète d'un actif quelconque."""
+    symbol = resolve_symbol(query)
+
+    # 1. Télécharger les données
+    try:
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period="2y", interval="1d")
+    except Exception as e:
+        return {"error": f"Impossible de récupérer les données pour '{query}' ({symbol}): {e}"}
+
+    if df.empty or len(df) < 50:
+        return {"error": f"Pas assez de données pour '{query}' ({symbol}). Vérifiez le symbole Yahoo Finance."}
+
+    # Infos de base
+    info = {}
+    try:
+        ti = ticker.info
+        info = {
+            "name": ti.get("longName") or ti.get("shortName") or symbol,
+            "sector": ti.get("sector", ""),
+            "industry": ti.get("industry", ""),
+            "market_cap": ti.get("marketCap", 0),
+            "currency": ti.get("currency", "USD"),
+            "exchange": ti.get("exchange", ""),
+        }
+    except Exception:
+        info = {"name": symbol, "sector": "", "industry": "", "market_cap": 0, "currency": "USD", "exchange": ""}
+
+    close = pd.Series(df["Close"].values, dtype=float)
+    high = pd.Series(df["High"].values, dtype=float)
+    low = pd.Series(df["Low"].values, dtype=float)
+    volume = pd.Series(df["Volume"].values, dtype=float)
+    last_price = float(close.iloc[-1])
+
+    # 2. Indicateurs techniques
+    tech_score = compute_technical_score(close, high, low, volume)
+
+    rsi_val = float(rsi(close).iloc[-1]) if len(close) >= 14 else 50
+    macd_data = macd(close)
+    macd_hist = float(macd_data["histogram"].iloc[-1]) if not np.isnan(macd_data["histogram"].iloc[-1]) else 0
+    sma_20 = float(sma(close, 20).iloc[-1]) if len(close) >= 20 else last_price
+    sma_50 = float(sma(close, 50).iloc[-1]) if len(close) >= 50 else last_price
+    sma_200 = float(sma(close, 200).iloc[-1]) if len(close) >= 200 else last_price
+    atr_val = float(atr(high, low, close, 14).iloc[-1]) if len(close) >= 14 else 0
+    bb = bollinger_bands(close)
+
+    # 3. Génome + IPI + IVF
+    genome = compute_genome_score(close, high, low, volume) if len(close) >= 100 else {"score": 50, "cycle_phase": 3, "seismograph": {"active": 0}}
+    ipi = compute_ipi_score(close, high, low, volume)
+    ivf = compute_ivf_score(close, volume)
+
+    # 4. Régime
+    if len(close) >= 200:
+        regime_result = detect_regime(close, high, low)
+    else:
+        regime_result = {"regime": "UNKNOWN", "probabilities": {}, "confidence": 0}
+
+    # 5. Stratégies
+    strategies_results = []
+    all_strategies = {
+        "trend_following": lambda: strategy_trend_following(close, high, low),
+        "mean_reversion": lambda: strategy_mean_reversion(close, high, low),
+        "breakout": lambda: strategy_breakout(close, high, low, volume),
+        "momentum": lambda: strategy_momentum(close, high, low),
+    }
+    if len(close) >= 60:
+        all_strategies["mean_reversion_v2"] = lambda: strategy_mean_reversion_v2(close, high, low, volume)
+        all_strategies["fibonacci"] = lambda: strategy_fibonacci(close, high, low)
+    if len(close) >= 80:
+        all_strategies["ichimoku"] = lambda: strategy_ichimoku(close, high, low)
+
+    best_strategy = None
+    best_conviction = 0
+
+    for name, func in all_strategies.items():
+        try:
+            result = func()
+            strategies_results.append(result)
+            if result["conviction"] > best_conviction and result["direction"] != "NEUTRAL":
+                best_conviction = result["conviction"]
+                best_strategy = result
+        except Exception:
+            pass
+
+    # 6. Score global
+    novelty = compute_novelty_score(close) if len(close) >= 252 else 50
+    complexity = compute_complexity_premium(close, high, low) if len(close) >= 50 else 50
+
+    scores = {
+        "technical": round(tech_score, 1),
+        "genome": round(genome["score"], 1),
+        "ipi": round(ipi["score"], 1),
+        "ivf": round(ivf["score"], 1),
+        "novelty": round(novelty, 1),
+        "complexity": round(complexity, 1),
+    }
+    global_score = np.mean(list(scores.values()))
+
+    # 7. Recommandation
+    if best_strategy and best_conviction >= 60 and global_score >= 55:
+        action = "GO"
+    elif best_strategy and best_conviction >= 40:
+        action = "WAIT"
+    else:
+        action = "NO_TRADE"
+
+    # SL/TP
+    sl = round(last_price - 2 * atr_val, 2) if best_strategy and best_strategy.get("direction") == "LONG" else round(last_price + 2 * atr_val, 2) if atr_val else 0
+    tp = round(last_price + 3 * atr_val, 2) if best_strategy and best_strategy.get("direction") == "LONG" else round(last_price - 3 * atr_val, 2) if atr_val else 0
+
+    # Performance récente
+    perf_1m = round((close.iloc[-1] / close.iloc[-21] - 1) * 100, 2) if len(close) >= 21 else 0
+    perf_3m = round((close.iloc[-1] / close.iloc[-63] - 1) * 100, 2) if len(close) >= 63 else 0
+    perf_1y = round((close.iloc[-1] / close.iloc[-252] - 1) * 100, 2) if len(close) >= 252 else 0
+
+    def _clean(obj):
+        """Convertit les types numpy en types Python natifs pour JSON."""
+        import json
+        if isinstance(obj, dict):
+            return {k: _clean(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [_clean(v) for v in obj]
+        elif isinstance(obj, (np.integer,)):
+            return int(obj)
+        elif isinstance(obj, (np.floating,)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, (np.bool_,)):
+            return bool(obj)
+        return obj
+
+    return _clean({
+        "symbol": symbol,
+        "query": query,
+        "info": info,
+        "last_price": round(last_price, 2),
+        "data_points": len(df),
+        "action": action,
+        "global_score": round(global_score, 1),
+        "scores": scores,
+        "regime": regime_result,
+        "best_strategy": {
+            "name": best_strategy["strategy"] if best_strategy else None,
+            "direction": best_strategy["direction"] if best_strategy else "NEUTRAL",
+            "conviction": best_strategy["conviction"] if best_strategy else 0,
+            "entry": round(last_price, 2),
+            "stop_loss": sl,
+            "take_profit": tp,
+        },
+        "all_strategies": strategies_results,
+        "indicators": {
+            "rsi": round(rsi_val, 1),
+            "macd_histogram": round(macd_hist, 4),
+            "sma_20": round(sma_20, 2),
+            "sma_50": round(sma_50, 2),
+            "sma_200": round(sma_200, 2),
+            "atr": round(atr_val, 2),
+            "bb_upper": round(float(bb["upper"].iloc[-1]), 2) if not np.isnan(bb["upper"].iloc[-1]) else 0,
+            "bb_lower": round(float(bb["lower"].iloc[-1]), 2) if not np.isnan(bb["lower"].iloc[-1]) else 0,
+        },
+        "details": {
+            "genome_phase": genome.get("cycle_phase", 0),
+            "seismograph_active": genome.get("seismograph", {}).get("active", 0),
+            "ipi_ad_trend": ipi.get("ad_trend", ""),
+            "ivf_acceleration": ivf.get("acceleration", 0),
+        },
+        "performance": {
+            "1_month": perf_1m,
+            "3_months": perf_3m,
+            "1_year": perf_1y,
+        },
+        "ohlcv": [
+            {"date": str(df.index[i].date()), "open": round(float(df["Open"].iloc[i]), 2),
+             "high": round(float(df["High"].iloc[i]), 2), "low": round(float(df["Low"].iloc[i]), 2),
+             "close": round(float(df["Close"].iloc[i]), 2), "volume": int(df["Volume"].iloc[i])}
+            for i in range(max(0, len(df) - 100), len(df))
+        ],
+    })

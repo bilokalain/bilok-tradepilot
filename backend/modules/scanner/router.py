@@ -92,6 +92,16 @@ def scan_market(db: Session = Depends(get_sync_db)):
     return quick_results
 
 
+@router.get("/analyse")
+def analyse_any_asset(q: str):
+    """Analyse complète d'un actif quelconque (pas besoin d'être en BDD).
+
+    Exemples : ?q=PLTR, ?q=S&P 500, ?q=COIN, ?q=AMC, ?q=CAC 40
+    """
+    from backend.modules.scanner.quick_analyse import quick_analyse
+    return quick_analyse(q)
+
+
 @router.get("/results/{symbol}")
 def get_scan_result(symbol: str, db: Session = Depends(get_sync_db)):
     """Retourne le résultat de scan pour un actif donné."""

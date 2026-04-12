@@ -10,6 +10,7 @@ import {
   TrendingUp,
   LogOut,
   BookOpen,
+  SearchCheck,
   Settings,
 } from "lucide-react";
 import Notifications from "./Notifications";
@@ -18,6 +19,7 @@ import ErrorBoundary from "./ErrorBoundary";
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/scanner", icon: ScanSearch, label: "Scanner" },
+  { to: "/analyse", icon: SearchCheck, label: "Analyse rapide" },
   { to: "/analyser", icon: Brain, label: "Analyseur" },
   { to: "/scoring", icon: Target, label: "Scoring" },
   { to: "/execution", icon: Zap, label: "Exécution" },
