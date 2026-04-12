@@ -114,13 +114,24 @@ def quick_analyse(query: str) -> dict:
     else:
         regime_result = {"regime": "UNKNOWN", "probabilities": {}, "confidence": 0}
 
-    # 5. Stratégies
+    # 5. Stratégies (toutes, y compris pro)
+    from backend.modules.analyser.strategies_pro import (
+        strategy_adaptive_trend, strategy_multi_signal,
+        strategy_keltner_breakout, strategy_vwap_reversion,
+        strategy_momentum_rotation,
+    )
+
     strategies_results = []
     all_strategies = {
         "trend_following": lambda: strategy_trend_following(close, high, low),
         "mean_reversion": lambda: strategy_mean_reversion(close, high, low),
         "breakout": lambda: strategy_breakout(close, high, low, volume),
         "momentum": lambda: strategy_momentum(close, high, low),
+        "adaptive_trend": lambda: strategy_adaptive_trend(close, high, low, volume),
+        "multi_signal": lambda: strategy_multi_signal(close, high, low, volume),
+        "keltner_breakout": lambda: strategy_keltner_breakout(close, high, low, volume),
+        "vwap_reversion": lambda: strategy_vwap_reversion(close, high, low, volume),
+        "momentum_rotation": lambda: strategy_momentum_rotation(close, high, low, volume),
     }
     if len(close) >= 60:
         all_strategies["mean_reversion_v2"] = lambda: strategy_mean_reversion_v2(close, high, low, volume)
@@ -134,6 +145,19 @@ def quick_analyse(query: str) -> dict:
     for name, func in all_strategies.items():
         try:
             result = func()
+            # Ajouter entry/SL/TP si manquants
+            if "entry" not in result or result.get("entry") is None:
+                result["entry"] = round(last_price, 2)
+            if "stop_loss" not in result or result.get("stop_loss") is None:
+                if result.get("direction") == "LONG":
+                    result["stop_loss"] = round(last_price - 2 * atr_val, 2)
+                elif result.get("direction") == "SHORT":
+                    result["stop_loss"] = round(last_price + 2 * atr_val, 2)
+            if "take_profit" not in result or result.get("take_profit") is None:
+                if result.get("direction") == "LONG":
+                    result["take_profit"] = round(last_price + 3 * atr_val, 2)
+                elif result.get("direction") == "SHORT":
+                    result["take_profit"] = round(last_price - 3 * atr_val, 2)
             strategies_results.append(result)
             if result["conviction"] > best_conviction and result["direction"] != "NEUTRAL":
                 best_conviction = result["conviction"]
