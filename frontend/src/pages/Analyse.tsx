@@ -183,37 +183,27 @@ function AnalyseResult({ data }: { data: any }) {
         </InfoCard>
       )}
 
-      {/* Scores */}
-      <InfoCard title="Scores d'analyse" icon={<TrendingUp size={18} />} description="Chaque dimension est notée de 0 à 100. Plus le score est élevé, plus l'actif est intéressant sur cette dimension.">
+      {/* Scores — cliquables */}
+      <InfoCard title="Scores d'analyse" icon={<TrendingUp size={18} />} description="Cliquez sur chaque score pour voir sa définition et l'interprétation pour cet actif.">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {Object.entries(data.scores || {}).map(([key, value]: [string, any]) => (
-            <div key={key} className="bg-surface rounded-xl p-4">
-              <p className="text-xs text-text-secondary mb-1 capitalize">{key.replace("_", " ")}</p>
-              <div className="flex items-center gap-3">
-                <span className={`text-2xl font-mono font-bold ${value >= 65 ? "text-gold" : value >= 45 ? "text-text-primary" : "text-red-400"}`}>
-                  {value}
-                </span>
-                <div className="flex-1 h-2 bg-background rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${value >= 65 ? "bg-gold" : value >= 45 ? "bg-text-secondary" : "bg-red-400"}`} style={{ width: `${value}%` }} />
-                </div>
-              </div>
-            </div>
+            <ScoreCard key={key} name={key} score={value} price={data.last_price} />
           ))}
         </div>
       </InfoCard>
 
-      {/* Indicateurs */}
+      {/* Indicateurs — cliquables */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <InfoCard title="Indicateurs techniques" icon={<TrendingUp size={18} />} description="Les indicateurs clés pour comprendre la dynamique actuelle.">
+        <InfoCard title="Indicateurs techniques" icon={<TrendingUp size={18} />} description="Cliquez sur un indicateur pour comprendre ce qu'il mesure et ce que sa valeur signifie.">
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <IndicatorRow label="RSI (14)" value={ind.rsi} note={ind.rsi > 70 ? "Suracheté" : ind.rsi < 30 ? "Survendu" : "Neutre"} />
-            <IndicatorRow label="MACD Hist." value={ind.macd_histogram?.toFixed(2)} note={ind.macd_histogram > 0 ? "Haussier" : "Baissier"} />
-            <IndicatorRow label="SMA 20" value={`$${ind.sma_20}`} />
-            <IndicatorRow label="SMA 50" value={`$${ind.sma_50}`} />
-            <IndicatorRow label="SMA 200" value={`$${ind.sma_200}`} />
-            <IndicatorRow label="ATR (14)" value={`$${ind.atr}`} note="Volatilité journalière" />
-            <IndicatorRow label="Bollinger Haut" value={`$${ind.bb_upper}`} />
-            <IndicatorRow label="Bollinger Bas" value={`$${ind.bb_lower}`} />
+            <IndicatorCard label="RSI (14)" value={ind.rsi} definition="Le RSI mesure la vitesse et l'amplitude des mouvements de prix sur 14 jours. Il oscille entre 0 et 100." interpret={ind.rsi > 70 ? `RSI à ${ind.rsi?.toFixed(0)} = SURACHETÉ. Le prix a trop monté trop vite. Un repli est probable.` : ind.rsi < 30 ? `RSI à ${ind.rsi?.toFixed(0)} = SURVENDU. Le prix a trop baissé. Un rebond est possible.` : `RSI à ${ind.rsi?.toFixed(0)} = zone neutre. Pas de signal extrême.`} />
+            <IndicatorCard label="MACD Hist." value={ind.macd_histogram?.toFixed(2)} definition="Le MACD mesure la différence entre deux moyennes mobiles. L'histogramme montre si le momentum accélère ou décélère." interpret={ind.macd_histogram > 0 ? `Histogramme positif (${ind.macd_histogram?.toFixed(2)}) = le momentum est HAUSSIER. La hausse accélère.` : `Histogramme négatif (${ind.macd_histogram?.toFixed(2)}) = le momentum est BAISSIER. La baisse accélère.`} />
+            <IndicatorCard label="SMA 20" value={`$${ind.sma_20}`} definition="Moyenne mobile simple sur 20 jours. C'est la tendance à court terme. Le prix au-dessus = haussier, en dessous = baissier." interpret={data.last_price > ind.sma_20 ? `Prix ($${data.last_price}) > SMA 20 ($${ind.sma_20}) = tendance court terme HAUSSIÈRE.` : `Prix ($${data.last_price}) < SMA 20 ($${ind.sma_20}) = tendance court terme BAISSIÈRE.`} />
+            <IndicatorCard label="SMA 50" value={`$${ind.sma_50}`} definition="Moyenne mobile sur 50 jours. C'est la tendance à moyen terme. Les institutionnels l'utilisent pour prendre des décisions." interpret={data.last_price > ind.sma_50 ? `Prix au-dessus de la SMA 50 = tendance moyen terme INTACTE.` : `Prix en dessous de la SMA 50 = la tendance moyen terme se DÉTÉRIORE.`} />
+            <IndicatorCard label="SMA 200" value={`$${ind.sma_200}`} definition="Moyenne mobile sur 200 jours = la tendance long terme. C'est la frontière entre marché haussier et baissier." interpret={data.last_price > ind.sma_200 ? `Prix > SMA 200 = MARCHÉ HAUSSIER. Les investisseurs long terme restent acheteurs.` : `Prix < SMA 200 = MARCHÉ BAISSIER. Les investisseurs long terme deviennent prudents.`} />
+            <IndicatorCard label="ATR (14)" value={`$${ind.atr}`} definition="Average True Range = la volatilité moyenne en dollars sur 14 jours. C'est combien le prix bouge par jour en moyenne." interpret={`L'actif bouge en moyenne de $${ind.atr} par jour. On utilise cette valeur pour calculer le Stop Loss (2×ATR = $${(ind.atr * 2)?.toFixed(2)}) et le Take Profit (3×ATR = $${(ind.atr * 3)?.toFixed(2)}).`} />
+            <IndicatorCard label="Bollinger Haut" value={`$${ind.bb_upper}`} definition="Bande de Bollinger supérieure = SMA 20 + 2 écarts-types. Quand le prix la touche, il est en excès haussier." interpret={data.last_price > ind.bb_upper ? `Prix ($${data.last_price}) AU-DESSUS de la bande = EXCÈS HAUSSIER. Risque de correction.` : `Prix en dessous de la bande haute = pas de surachat.`} />
+            <IndicatorCard label="Bollinger Bas" value={`$${ind.bb_lower}`} definition="Bande de Bollinger inférieure = SMA 20 - 2 écarts-types. Quand le prix la touche, il est en excès baissier." interpret={data.last_price < ind.bb_lower ? `Prix ($${data.last_price}) EN DESSOUS de la bande = EXCÈS BAISSIER. Rebond possible.` : `Prix au-dessus de la bande basse = pas de survente.`} />
           </div>
         </InfoCard>
 
@@ -298,6 +288,102 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between">
       <span className="text-text-secondary">{label}</span>
       <span className="font-mono">{value}</span>
+    </div>
+  );
+}
+
+// Définitions des scores
+const SCORE_DEFINITIONS: Record<string, { emoji: string; name: string; definition: string; interpret: (score: number) => string }> = {
+  technical: {
+    emoji: "📊", name: "Analyse Technique",
+    definition: "Note composite de 20 indicateurs (RSI, MACD, SMA, ADX, VWAP, Bollinger, Pivots, divergences...). Mesure la dynamique de prix, le momentum et la force de la tendance.",
+    interpret: (s) => s >= 70 ? "Forte dynamique haussière. La majorité des 20 indicateurs sont alignés à la hausse." : s >= 55 ? "Dynamique modérément positive. La tendance est favorable mais pas tous les indicateurs sont alignés." : s >= 45 ? "Zone neutre. Les indicateurs se contredisent — pas de tendance claire." : s >= 30 ? "Dynamique légèrement baissière. Attention, la tendance se retourne." : "Forte dynamique baissière. Les indicateurs sont alignés à la baisse.",
+  },
+  genome: {
+    emoji: "🧬", name: "Génome Explosif",
+    definition: "Détecte si l'actif est en phase pré-explosive : compression de volatilité (Bollinger squeeze), contraction de volume, inside bars, divergences RSI. Analyse le cycle de Wyckoff (accumulation → markup → distribution → markdown).",
+    interpret: (s) => s >= 70 ? "Configuration explosive ! Plusieurs micro-signaux sont actifs. Un mouvement majeur est imminent." : s >= 50 ? "Quelques signes de compression. L'énergie s'accumule mais pas encore prête à exploser." : "Pas de configuration explosive. L'actif est dans une phase normale de son cycle.",
+  },
+  ipi: {
+    emoji: "🏦", name: "Capital Institutionnel",
+    definition: "Détecte si les gros investisseurs (fonds, banques) accumulent ou distribuent. Analyse la ligne Accumulation/Distribution, le Smart Money Flow (gros volumes sans mouvement de prix) et les anomalies de volume.",
+    interpret: (s) => s >= 70 ? "Accumulation institutionnelle détectée ! Les gros acteurs achètent discrètement. Suivez l'argent intelligent." : s >= 50 ? "Activité institutionnelle neutre. Pas de signal clair d'accumulation ou de distribution." : "Distribution probable. Les institutionnels semblent vendre — signal d'alerte.",
+  },
+  ivf: {
+    emoji: "⚡", name: "Vélocité Fondamentale",
+    definition: "Mesure l'ACCÉLÉRATION des fondamentaux : le momentum accélère-t-il ? L'actif surperforme-t-il son benchmark ? Y a-t-il des gaps de surprise (résultats meilleurs que prévu) ?",
+    interpret: (s) => s >= 70 ? "Les fondamentaux accélèrent ! L'actif surperforme son benchmark et montre des surprises positives." : s >= 50 ? "Fondamentaux stables. Ni amélioration ni détérioration notable." : "Décélération fondamentale. L'actif sous-performe et perd de l'élan.",
+  },
+  novelty: {
+    emoji: "💎", name: "Novelty (Unicité)",
+    definition: "Mesure si le comportement actuel de l'actif est INHABITUEL par rapport à son historique. Un comportement rare a plus de valeur informationnelle qu'un comportement normal.",
+    interpret: (s) => s >= 70 ? "Comportement très inhabituel ! Le Z-score des rendements récents est élevé. Signal rare = potentiellement exploitable." : s >= 50 ? "Comportement dans la norme. Rien de spécial par rapport à l'historique." : "Comportement très normal. Pas d'avantage informationnel.",
+  },
+  complexity: {
+    emoji: "🔬", name: "Complexité du Signal",
+    definition: "Mesure si le signal nécessite une analyse complexe pour être vu. Un signal simple (croisement SMA) est vu par tout le monde et déjà dans le prix. Un signal complexe (divergence multi-indicateurs) est vu par peu de gens = avantage.",
+    interpret: (s) => s >= 70 ? "Signal complexe — peu de traders l'ont vu. Avantage informationnel probable." : s >= 50 ? "Signal de complexité moyenne." : "Signal trop simple. Tout le monde le voit, probablement déjà dans le prix.",
+  },
+};
+
+function ScoreCard({ name, score }: { name: string; score: number; price?: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const config = SCORE_DEFINITIONS[name];
+
+  return (
+    <div
+      onClick={() => setExpanded(!expanded)}
+      className={`bg-surface rounded-xl p-4 cursor-pointer transition-all hover:bg-gold/5 ${expanded ? "ring-1 ring-gold/20 col-span-2 md:col-span-3" : ""}`}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs text-text-secondary capitalize flex items-center gap-1">
+          {config?.emoji || "📊"} {config?.name || name.replace("_", " ")}
+        </p>
+        <span className="text-[10px] text-gold">{expanded ? "fermer" : "cliquez"}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className={`text-2xl font-mono font-bold ${score >= 65 ? "text-gold" : score >= 45 ? "text-text-primary" : "text-red-400"}`}>
+          {typeof score === 'number' ? score.toFixed(1) : score}
+        </span>
+        <div className="flex-1 h-2 bg-background rounded-full overflow-hidden">
+          <div className={`h-full rounded-full ${score >= 65 ? "bg-gold" : score >= 45 ? "bg-text-secondary" : "bg-red-400"}`} style={{ width: `${score}%` }} />
+        </div>
+      </div>
+      {expanded && config && (
+        <div className="mt-3 pt-3 border-t border-border/30 space-y-2">
+          <p className="text-xs text-text-secondary leading-relaxed">{config.definition}</p>
+          <div className="p-2 bg-gold/5 rounded-lg border-l-2 border-gold/30">
+            <p className="text-xs leading-relaxed">{config.interpret(score)}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IndicatorCard({ label, value, definition, interpret }: {
+  label: string; value: any; definition: string; interpret: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div
+      onClick={() => setExpanded(!expanded)}
+      className={`bg-surface rounded-lg p-2.5 cursor-pointer transition-all hover:bg-gold/5 ${expanded ? "col-span-2 ring-1 ring-gold/20" : ""}`}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-text-secondary">{label}</p>
+        <span className="text-[9px] text-gold">{expanded ? "×" : "?"}</span>
+      </div>
+      <p className="font-mono font-semibold">{value}</p>
+      {expanded && (
+        <div className="mt-2 pt-2 border-t border-border/30 space-y-1.5">
+          <p className="text-[10px] text-text-secondary leading-relaxed">{definition}</p>
+          <div className="p-1.5 bg-gold/5 rounded border-l-2 border-gold/30">
+            <p className="text-[10px] leading-relaxed">{interpret}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
