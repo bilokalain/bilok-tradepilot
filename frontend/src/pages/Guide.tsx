@@ -52,7 +52,12 @@ const SECTIONS = [
           <ScoreGuide high="L'actif a un comportement très indépendant — opportunité unique" low="Forte corrélation — suit le marché, difficile de trouver un avantage" />
         </CriterionCard>
 
-        <CriterionCard emoji="💬" name="3. Sentiment" description="Analyse ce que les gens disent sur Reddit et les actualités. Utilise FinBERT (IA spécialisée en finance).">
+        <CriterionCard emoji="💬" name="3. Sentiment" description="Analyse ce que les gens disent sur Reddit et les actualités. Utilise FinBERT (IA spécialisée en finance) qui comprend le langage financier avec 94% de précision.">
+          <Table headers={["Source", "Méthode", "Statut"]}>
+            <TR><TD b>Reddit</TD><TD>r/wallstreetbets, r/stocks, r/CryptoCurrency</TD><TD>Actif (simulé sans clé API)</TD></TR>
+            <TR><TD b>FinBERT</TD><TD>IA NLP spécialisée finance (ProsusAI)</TD><TD>Actif sur votre Mac M3</TD></TR>
+            <TR><TD b>Google Trends</TD><TD>Intérêt de recherche</TD><TD>Prêt (pytrends)</TD></TR>
+          </Table>
           <ScoreGuide high="Sentiment très positif, beaucoup de buzz optimiste" low="Sentiment négatif — prudence ou opportunité contrariante" />
         </CriterionCard>
 
@@ -202,7 +207,24 @@ const SECTIONS = [
     icon: <Zap size={18} />,
     content: (
       <>
-        <P>Passe les ordres en paper trading via Alpaca. Chaque trade passe par 3 étapes :</P>
+        <P>Passe les ordres <B>directement chez Alpaca</B> (paper trading). Les ordres apparaissent sur app.alpaca.markets. Chaque trade passe par 3 étapes :</P>
+
+        <H3>Comment exécuter un trade</H3>
+        <Table headers={["Action", "Ce qui se passe"]}>
+          <TR><TD b>Bouton "Exécuter" (un actif)</TD><TD>Envoie un ordre market à Alpaca pour cet actif</TD></TR>
+          <TR><TD b>Bouton "Lancer le Trading"</TD><TD>Exécute TOUS les signaux GO d'un coup</TD></TR>
+        </Table>
+        <P>Les actifs <B>déjà en position</B> sont automatiquement retirés de la liste — pas de double exécution. De nouveaux signaux apparaissent quand le scanner détecte de nouvelles opportunités.</P>
+
+        <H3>Où sont envoyés les ordres ?</H3>
+        <Table headers={["Type d'actif", "Broker", "Visible chez Alpaca"]}>
+          <TR><TD b>Actions US (AAPL, MSFT...)</TD><TD>Alpaca</TD><TD>Oui</TD></TR>
+          <TR><TD b>ETF (SPY, QQQ...)</TD><TD>Alpaca</TD><TD>Oui</TD></TR>
+          <TR><TD b>Crypto (BTC, ETH, SOL)</TD><TD>Alpaca</TD><TD>Oui</TD></TR>
+          <TR><TD b>Actions EU (.PA, .DE)</TD><TD>Simulation locale</TD><TD>Non</TD></TR>
+          <TR><TD b>Forex, Commodities</TD><TD>Simulation locale</TD><TD>Non</TD></TR>
+        </Table>
+        <Callout>Le marché US est ouvert de 15h30 à 22h (heure de Paris). Les ordres passés hors marché seront exécutés à l'ouverture.</Callout>
 
         <H3>1. Vérification des biais comportementaux</H3>
         <Table headers={["Biais", "Ce que c'est", "Comment le système le détecte"]}>
@@ -288,6 +310,76 @@ const SECTIONS = [
     ),
   },
   {
+    id: "ai",
+    title: "Intelligence Artificielle",
+    icon: <Shield size={18} />,
+    content: (
+      <>
+        <P>TradePilot utilise 3 couches d'IA pour améliorer les décisions :</P>
+
+        <H3>1. FinBERT — Comprendre le langage financier</H3>
+        <P>Modèle d'IA (BERT) entraîné spécifiquement sur des textes financiers. Il comprend que "beat expectations" est positif et "crash incoming" est négatif avec <B>94% de précision</B>.</P>
+        <Table headers={["Texte", "Résultat FinBERT"]}>
+          <TR><TD>"NVIDIA stock surging, great earnings"</TD><TD b>Positif (94.1%)</TD></TR>
+          <TR><TD>"Market crash, sell everything"</TD><TD b>Négatif (68.3%)</TD></TR>
+          <TR><TD>"Stock holding steady"</TD><TD b>Neutre</TD></TR>
+        </Table>
+        <P>Tourne sur votre Mac M3 via Metal/MPS (GPU Apple Silicon).</P>
+
+        <H3>2. XGBoost — Prédire le succès d'un trade</H3>
+        <P>Modèle de machine learning entraîné sur <B>15 739 échantillons</B> historiques. Il apprend quelles combinaisons des 9 critères mènent à des trades profitables.</P>
+        <Table headers={["Paramètre", "Valeur"]}>
+          <TR><TD b>Algorithme</TD><TD>XGBoost (Gradient Boosting)</TD></TR>
+          <TR><TD b>Features</TD><TD>9 scores + régime + volatilité + volume = 14 features</TD></TR>
+          <TR><TD b>Données</TD><TD>15 739 échantillons (51 actifs × ~300 jours)</TD></TR>
+          <TR><TD b>Ré-entraînement</TD><TD>POST /api/scoring/ml/train</TD></TR>
+        </Table>
+
+        <H3>3. Ensemble Voting — Combiner les stratégies</H3>
+        <P>Au lieu de choisir UNE stratégie, le système fait <B>voter</B> toutes les stratégies profitables. Chaque vote est pondéré par le Sharpe historique de la stratégie. Plus les stratégies sont d'accord, plus le signal est fiable.</P>
+        <Callout>Quand &gt; 80% des stratégies votent dans la même direction = bonus de conviction de +15%.</Callout>
+      </>
+    ),
+  },
+  {
+    id: "live",
+    title: "Données temps réel",
+    icon: <BarChart3 size={18} />,
+    content: (
+      <>
+        <P>TradePilot se connecte à <B>Alpaca</B> pour les prix en temps réel et à <B>FRED</B> pour les données macro-économiques.</P>
+
+        <H3>Prix live (Alpaca)</H3>
+        <Table headers={["Type", "Actifs supportés", "Fréquence"]}>
+          <TR><TD b>Actions US</TD><TD>AAPL, MSFT, GOOGL, NVDA... (tous)</TD><TD>Temps réel</TD></TR>
+          <TR><TD b>ETF</TD><TD>SPY, QQQ, GLD, TLT...</TD><TD>Temps réel</TD></TR>
+          <TR><TD b>Crypto</TD><TD>BTC/USD, ETH/USD, SOL/USD</TD><TD>Temps réel 24/7</TD></TR>
+          <TR><TD b>Actions EU / Forex / Commodities</TD><TD>—</TD><TD>Données historiques (BDD)</TD></TR>
+        </Table>
+
+        <H3>Données macro (FRED)</H3>
+        <P>Avec une clé API FRED (gratuite), le système récupère les vrais indicateurs économiques :</P>
+        <Table headers={["Indicateur", "Ce qu'il mesure"]}>
+          <TR><TD b>Taux Fed Funds</TD><TD>Le taux directeur de la banque centrale américaine</TD></TR>
+          <TR><TD b>Treasury 10Y</TD><TD>Taux des obligations d'État à 10 ans</TD></TR>
+          <TR><TD b>VIX</TD><TD>L'indice de la peur du marché</TD></TR>
+          <TR><TD b>Chômage</TD><TD>Taux de chômage américain</TD></TR>
+          <TR><TD b>CPI</TD><TD>Inflation (prix à la consommation)</TD></TR>
+          <TR><TD b>M2</TD><TD>Masse monétaire (liquidité dans le système)</TD></TR>
+        </Table>
+        <Callout>Sans clé FRED, le système utilise des estimations. Avec la clé (gratuite), il utilise les vraies données mise à jour chaque heure.</Callout>
+
+        <H3>Horaires de marché</H3>
+        <Table headers={["Marché", "Heures (Paris)", "Jours"]}>
+          <TR><TD b>US (NYSE/NASDAQ)</TD><TD>15h30 — 22h00</TD><TD>Lundi — Vendredi</TD></TR>
+          <TR><TD b>Europe</TD><TD>9h00 — 17h30</TD><TD>Lundi — Vendredi</TD></TR>
+          <TR><TD b>Crypto</TD><TD>24h/24</TD><TD>7j/7</TD></TR>
+          <TR><TD b>Forex</TD><TD>24h/24</TD><TD>Lundi — Vendredi</TD></TR>
+        </Table>
+      </>
+    ),
+  },
+  {
     id: "glossary",
     title: "Glossaire",
     icon: <HelpCircle size={18} />,
@@ -314,6 +406,15 @@ const SECTIONS = [
           <GlossaryItem term="Trailing Stop" def="Stop qui monte avec le prix — protège les gains" />
           <GlossaryItem term="VIX" def="Indice de la peur. < 20 calme, > 30 panique" />
           <GlossaryItem term="Win Rate" def="% de trades gagnants. 55% = 55 sur 100 gagnants" />
+          <GlossaryItem term="XGBoost" def="Algorithme ML qui apprend quelles combinaisons de critères = trade profitable" />
+          <GlossaryItem term="FinBERT" def="IA qui comprend le langage financier (positif/négatif/neutre)" />
+          <GlossaryItem term="Ensemble" def="Combinaison des votes de plusieurs stratégies pour un signal plus fiable" />
+          <GlossaryItem term="Fibonacci" def="Niveaux naturels (0.382, 0.5, 0.618) où le prix rebondit souvent" />
+          <GlossaryItem term="Ichimoku" def="Système japonais complet : tendance + support + timing en un graphique" />
+          <GlossaryItem term="Alpaca" def="Broker en ligne pour le paper trading (argent virtuel) et live trading" />
+          <GlossaryItem term="FRED" def="Federal Reserve Economic Data — données macro gratuites (taux, VIX...)" />
+          <GlossaryItem term="Meta-Score" def="Note 0-100 de la santé du système. Pilote le niveau d'engagement" />
+          <GlossaryItem term="EWS" def="Early Warning System — 5 alertes qui peuvent pauser le pipeline" />
           <GlossaryItem term="Z-score" def="Mesure l'extrémité. > 2 = très loin de la moyenne" />
         </div>
       </>
@@ -325,12 +426,16 @@ const SECTIONS = [
     icon: <Settings size={18} />,
     content: (
       <>
-        <H3>Clés API à configurer dans .env</H3>
-        <Table headers={["Variable", "Où l'obtenir", "Impact"]}>
-          <TR><TD b>ALPACA_API_KEY</TD><TD>app.alpaca.markets</TD><TD>Connexion broker (paper trading)</TD></TR>
-          <TR><TD b>FRED_API_KEY</TD><TD>fred.stlouisfed.org</TD><TD>Données macro réelles (VIX, taux)</TD></TR>
-          <TR><TD b>REDDIT_CLIENT_ID</TD><TD>reddit.com/prefs/apps</TD><TD>Sentiment Reddit réel</TD></TR>
+        <H3>Clés API configurées</H3>
+        <Table headers={["Variable", "Où l'obtenir", "Statut"]}>
+          <TR><TD b>ALPACA_API_KEY</TD><TD>app.alpaca.markets</TD><TD>Configuré — ordres live</TD></TR>
+          <TR><TD b>ALPACA_SECRET_KEY</TD><TD>Idem</TD><TD>Configuré</TD></TR>
+          <TR><TD b>FRED_API_KEY</TD><TD>fred.stlouisfed.org (gratuit)</TD><TD>Optionnel — données macro réelles</TD></TR>
+          <TR><TD b>REDDIT_CLIENT_ID</TD><TD>reddit.com/prefs/apps (gratuit)</TD><TD>Optionnel — sentiment réel</TD></TR>
+          <TR><TD b>REDDIT_CLIENT_SECRET</TD><TD>Idem</TD><TD>Optionnel</TD></TR>
+          <TR><TD b>NEWSAPI_KEY</TD><TD>newsapi.org</TD><TD>Optionnel — actualités financières</TD></TR>
         </Table>
+        <Callout>Les clés FRED et Reddit sont gratuites et enrichissent fortement le modèle. Sans elles, le système utilise des estimations.</Callout>
 
         <H3>Commandes</H3>
         <div className="bg-surface rounded-xl p-4 font-mono text-xs space-y-2">
