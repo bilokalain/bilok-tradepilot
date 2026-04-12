@@ -33,19 +33,21 @@ const SECTIONS = [
     icon: <ScanSearch size={18} />,
     content: (
       <>
-        <P>Le scanner est le <B>filtre d'entrée</B>. Sur 51 actifs, il identifie ceux qui méritent votre attention. Chaque actif reçoit une note de 0 à 100 basée sur 9 dimensions indépendantes.</P>
+        <P>Le scanner est le <B>filtre d'entrée</B>. Sur 218 actifs, il identifie ceux qui méritent votre attention. Chaque actif reçoit une note de 0 à 100 basée sur <B>10 dimensions indépendantes</B>.</P>
 
-        <H3>Les 9 critères</H3>
+        <H3>Les 10 critères</H3>
 
-        <CriterionCard emoji="📊" name="1. Analyse Technique (AT)" description="Étudie les mouvements de prix passés pour prédire les futurs.">
-          <Table headers={["Indicateur", "Ce qu'il mesure", "Comment le lire"]}>
-            <TR><TD b>SMA 20/50/200</TD><TD>Moyennes mobiles (tendance lissée)</TD><TD>Prix &gt; SMA 200 = tendance haussière</TD></TR>
-            <TR><TD b>RSI</TD><TD>Momentum (0-100)</TD><TD>&gt; 70 = suracheté, &lt; 30 = survendu</TD></TR>
-            <TR><TD b>MACD</TD><TD>Accélération de la tendance</TD><TD>Histogramme positif = hausse accélère</TD></TR>
-            <TR><TD b>Bollinger</TD><TD>Volatilité</TD><TD>Prix sur bande basse = possible rebond</TD></TR>
-            <TR><TD b>ATR</TD><TD>Volatilité en dollars</TD><TD>Sert à calculer les stop-loss</TD></TR>
+        <CriterionCard emoji="📊" name="1. Analyse Technique (AT) — 20 indicateurs" description="Étudie les mouvements de prix avec 20 indicateurs répartis en 7 familles. C'est le critère le plus complet du scanner.">
+          <Table headers={["Famille", "Indicateurs", "Ce qu'ils mesurent"]}>
+            <TR><TD b>Tendance</TD><TD>SMA, EMA, ADX, Parabolic SAR, Donchian</TD><TD>Direction et force du mouvement</TD></TR>
+            <TR><TD b>Momentum</TD><TD>RSI, MACD, Stochastic, Williams %R, CCI, ROC</TD><TD>Vitesse et accélération du prix</TD></TR>
+            <TR><TD b>Volatilité</TD><TD>Bollinger Bands, ATR</TD><TD>Amplitude des mouvements</TD></TR>
+            <TR><TD b>Volume</TD><TD>OBV, Chaikin Money Flow, VWAP</TD><TD>Confirmation par le volume + prix institutionnel</TD></TR>
+            <TR><TD b>Structure</TD><TD>Pivot Points (PP, R1-R3, S1-S3)</TD><TD>Niveaux de support/résistance institutionnels</TD></TR>
+            <TR><TD b>Divergences</TD><TD>RSI divergence, MACD divergence (auto)</TD><TD>Détecte les retournements avant qu'ils arrivent</TD></TR>
+            <TR><TD b>Force</TD><TD>ADX</TD><TD>&gt; 25 = tendance forte, &lt; 20 = range (pas de tendance)</TD></TR>
           </Table>
-          <ScoreGuide high="Forte dynamique haussière, indicateurs alignés" low="Dynamique baissière, momentum négatif" />
+          <ScoreGuide high="Forte dynamique haussière, 20 indicateurs alignés" low="Dynamique baissière, divergences détectées" />
         </CriterionCard>
 
         <CriterionCard emoji="🔗" name="2. Corrélation" description="Compare le comportement de l'actif avec les autres. Un actif qui se découple du groupe est intéressant.">
@@ -105,6 +107,19 @@ const SECTIONS = [
             <TR><TD b>Complexity Premium</TD><TD>Faut-il une analyse complexe pour le voir ?</TD></TR>
           </Table>
           <ScoreGuide high="Signal unique — avantage informationnel probable" low="Signal crowdé — tout le monde l'a vu, pas d'avantage" />
+        </CriterionCard>
+
+        <CriterionCard emoji="📋" name="10. Analyse Fondamentale" description="Évalue la santé financière réelle de l'entreprise : est-elle rentable ? en croissance ? bien valorisée ? endettée ? C'est l'analyse 'Warren Buffett'. Ne s'applique qu'aux actions (pas crypto, forex, commodities).">
+          <Table headers={["Dimension", "Poids", "Ce qu'elle mesure", "Exemple AAPL"]}>
+            <TR><TD b>Profitabilité</TD><TD>25%</TD><TD>Marge nette, ROE, ROA</TD><TD>88/100 (ROE 152%!)</TD></TR>
+            <TR><TD b>Croissance</TD><TD>20%</TD><TD>Growth du CA et des bénéfices</TD><TD>78/100 (+15.7% CA)</TD></TR>
+            <TR><TD b>Valorisation</TD><TD>20%</TD><TD>P/E, P/B, PEG — cher ou bon marché ?</TD><TD>28/100 (P/E 33 = cher)</TD></TR>
+            <TR><TD b>Santé financière</TD><TD>15%</TD><TD>Debt/Equity, Current Ratio, FCF</TD><TD>42/100 (D/E 102)</TD></TR>
+            <TR><TD b>Qualité (Piotroski)</TD><TD>10%</TD><TD>9 critères binaires de qualité comptable</TD><TD>78/100 (7/9 passés)</TD></TR>
+            <TR><TD b>Dividendes</TD><TD>10%</TD><TD>Yield + soutenabilité du payout</TD><TD>73/100</TD></TR>
+          </Table>
+          <ScoreGuide high="Entreprise très rentable, en croissance, peu endettée" low="Perte, endettement excessif, valorisation extrême" />
+          <Callout>AAPL : score fondamental 64.5/100 — très profitable (ROE 152%) mais chère (P/E 33). Le score équilibre les forces et faiblesses.</Callout>
         </CriterionCard>
 
         <H3>Vetos</H3>
@@ -389,6 +404,21 @@ const SECTIONS = [
         <P><B>Résultat : 0% de consistance.</B> Cela signifie que les stratégies qui marchent sur 10 ans ne marchent pas de façon régulière sur chaque sous-période. C'est un avertissement :</P>
         <Callout>Un backtest positif sur 10 ans ne garantit PAS un profit régulier. Les performances passées ne préjugent pas des résultats futurs. C'est pour ça que le paper trading de 3 mois est indispensable.</Callout>
 
+        <H3>Backtest Pro vs Classique</H3>
+        <P>Les 5 stratégies pro ont été comparées aux 4 classiques sur 218 actifs :</P>
+        <Table headers={["", "Pro", "Classique", "Égalité"]}>
+          <TR><TD b>Actifs gagnés</TD><TD>110</TD><TD>68</TD><TD>39</TD></TR>
+        </Table>
+        <P><B>Les pro gagnent sur 51% des actifs.</B> La stratégie la plus performante :</P>
+        <Table headers={["Stratégie", "Actifs où elle gagne", "Type"]}>
+          <TR><TD b>Momentum Rotation</TD><TD>48 actifs</TD><TD>Pro</TD></TR>
+          <TR><TD b>VWAP Reversion</TD><TD>30 actifs</TD><TD>Pro</TD></TR>
+          <TR><TD b>Mean Reversion</TD><TD>30 actifs</TD><TD>Classique</TD></TR>
+          <TR><TD b>Trend Following</TD><TD>23 actifs</TD><TD>Classique</TD></TR>
+          <TR><TD b>Multi-Signal</TD><TD>22 actifs</TD><TD>Pro</TD></TR>
+        </Table>
+        <Callout>Momentum Rotation domine largement (48 actifs) — acheter les actifs les plus forts et vendre les plus faibles est la stratégie prouvée académiquement la plus robuste.</Callout>
+
         <H3>Comment lire les résultats du backtest</H3>
         <Table headers={["Métrique", "Ce que ça mesure", "Bon signe si"]}>
           <TR><TD b>Sharpe Ratio</TD><TD>Rendement ajusté au risque</TD><TD>&gt; 0.5 (correct), &gt; 1.0 (bon)</TD></TR>
@@ -558,8 +588,9 @@ const SECTIONS = [
           <TR><TD b>Actifs en base</TD><TD>218 (US, EU, Crypto, Forex, Commodities)</TD></TR>
           <TR><TD b>Barres daily</TD><TD>1 593 395 (depuis 1962)</TD></TR>
           <TR><TD b>Barres intraday 1H</TD><TD>412 490</TD></TR>
-          <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques)</TD></TR>
-          <TR><TD b>Critères scanner</TD><TD>9 orthogonaux</TD></TR>
+          <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques) — Pro bat Classique 110 vs 68</TD></TR>
+          <TR><TD b>Critères scanner</TD><TD>10 (dont analyse fondamentale)</TD></TR>
+          <TR><TD b>Indicateurs AT</TD><TD>20 (7 familles)</TD></TR>
           <TR><TD b>Tests unitaires</TD><TD>123 (100% pass)</TD></TR>
           <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP) + XGBoost (15K samples)</TD></TR>
         </Table>
