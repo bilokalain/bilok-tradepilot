@@ -277,8 +277,21 @@ const SECTIONS = [
           <TR><TD b>T3</TD><TD>25%</TD><TD>Ordre stop — sur momentum fort</TD></TR>
         </Table>
 
-        <H3>3. Gestion post-entrée</H3>
-        <P>Une fois en position, le <B>trailing stop</B> monte automatiquement avec le prix pour protéger vos gains.</P>
+        <H3>3. Bracket Orders Alpaca</H3>
+        <P>Chaque ordre est envoyé à Alpaca comme <B>Bracket Order</B> : entrée + Stop Loss + Take Profit en une seule commande. Même si votre Mac s'éteint, Alpaca exécutera le SL et TP automatiquement.</P>
+
+        <H3>4. Score V2 pré-trade</H3>
+        <P>Avant chaque exécution, le système vérifie les <B>8 sources du Score V2</B> :</P>
+        <Table headers={["Vérification", "Si échoue"]}>
+          <TR><TD b>Score V2 &lt; 50</TD><TD>Trade refusé (NO_TRADE)</TD></TR>
+          <TR><TD b>CPI/FOMC demain</TD><TD>Conviction réduite de 50%</TD></TR>
+          <TR><TD b>Corrélation &gt; 0.7 avec positions</TD><TD>Sizing divisé par 2</TD></TR>
+          <TR><TD b>3+ positions très corrélées</TD><TD>Trade bloqué</TD></TR>
+          <TR><TD b>FOMO (&gt; 25% de mouvement)</TD><TD>Trade bloqué</TD></TR>
+        </Table>
+
+        <H3>5. Gestion post-entrée</H3>
+        <P>Une fois en position, le <B>trailing stop</B> monte automatiquement avec le prix pour protéger vos gains. Les positions Alpaca se synchronisent avec la BDD locale.</P>
       </>
     ),
   },
@@ -306,6 +319,26 @@ const SECTIONS = [
           <TR><TD b>BETA</TD><TD>Performance marché</TD><TD>Normal</TD></TR>
           <TR><TD b>STRESS</TD><TD>Drawdown &gt; 10%</TD><TD>Réduire les positions</TD></TR>
         </Table>
+
+        <H3>Value at Risk (VaR)</H3>
+        <P>Perte maximale attendue à 95% de confiance. Exemple : "VaR $629/jour" = il y a 5% de chance de perdre plus de $629 en un jour.</P>
+
+        <H3>Risk Budget</H3>
+        <P>Budget de perte maximum fixé à 15% du capital. Le système suit en temps réel combien de budget risque a été utilisé et combien reste. Quand le budget tombe sous 20%, il passe en mode CRITICAL.</P>
+
+        <H3>Max Drawdown Control</H3>
+        <Table headers={["Drawdown", "Niveau", "Action automatique"]}>
+          <TR><TD b>&gt; -5%</TD><TD>NORMAL</TD><TD>Pas d'action</TD></TR>
+          <TR><TD b>-5% à -10%</TD><TD>WARNING</TD><TD>Réduire les positions de 30%</TD></TR>
+          <TR><TD b>-10% à -15%</TD><TD>ALERT</TD><TD>Réduire de 60%</TD></TR>
+          <TR><TD b>&lt; -20%</TD><TD>CRITICAL</TD><TD>Fermer TOUTES les positions</TD></TR>
+        </Table>
+
+        <H3>Rebalancing</H3>
+        <P>Quand les poids dérivent de plus de 5% par rapport aux cibles Risk Parity, le système recommande un rééquilibrage avec les ordres précis (acheter/vendre combien de chaque actif).</P>
+
+        <H3>Beta et Exposition</H3>
+        <P>Le <B>Beta</B> mesure combien le portefeuille suit le marché (1.0 = suit exactement, &gt; 1.3 = trop agressif). L'<B>exposition sectorielle</B> détecte la concentration (ex: 40% en Tech = risque HIGH).</P>
       </>
     ),
   },
@@ -341,6 +374,32 @@ const SECTIONS = [
           <li>Système CRITIQUE → pause automatique</li>
         </ul>
         <Callout>C'est ce qui fait que le système apprend de ses erreurs.</Callout>
+
+        <H3>Benchmarks réels</H3>
+        <P>Le système compare votre performance à 2 benchmarks :</P>
+        <Table headers={["Benchmark", "Ce que c'est"]}>
+          <TR><TD b>SPY Buy & Hold</TD><TD>Acheter le S&P 500 et ne rien faire — le benchmark de base</TD></TR>
+          <TR><TD b>60/40</TD><TD>60% actions (SPY) + 40% obligations (TLT) — le benchmark conservateur</TD></TR>
+        </Table>
+        <P>Si vous battez SPY, votre système a de la valeur. Sinon, mieux vaut acheter un ETF.</P>
+
+        <H3>Ratios live</H3>
+        <Table headers={["Ratio", "Ce qu'il mesure", "Bon si"]}>
+          <TR><TD b>Sharpe</TD><TD>Rendement / risque total</TD><TD>&gt; 0.5</TD></TR>
+          <TR><TD b>Sortino</TD><TD>Rendement / risque de perte seulement</TD><TD>&gt; 0.7</TD></TR>
+          <TR><TD b>Calmar</TD><TD>Rendement / max drawdown</TD><TD>&gt; 0.5</TD></TR>
+        </Table>
+
+        <H3>Rapport hebdomadaire</H3>
+        <P>Chaque semaine, le système génère un rapport complet :</P>
+        <Table headers={["Section", "Contenu"]}>
+          <TR><TD b>Résumé</TD><TD>Equity, P&L, rendement de la semaine</TD></TR>
+          <TR><TD b>Top/Flop</TD><TD>Meilleure et pire position</TD></TR>
+          <TR><TD b>vs Benchmarks</TD><TD>Surperformez-vous SPY et 60/40 ?</TD></TR>
+          <TR><TD b>Risques</TD><TD>VaR, drawdown, budget, beta, exposition</TD></TR>
+          <TR><TD b>Recommandations</TD><TD>Actions automatiques (diversifier, réduire beta...)</TD></TR>
+        </Table>
+        <P>Accessible via <Code>/api/performance/weekly-report</Code>. Sauvegardé automatiquement.</P>
       </>
     ),
   },
@@ -478,6 +537,42 @@ const SECTIONS = [
     ),
   },
   {
+    id: "analyse_rapide",
+    title: "Analyse Rapide",
+    icon: <ScanSearch size={18} />,
+    content: (
+      <>
+        <P>La page <B>Analyse Rapide</B> permet d'analyser <B>n'importe quel actif</B> en tapant son nom ou symbole — même s'il n'est pas dans les 218 actifs suivis.</P>
+
+        <H3>Comment ça marche</H3>
+        <Table headers={["Étape", "Ce qui se passe"]}>
+          <TR><TD b>1. Recherche</TD><TD>Tapez AAPL, S&P 500, BITCOIN, CAC 40, PLTR, AMC...</TD></TR>
+          <TR><TD b>2. Téléchargement</TD><TD>Yahoo Finance fournit 2 ans de données daily en ~3 secondes</TD></TR>
+          <TR><TD b>3. Prix live</TD><TD>Si l'actif est sur Alpaca (US, ETF, crypto), le prix temps réel remplace la clôture Yahoo</TD></TR>
+          <TR><TD b>4. Analyse</TD><TD>20 indicateurs AT + 6 scores + 12 stratégies calculés sur les données fraîches</TD></TR>
+          <TR><TD b>5. Verdict</TD><TD>GO / ATTENTE / PAS DE TRADE avec prix d'entrée, SL, TP</TD></TR>
+        </Table>
+
+        <H3>Ce que vous voyez</H3>
+        <P>Tout est <B>cliquable</B> pour voir les définitions et interprétations :</P>
+        <Table headers={["Section", "Cliquable ?", "Ce qui s'affiche"]}>
+          <TR><TD b>6 scores (AT, Génome, IPI...)</TD><TD>Oui</TD><TD>Définition + interprétation dynamique du score pour cet actif</TD></TR>
+          <TR><TD b>8 indicateurs (RSI, MACD, SMA...)</TD><TD>Oui</TD><TD>Définition + "RSI à 65 = zone neutre, pas de signal extrême"</TD></TR>
+          <TR><TD b>12 stratégies</TD><TD>Oui</TD><TD>Qu'est-ce que c'est ? Quand ça fonctionne ? Comment ça entre ? + Signal avec Entry/SL/TP</TD></TR>
+        </Table>
+
+        <H3>Prix live vs clôture</H3>
+        <Table headers={["Type d'actif", "Source du prix", "Indicateur visuel"]}>
+          <TR><TD b>Actions US, ETF, Crypto</TD><TD>Alpaca temps réel</TD><TD>Point doré animé "Prix live Alpaca"</TD></TR>
+          <TR><TD b>Actions EU, Forex, Commodities</TD><TD>Dernière clôture Yahoo</TD><TD>Point gris "Dernière clôture Yahoo"</TD></TR>
+        </Table>
+
+        <H3>Noms acceptés</H3>
+        <P>Le système comprend les alias : <Code>S&P 500</Code> → ^GSPC, <Code>BITCOIN</Code> → BTC-USD, <Code>CAC 40</Code> → ^FCHI, <Code>GOLD</Code> → GC=F, <Code>EUR/USD</Code> → EURUSD=X</P>
+      </>
+    ),
+  },
+  {
     id: "live",
     title: "Données temps réel",
     icon: <BarChart3 size={18} />,
@@ -586,13 +681,19 @@ const SECTIONS = [
         <H3>Statistiques du système</H3>
         <Table headers={["Métrique", "Valeur"]}>
           <TR><TD b>Actifs en base</TD><TD>218 (US, EU, Crypto, Forex, Commodities)</TD></TR>
-          <TR><TD b>Barres daily</TD><TD>1 593 395 (depuis 1962)</TD></TR>
+          <TR><TD b>Barres daily</TD><TD>1 593 395 (depuis 1962 — 64 ans)</TD></TR>
           <TR><TD b>Barres intraday 1H</TD><TD>412 490</TD></TR>
-          <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques) — Pro bat Classique 110 vs 68</TD></TR>
-          <TR><TD b>Critères scanner</TD><TD>10 (dont analyse fondamentale)</TD></TR>
-          <TR><TD b>Indicateurs AT</TD><TD>20 (7 familles)</TD></TR>
+          <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques) — Pro gagne 110 vs 68</TD></TR>
+          <TR><TD b>Critères scanner</TD><TD>10 (dont analyse fondamentale + Piotroski)</TD></TR>
+          <TR><TD b>Indicateurs AT</TD><TD>20 (7 familles : tendance, momentum, volatilité, volume, structure, divergences, force)</TD></TR>
+          <TR><TD b>Scoring</TD><TD>V2 — 8 sources d'information</TD></TR>
+          <TR><TD b>Exécution</TD><TD>Bracket Orders Alpaca (entry + SL + TP automatiques)</TD></TR>
+          <TR><TD b>Portefeuille</TD><TD>VaR, Risk Budget, DD Control, Rebalancing, Beta</TD></TR>
+          <TR><TD b>Performance</TD><TD>Benchmarks SPY/60-40, Ratios live, Rapport hebdo</TD></TR>
+          <TR><TD b>Analyseur</TD><TD>Régime global, Catalyseurs, Sector Rotation, Lead-Lag, Anti-corrélation</TD></TR>
           <TR><TD b>Tests unitaires</TD><TD>123 (100% pass)</TD></TR>
-          <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP) + XGBoost (15K samples)</TD></TR>
+          <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP 94%) + XGBoost (15K samples)</TD></TR>
+          <TR><TD b>Pages frontend</TD><TD>13 + Analyse Rapide interactive</TD></TR>
         </Table>
 
         <Callout>Bilok-TradePilot est un outil d'aide à la décision, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas perdre. Commencez toujours par le paper trading.</Callout>
