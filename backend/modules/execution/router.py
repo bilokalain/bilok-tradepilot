@@ -69,8 +69,49 @@ def execute_trade(
         take_profit = round(entry_price - 3 * atr_val, 2)
         side = OrderSide.SELL
 
-    # Sizing : 5% du capital
-    position_size = capital * 0.05
+    # === Sizing Kelly optimal ===
+    from backend.modules.scoring.kelly import compute_position_sizing, compute_win_rate_estimate
+
+    # Récupérer le score scanner depuis le cache
+    scanner_score = 50.0
+    from backend.modules.scanner.cache import get_cached_results
+    cached = get_cached_results()
+    scan_data = next((r for r in cached if r.get("symbol") == symbol), None)
+    if scan_data:
+        scanner_score = scan_data.get("scores", {}).get("final", 50)
+
+    # Récupérer le Sharpe backtest pour la conviction
+    from backend.modules.analyser.performance_matrix import get_strategy_sharpe, get_best_strategy
+    best_strat = get_best_strategy(symbol) or "momentum"
+    backtest_sharpe = get_strategy_sharpe(symbol, best_strat)
+    conviction = min(90, max(30, 50 + backtest_sharpe * 20))
+
+    # Calcul Kelly
+    kelly = compute_position_sizing(
+        capital=capital,
+        entry=entry_price,
+        stop_loss=stop_loss,
+        take_profit=take_profit,
+        bayesian_score=scanner_score,
+        conviction=conviction,
+    )
+
+    if kelly["kelly_fraction"] > 0 and kelly["reject_reason"] is None:
+        position_size = kelly["position_size_usd"]
+        kelly_fraction = kelly["kelly_fraction"]
+        win_rate = kelly["win_rate_estimate"]
+        rr_ratio = kelly["risk_reward_ratio"]
+        expected_value = kelly["expected_value"]
+    else:
+        # Fallback : 3% du capital si Kelly rejette
+        position_size = capital * 0.03
+        kelly_fraction = 0.03
+        win_rate = 0
+        rr_ratio = 0
+        expected_value = 0
+
+    # Plafond de sécurité : max 10% du capital par position
+    position_size = min(position_size, capital * 0.10)
     quantity = round(position_size / entry_price, 4)
 
     # Quantité entière pour Alpaca (pas de fractions pour les actions)
@@ -132,6 +173,17 @@ def execute_trade(
         "stop_loss": stop_loss,
         "take_profit": take_profit,
         "position_size": round(position_size, 2),
+        "sizing": {
+            "method": "kelly" if kelly["kelly_fraction"] > 0 and kelly["reject_reason"] is None else "fallback_3pct",
+            "kelly_fraction": round(kelly_fraction * 100, 2),
+            "win_rate": round(win_rate * 100, 1) if win_rate else 0,
+            "risk_reward": round(rr_ratio, 2),
+            "expected_value": round(expected_value, 3),
+            "scanner_score": round(scanner_score, 1),
+            "conviction": round(conviction, 1),
+            "strategy": best_strat,
+            "backtest_sharpe": round(backtest_sharpe, 3),
+        },
         "bias_check": bias_check,
         "alpaca_order": alpaca_result,
     }
@@ -175,10 +227,7 @@ def execute_all(
             results.append({"symbol": sym, "executed": False, "reason": bias["message"]})
             continue
 
-        # Sizing 5% du remaining
-        size = remaining * 0.05
-        qty = round(size / entry_price, 4)
-
+        # ATR pour SL/TP
         import pandas as pd
         from backend.modules.scanner.indicators import atr
         rows_50 = db.query(OHLCVDaily).filter_by(asset_id=asset.id).order_by(OHLCVDaily.date.desc()).limit(50).all()
@@ -189,6 +238,24 @@ def execute_all(
 
         sl = round(entry_price - 2 * atr_val, 2) if direction == "LONG" else round(entry_price + 2 * atr_val, 2)
         tp = round(entry_price + 3 * atr_val, 2) if direction == "LONG" else round(entry_price - 3 * atr_val, 2)
+
+        # Sizing Kelly optimal
+        from backend.modules.scoring.kelly import compute_position_sizing
+        from backend.modules.analyser.performance_matrix import get_strategy_sharpe, get_best_strategy
+
+        scanner_score = signal.get("thesis_score", signal.get("scores", {}).get("final", 50))
+        best_strat = get_best_strategy(sym) or "momentum"
+        bt_sharpe = get_strategy_sharpe(sym, best_strat)
+        conviction = min(90, max(30, 50 + bt_sharpe * 20))
+
+        kelly_result = compute_position_sizing(remaining, entry_price, sl, tp, scanner_score, conviction)
+
+        if kelly_result["kelly_fraction"] > 0 and kelly_result["reject_reason"] is None:
+            size = min(kelly_result["position_size_usd"], remaining * 0.10)
+        else:
+            size = remaining * 0.03
+
+        qty = round(size / entry_price, 4)
 
         orders = create_scaling_orders(sym, OrderSide.BUY if direction == "LONG" else OrderSide.SELL, qty, entry_price, OrderType.MARKET)
         orders[0] = simulate_fill(orders[0], entry_price)
