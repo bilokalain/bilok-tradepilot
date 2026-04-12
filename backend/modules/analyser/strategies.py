@@ -24,29 +24,39 @@ from backend.modules.scanner.indicators import (
 # Matrice régime → stratégies recommandées (poids)
 REGIME_STRATEGY_MATRIX = {
     "BULL": {
-        "trend_following": 0.25, "momentum": 0.20, "breakout": 0.15,
-        "ichimoku": 0.12, "fibonacci": 0.10, "mean_reversion": 0.05,
-        "mean_reversion_v2": 0.05, "microstructure": 0.05, "cnn_pattern": 0.03,
+        "adaptive_trend": 0.18, "multi_signal": 0.15, "momentum_rotation": 0.12,
+        "trend_following": 0.10, "keltner_breakout": 0.10, "ichimoku": 0.08,
+        "momentum": 0.06, "fibonacci": 0.06, "breakout": 0.05,
+        "vwap_reversion": 0.03, "mean_reversion": 0.02, "mean_reversion_v2": 0.02,
+        "microstructure": 0.02, "cnn_pattern": 0.01,
     },
     "BEAR": {
-        "trend_following": 0.20, "mean_reversion_v2": 0.18, "mean_reversion": 0.15,
-        "fibonacci": 0.12, "momentum": 0.10, "ichimoku": 0.10,
-        "breakout": 0.08, "microstructure": 0.05, "cnn_pattern": 0.02,
+        "vwap_reversion": 0.18, "multi_signal": 0.15, "mean_reversion_v2": 0.12,
+        "adaptive_trend": 0.10, "mean_reversion": 0.10, "fibonacci": 0.08,
+        "momentum_rotation": 0.06, "ichimoku": 0.06, "keltner_breakout": 0.05,
+        "trend_following": 0.04, "momentum": 0.02, "breakout": 0.02,
+        "microstructure": 0.01, "cnn_pattern": 0.01,
     },
     "RANGE": {
-        "mean_reversion_v2": 0.22, "mean_reversion": 0.18, "fibonacci": 0.15,
-        "breakout": 0.15, "ichimoku": 0.10, "momentum": 0.08,
-        "trend_following": 0.05, "microstructure": 0.05, "cnn_pattern": 0.02,
+        "vwap_reversion": 0.18, "keltner_breakout": 0.15, "multi_signal": 0.12,
+        "mean_reversion_v2": 0.12, "mean_reversion": 0.08, "fibonacci": 0.08,
+        "momentum_rotation": 0.06, "ichimoku": 0.06, "adaptive_trend": 0.05,
+        "breakout": 0.04, "trend_following": 0.02, "momentum": 0.02,
+        "microstructure": 0.01, "cnn_pattern": 0.01,
     },
     "CRISIS": {
-        "mean_reversion_v2": 0.20, "trend_following": 0.20, "fibonacci": 0.15,
-        "momentum": 0.12, "ichimoku": 0.10, "mean_reversion": 0.08,
-        "breakout": 0.08, "microstructure": 0.05, "cnn_pattern": 0.02,
+        "multi_signal": 0.20, "vwap_reversion": 0.15, "mean_reversion_v2": 0.12,
+        "adaptive_trend": 0.10, "fibonacci": 0.10, "momentum_rotation": 0.08,
+        "ichimoku": 0.06, "mean_reversion": 0.06, "keltner_breakout": 0.05,
+        "trend_following": 0.03, "momentum": 0.02, "breakout": 0.02,
+        "microstructure": 0.005, "cnn_pattern": 0.005,
     },
     "TRANSITION": {
-        "breakout": 0.20, "momentum": 0.15, "ichimoku": 0.15,
-        "fibonacci": 0.12, "trend_following": 0.12, "mean_reversion_v2": 0.10,
-        "mean_reversion": 0.08, "microstructure": 0.05, "cnn_pattern": 0.03,
+        "multi_signal": 0.18, "keltner_breakout": 0.15, "adaptive_trend": 0.12,
+        "momentum_rotation": 0.10, "vwap_reversion": 0.08, "ichimoku": 0.08,
+        "fibonacci": 0.06, "breakout": 0.06, "trend_following": 0.05,
+        "mean_reversion_v2": 0.04, "momentum": 0.04, "mean_reversion": 0.02,
+        "microstructure": 0.01, "cnn_pattern": 0.01,
     },
 }
 
@@ -289,15 +299,29 @@ def strategy_cnn_pattern(close: pd.Series) -> dict:
 from backend.modules.analyser.strategies_advanced import (
     strategy_mean_reversion_v2, strategy_fibonacci, strategy_ichimoku,
 )
+from backend.modules.analyser.strategies_pro import (
+    strategy_adaptive_trend, strategy_multi_signal,
+    strategy_keltner_breakout, strategy_vwap_reversion,
+    strategy_momentum_rotation,
+)
 
 ALL_STRATEGIES = {
+    # Basiques
     "trend_following": strategy_trend_following,
     "mean_reversion": strategy_mean_reversion,
     "breakout": strategy_breakout,
     "momentum": strategy_momentum,
+    # Avancées
     "mean_reversion_v2": strategy_mean_reversion_v2,
     "fibonacci": strategy_fibonacci,
     "ichimoku": strategy_ichimoku,
+    # Pro
+    "adaptive_trend": strategy_adaptive_trend,
+    "multi_signal": strategy_multi_signal,
+    "keltner_breakout": strategy_keltner_breakout,
+    "vwap_reversion": strategy_vwap_reversion,
+    "momentum_rotation": strategy_momentum_rotation,
+    # Placeholders
     "microstructure": strategy_microstructure,
     "cnn_pattern": strategy_cnn_pattern,
 }
@@ -319,7 +343,9 @@ def run_all_strategies(close: pd.Series, high: pd.Series,
             signal = func(close, volume)
         elif name == "cnn_pattern":
             signal = func(close)
-        elif name in ("breakout", "mean_reversion_v2"):
+        elif name in ("breakout", "mean_reversion_v2", "adaptive_trend",
+                       "multi_signal", "keltner_breakout", "vwap_reversion",
+                       "momentum_rotation"):
             signal = func(close, high, low, volume)
         else:
             signal = func(close, high, low)
