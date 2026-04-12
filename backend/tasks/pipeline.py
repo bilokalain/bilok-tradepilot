@@ -76,10 +76,38 @@ def task_update_market_data(self):
 
             db.commit()
             logger.info(f"[PIPELINE] {updated} nouvelles barres OHLCV insérées")
+
+            # Notification
+            try:
+                from backend.notifications import notify_data_update
+                notify_data_update(updated, len(assets))
+            except Exception:
+                pass
+
+            # Vérifier les positions (SL/TP) + remplacement auto
+            try:
+                from backend.modules.execution.position_manager_v2 import run_position_cycle
+                cycle = run_position_cycle(db)
+                if cycle["closed"]:
+                    from backend.notifications import notify_position_closed
+                    for c in cycle["closed"]:
+                        notify_position_closed(c["symbol"], c["reason"], c["pnl"], c["direction"])
+                if cycle["executed_from_queue"]:
+                    from backend.notifications import notify_queue_execution
+                    for e in cycle["executed_from_queue"]:
+                        notify_queue_execution(e["symbol"], e["direction"], e["entry_price"])
+            except Exception as e:
+                logger.warning(f"[PIPELINE] Erreur cycle positions: {e}")
+
             return {"status": "ok", "updated": updated, "assets": len(assets)}
 
     except Exception as e:
         logger.error(f"[PIPELINE] Erreur mise à jour données: {e}")
+        try:
+            from backend.notifications import notify_pipeline_error
+            notify_pipeline_error("update_market_data", str(e))
+        except Exception:
+            pass
         raise self.retry(exc=e, countdown=60)
 
 
@@ -155,10 +183,36 @@ def task_run_scanner():
         service = ScannerService(db)
         results = service.scan_all()
         logger.info(f"[PIPELINE] {len(results)} actifs scannés")
-        # Retourner les symboles triés par score
+
+        # Signaux GO
+        top_signals = [
+            {"symbol": r["symbol"], "score": r["scores"]["final"], "direction": "LONG"}
+            for r in results if r["scores"]["final"] >= 65
+        ]
+
+        # Notification
+        try:
+            from backend.notifications import notify_scan_complete
+            notify_scan_complete(len(results), top_signals)
+        except Exception:
+            pass
+
+        # Ajouter les signaux en file d'attente si max positions atteint
+        try:
+            from backend.modules.execution.position_manager_v2 import (
+                can_open_position, add_to_queue, get_open_symbols,
+            )
+            open_symbols = get_open_symbols(db)
+            for sig in top_signals:
+                if sig["symbol"] not in open_symbols:
+                    add_to_queue(sig)
+        except Exception:
+            pass
+
         return {
             "status": "ok",
             "scanned": len(results),
+            "signals_go": len(top_signals),
             "top_5": [{"symbol": r["symbol"], "score": r["scores"]["final"]} for r in results[:5]],
         }
 
@@ -270,6 +324,25 @@ def task_run_performance(portfolio_results: dict = None):
         meta = report["meta_score"]
         feedback = report["feedback_loop"]
         logger.info(f"[PIPELINE] Meta-Score: {meta['meta_score']}, Engagement: {meta['engagement']}, Action: {feedback['action']}")
+
+        # Notification Monte Carlo
+        try:
+            from backend.notifications import notify_monte_carlo
+            notify_monte_carlo(0, 100_000, meta["meta_score"])
+        except Exception:
+            pass
+
+        # Rapport hebdomadaire (si dimanche)
+        from datetime import date
+        if date.today().weekday() == 6:  # Dimanche
+            try:
+                from backend.modules.performance.weekly_report import generate_weekly_report
+                weekly = generate_weekly_report(db)
+                from backend.notifications import notify_weekly_report
+                notify_weekly_report(weekly)
+            except Exception:
+                pass
+
         return {
             "status": "ok",
             "meta_score": meta["meta_score"],

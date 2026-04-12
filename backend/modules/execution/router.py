@@ -40,6 +40,16 @@ def execute_trade(
     if not asset:
         return {"symbol": symbol, "executed": False, "reason": "Actif non trouvé"}
 
+    # === 0. Vérifier max positions ===
+    from backend.modules.execution.position_manager_v2 import can_open_position, add_to_queue
+    if not can_open_position(db):
+        add_to_queue({"symbol": symbol, "direction": direction, "score": 50})
+        return {
+            "symbol": symbol, "executed": False,
+            "reason": "Maximum 10 positions atteint — ajouté à la file d'attente",
+            "queued": True,
+        }
+
     entry_price, atr_val = _get_price_and_atr(db, asset.id)
     if not entry_price or not atr_val:
         return {"symbol": symbol, "executed": False, "reason": "Pas assez de données"}
@@ -458,3 +468,35 @@ def list_orders(db: Session = Depends(get_sync_db)):
 @router.get("/bias-check")
 def check_bias():
     return run_full_bias_check([], entry_price=0, recent_prices=[])
+
+
+@router.get("/queue")
+def get_signal_queue():
+    """File d'attente des signaux en attente d'exécution."""
+    from backend.modules.execution.position_manager_v2 import get_queue, MAX_POSITIONS, count_open_positions
+    from backend.database.sync_session import get_sync_db
+    db = next(get_sync_db())
+    try:
+        return {
+            "queue": get_queue(),
+            "queue_size": len(get_queue()),
+            "open_positions": count_open_positions(db),
+            "max_positions": MAX_POSITIONS,
+            "slots_available": MAX_POSITIONS - count_open_positions(db),
+        }
+    finally:
+        db.close()
+
+
+@router.get("/notifications")
+def get_notifications():
+    """Historique des notifications envoyées."""
+    from pathlib import Path
+    notif_file = Path("data/notifications.log")
+    if notif_file.exists():
+        content = notif_file.read_text()
+        # Dernières 20 notifications
+        blocks = content.split("=" * 60)
+        recent = blocks[-40:]  # 2 blocs par notif (séparateur + contenu)
+        return {"notifications": "".join(recent).strip(), "total": len(blocks) // 2}
+    return {"notifications": "Aucune notification", "total": 0}
