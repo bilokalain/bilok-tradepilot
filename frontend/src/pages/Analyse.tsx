@@ -138,7 +138,13 @@ function AnalyseResult({ data }: { data: any }) {
         </div>
         <div className="text-right">
           <p className="text-4xl font-mono font-bold">${data.last_price}</p>
-          <p className="text-xs text-text-secondary">{data.data_points} jours de données</p>
+          <div className="flex items-center justify-end gap-2 mt-1">
+            <span className={`w-2 h-2 rounded-full ${data.price_source === "alpaca_live" ? "bg-gold animate-pulse" : "bg-text-secondary"}`} />
+            <span className="text-xs text-text-secondary">
+              {data.price_source === "alpaca_live" ? "Prix live Alpaca" : "Dernière clôture Yahoo"}
+            </span>
+          </div>
+          <p className="text-[10px] text-text-secondary">{data.data_points} jours de données</p>
         </div>
       </div>
 

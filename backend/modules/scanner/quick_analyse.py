@@ -91,6 +91,17 @@ def quick_analyse(query: str) -> dict:
     volume = pd.Series(df["Volume"].values, dtype=float)
     last_price = float(close.iloc[-1])
 
+    # Prix live Alpaca si disponible
+    live_price = None
+    try:
+        from backend.modules.scanner.live_data import get_live_quote
+        quote = get_live_quote(symbol)
+        if quote and quote.get("price"):
+            live_price = float(quote["price"])
+            last_price = live_price  # Utiliser le prix live
+    except Exception:
+        pass
+
     # 2. Indicateurs techniques
     tech_score = compute_technical_score(close, high, low, volume)
 
@@ -218,6 +229,8 @@ def quick_analyse(query: str) -> dict:
         "query": query,
         "info": info,
         "last_price": round(last_price, 2),
+        "live_price": round(live_price, 2) if live_price else None,
+        "price_source": "alpaca_live" if live_price else "yahoo_close",
         "data_points": len(df),
         "action": action,
         "global_score": round(global_score, 1),
