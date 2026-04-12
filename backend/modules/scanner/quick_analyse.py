@@ -153,22 +153,43 @@ def quick_analyse(query: str) -> dict:
     best_strategy = None
     best_conviction = 0
 
+    # Précision et multiplicateurs adaptatifs selon le type d'actif
+    if last_price < 5:
+        # Forex, penny stocks — prix bas, besoin de plus de décimales
+        price_decimals = 5 if last_price < 2 else 4
+        sl_mult = 3.0  # Plus large en pips
+        tp_mult = 5.0
+    elif last_price < 50:
+        price_decimals = 3
+        sl_mult = 2.0
+        tp_mult = 3.0
+    else:
+        price_decimals = 2
+        sl_mult = 2.0
+        tp_mult = 3.0
+
     for name, func in all_strategies.items():
         try:
             result = func()
-            # Ajouter entry/SL/TP si manquants
+            # Ajouter entry/SL/TP si manquants — avec précision adaptée
             if "entry" not in result or result.get("entry") is None:
-                result["entry"] = round(last_price, 2)
+                result["entry"] = round(last_price, price_decimals)
+            else:
+                result["entry"] = round(result["entry"], price_decimals)
             if "stop_loss" not in result or result.get("stop_loss") is None:
                 if result.get("direction") == "LONG":
-                    result["stop_loss"] = round(last_price - 2 * atr_val, 2)
+                    result["stop_loss"] = round(last_price - sl_mult * atr_val, price_decimals)
                 elif result.get("direction") == "SHORT":
-                    result["stop_loss"] = round(last_price + 2 * atr_val, 2)
+                    result["stop_loss"] = round(last_price + sl_mult * atr_val, price_decimals)
+            else:
+                result["stop_loss"] = round(result["stop_loss"], price_decimals)
             if "take_profit" not in result or result.get("take_profit") is None:
                 if result.get("direction") == "LONG":
-                    result["take_profit"] = round(last_price + 3 * atr_val, 2)
+                    result["take_profit"] = round(last_price + tp_mult * atr_val, price_decimals)
                 elif result.get("direction") == "SHORT":
-                    result["take_profit"] = round(last_price - 3 * atr_val, 2)
+                    result["take_profit"] = round(last_price - tp_mult * atr_val, price_decimals)
+            else:
+                result["take_profit"] = round(result["take_profit"], price_decimals)
             strategies_results.append(result)
             if result["conviction"] > best_conviction and result["direction"] != "NEUTRAL":
                 best_conviction = result["conviction"]
@@ -198,9 +219,16 @@ def quick_analyse(query: str) -> dict:
     else:
         action = "NO_TRADE"
 
-    # SL/TP
-    sl = round(last_price - 2 * atr_val, 2) if best_strategy and best_strategy.get("direction") == "LONG" else round(last_price + 2 * atr_val, 2) if atr_val else 0
-    tp = round(last_price + 3 * atr_val, 2) if best_strategy and best_strategy.get("direction") == "LONG" else round(last_price - 3 * atr_val, 2) if atr_val else 0
+    # SL/TP avec précision adaptée
+    if best_strategy and best_strategy.get("direction") == "LONG":
+        sl = round(last_price - sl_mult * atr_val, price_decimals)
+        tp = round(last_price + tp_mult * atr_val, price_decimals)
+    elif best_strategy and best_strategy.get("direction") == "SHORT":
+        sl = round(last_price + sl_mult * atr_val, price_decimals)
+        tp = round(last_price - tp_mult * atr_val, price_decimals)
+    else:
+        sl = 0
+        tp = 0
 
     # Performance récente
     perf_1m = round((close.iloc[-1] / close.iloc[-21] - 1) * 100, 2) if len(close) >= 21 else 0
@@ -228,8 +256,8 @@ def quick_analyse(query: str) -> dict:
         "symbol": symbol,
         "query": query,
         "info": info,
-        "last_price": round(last_price, 2),
-        "live_price": round(live_price, 2) if live_price else None,
+        "last_price": round(last_price, price_decimals),
+        "live_price": round(live_price, price_decimals) if live_price else None,
         "price_source": "alpaca_live" if live_price else "yahoo_close",
         "data_points": len(df),
         "action": action,
