@@ -1,10 +1,15 @@
-"""Module 5 — Gestion du Portefeuille : API endpoints"""
+"""Module 5 — Gestion du Portefeuille V2 : API endpoints"""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend.database.sync_session import get_sync_db
 from backend.modules.portfolio.service import PortfolioService
+from backend.modules.portfolio.portfolio_v2 import (
+    compute_rebalancing, check_drawdown_control, compute_risk_budget,
+    compute_var, compute_exposure, compute_portfolio_beta,
+    compute_regime_allocation,
+)
 
 router = APIRouter()
 
@@ -27,7 +32,90 @@ def run_stress_tests(db: Session = Depends(get_sync_db)):
     return PortfolioService(db).run_stress_tests()
 
 
-@router.get("/positions")
-def list_positions(db: Session = Depends(get_sync_db)):
-    """Positions ouvertes avec données enrichies."""
-    return PortfolioService(db).get_portfolio_summary()["positions"]
+@router.get("/rebalancing")
+def get_rebalancing(db: Session = Depends(get_sync_db)):
+    """Calcule les ajustements de rebalancing nécessaires."""
+    return compute_rebalancing(db)
+
+
+@router.get("/drawdown-control")
+def get_drawdown_control(
+    capital: float = Query(100_000),
+    db: Session = Depends(get_sync_db),
+):
+    """Vérifie le drawdown et recommande des actions."""
+    return check_drawdown_control(db, initial_capital=capital)
+
+
+@router.get("/risk-budget")
+def get_risk_budget(
+    max_loss_pct: float = Query(15.0),
+    capital: float = Query(100_000),
+    db: Session = Depends(get_sync_db),
+):
+    """Budget de risque restant."""
+    return compute_risk_budget(db, max_loss_pct=max_loss_pct, initial_capital=capital)
+
+
+@router.get("/var")
+def get_var(
+    confidence: float = Query(0.95),
+    db: Session = Depends(get_sync_db),
+):
+    """Value at Risk — perte max à N% de confiance."""
+    return compute_var(db, confidence=confidence)
+
+
+@router.get("/exposure")
+def get_exposure(db: Session = Depends(get_sync_db)):
+    """Exposition par secteur, classe d'actif et devise."""
+    return compute_exposure(db)
+
+
+@router.get("/beta")
+def get_beta(db: Session = Depends(get_sync_db)):
+    """Beta du portefeuille vs SPY."""
+    return compute_portfolio_beta(db)
+
+
+@router.get("/regime-allocation")
+def get_regime_allocation(db: Session = Depends(get_sync_db)):
+    """Allocation ajustée selon le régime global."""
+    from backend.modules.analyser.regime_global import detect_global_regime
+
+    regime = detect_global_regime(db)
+    summary = PortfolioService(db).get_portfolio_summary()
+    allocation = summary.get("allocation", {})
+
+    return compute_regime_allocation(regime, allocation)
+
+
+@router.get("/dashboard")
+def get_portfolio_dashboard(db: Session = Depends(get_sync_db)):
+    """Dashboard complet du portefeuille — toutes les métriques en un appel."""
+    summary = PortfolioService(db).get_portfolio_summary()
+    dd = check_drawdown_control(db)
+    budget = compute_risk_budget(db)
+    var = compute_var(db)
+    exposure = compute_exposure(db)
+    beta = compute_portfolio_beta(db)
+    rebal = compute_rebalancing(db)
+
+    return {
+        "summary": {
+            "total_value": summary["total_value"],
+            "total_pnl": summary["total_pnl"],
+            "num_positions": summary["num_positions"],
+            "regime": summary["regime"],
+        },
+        "risk": {
+            "drawdown": dd,
+            "risk_budget": budget,
+            "var": var,
+            "beta": beta,
+        },
+        "allocation": {
+            "exposure": exposure,
+            "rebalancing": rebal,
+        },
+    }
