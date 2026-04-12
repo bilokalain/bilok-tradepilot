@@ -80,3 +80,27 @@ def get_perf_by_class(db: Session = Depends(get_sync_db)):
 def get_live_ratios():
     """Sharpe, Sortino, Calmar live."""
     return compute_live_ratios()
+
+
+@router.get("/weekly-report")
+def get_weekly_report_endpoint(db: Session = Depends(get_sync_db)):
+    """Génère le rapport hebdomadaire."""
+    from backend.modules.performance.weekly_report import generate_weekly_report
+    return generate_weekly_report(db)
+
+
+@router.get("/weekly-reports")
+def list_reports():
+    """Liste les rapports hebdomadaires sauvegardés."""
+    from backend.modules.performance.weekly_report import list_weekly_reports
+    return list_weekly_reports()
+
+
+@router.get("/weekly-reports/{filename}")
+def get_saved_report(filename: str):
+    """Récupère un rapport hebdomadaire spécifique."""
+    from backend.modules.performance.weekly_report import get_weekly_report
+    report = get_weekly_report(filename)
+    if not report:
+        return {"error": "Rapport non trouvé"}
+    return report
