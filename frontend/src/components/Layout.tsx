@@ -11,6 +11,7 @@ import {
   LogOut,
   BookOpen,
   SearchCheck,
+  GitBranch,
   Settings,
 } from "lucide-react";
 import Notifications from "./Notifications";
@@ -20,6 +21,7 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/scanner", icon: ScanSearch, label: "Scanner" },
   { to: "/analyse", icon: SearchCheck, label: "Analyse rapide" },
+  { to: "/correlation", icon: GitBranch, label: "Corrélation" },
   { to: "/analyser", icon: Brain, label: "Analyseur" },
   { to: "/scoring", icon: Target, label: "Scoring" },
   { to: "/execution", icon: Zap, label: "Exécution" },

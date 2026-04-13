@@ -10,7 +10,14 @@
       "Bash(python3 -m venv /Users/alainbilok/Projects/projet-trading/.venv)",
       "Bash(curl -s http://localhost:8000/api/scanner/assets)",
       "Bash(python3 -m json.tool)",
-      "Bash(curl -s http://localhost:8000/api/scanner/results/AAPL)"
+      "Bash(curl -s http://localhost:8000/api/scanner/results/AAPL)",
+      "Bash(git commit -m ':*)",
+      "Bash(curl -s \"http://localhost:8000/api/scoring/v2/AAPL\")",
+      "Bash(python3 -c ':*)",
+      "Bash(curl -s --max-time 30 \"http://localhost:8000/api/scoring/v2/AAPL\")",
+      "Bash(curl -s --max-time 10 http://localhost:8000/health)",
+      "Bash(python3 -c \"import json,sys; print\\(json.load\\(sys.stdin\\)['status']\\)\")",
+      "Bash(curl -s --max-time 3 http://localhost:5173)"
     ]
   }
 }

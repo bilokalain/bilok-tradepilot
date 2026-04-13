@@ -39,24 +39,13 @@ export default function Dashboard() {
       .catch(() => setError("Erreur de connexion au serveur"))
       .finally(() => setLoadingMain(false));
 
-    // Étape 2 : scan (retourne vite les données de base, puis re-fetch pour les vrais scores)
-    const fetchScan = () => {
-      scannerApi.scan()
-        .then((res) => {
-          if (Array.isArray(res.data)) {
-            setResults(res.data);
-            // Si les scores sont en loading (_loading), re-fetch dans 15s
-            const stillLoading = res.data.some((r: any) => r._loading);
-            if (stillLoading) {
-              setTimeout(fetchScan, 15_000);
-            } else {
-              setLoadingScan(false);
-            }
-          }
-        })
-        .catch(() => setLoadingScan(false));
-    };
-    fetchScan();
+    // Étape 2 : scan (une seule fois, pas de boucle)
+    scannerApi.scan()
+      .then((res) => {
+        if (Array.isArray(res.data)) setResults(res.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingScan(false));
   }, []);
 
   useEffect(() => {

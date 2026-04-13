@@ -102,6 +102,26 @@ def analyse_any_asset(q: str):
     return quick_analyse(q)
 
 
+@router.get("/correlation-map/{symbol}")
+def get_correlation_map(symbol: str, lookback: int = 120, db: Session = Depends(get_sync_db)):
+    """Carte de corrélation — trouve tous les actifs liés à un symbole.
+
+    Exemple : /correlation-map/CL=F → tous les actifs corrélés au pétrole
+    """
+    from backend.modules.scanner.correlation_map import compute_correlation_map
+    return compute_correlation_map(db, symbol, lookback)
+
+
+@router.get("/impact-simulation")
+def simulate_impact_endpoint(symbol: str, move_pct: float, lookback: int = 120, db: Session = Depends(get_sync_db)):
+    """Simule l'impact d'un mouvement sur les actifs corrélés.
+
+    Exemple : /impact-simulation?symbol=CL=F&move_pct=20 → si Oil fait +20%
+    """
+    from backend.modules.scanner.correlation_map import simulate_impact
+    return simulate_impact(db, symbol, move_pct, lookback)
+
+
 @router.get("/fundamental/{symbol}")
 def get_fundamentals(symbol: str):
     """Analyse fondamentale complète d'un actif."""
