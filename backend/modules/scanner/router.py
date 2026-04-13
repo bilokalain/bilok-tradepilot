@@ -37,27 +37,8 @@ def _run_scan_background(db_url: str):
 
 @router.get("/scan")
 def scan_market(db: Session = Depends(get_sync_db)):
-    """Retourne les résultats du scanner (avec cache 5min)."""
-    if is_cache_fresh():
-        return get_cached_results()
-
-    # Si un scan tourne déjà, retourner le cache même périmé
-    if is_updating():
-        cached = get_cached_results()
-        if cached:
-            return cached
-
-    # Lancer le scan en arrière-plan
-    set_updating()
-    from backend.config.settings import settings
-    thread = threading.Thread(
-        target=_run_scan_background,
-        args=(settings.DATABASE_URL,),
-        daemon=True,
-    )
-    thread.start()
-
-    # Retourner le cache existant ou un message
+    """Retourne les résultats du scanner (cache disque persistant)."""
+    # Toujours retourner le cache s'il existe (mémoire ou disque)
     cached = get_cached_results()
     if cached:
         return cached
