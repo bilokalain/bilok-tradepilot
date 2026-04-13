@@ -12,18 +12,30 @@ router = APIRouter()
 
 @router.get("/analyse")
 def analyse_all(db: Session = Depends(get_sync_db)):
+    """Retourne les analyses depuis le cache. Calcul live en fallback."""
+    from backend.cache_global import get_analyser_cache
+    cached = get_analyser_cache()
+    if cached.get("analyses"):
+        return cached["analyses"]
+    # Fallback live (lent)
     service = AnalyserService(db)
     return service.analyse_all()
 
 
 @router.get("/analyse/{symbol}")
 def analyse_asset(symbol: str, db: Session = Depends(get_sync_db)):
+    """Analyse d'un seul actif — toujours en live (rapide)."""
     service = AnalyserService(db)
     return service.analyse_asset(symbol)
 
 
 @router.get("/regime")
 def get_market_regime(db: Session = Depends(get_sync_db)):
+    """Régime depuis le cache, fallback live."""
+    from backend.cache_global import get_analyser_cache
+    cached = get_analyser_cache()
+    if cached.get("regime"):
+        return cached["regime"]
     service = AnalyserService(db)
     return service.get_regime_summary()
 
