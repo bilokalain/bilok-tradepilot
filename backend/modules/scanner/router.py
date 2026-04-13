@@ -102,24 +102,28 @@ def analyse_any_asset(q: str):
     return quick_analyse(q)
 
 
-@router.get("/correlation-map/{symbol}")
-def get_correlation_map(symbol: str, lookback: int = 120, db: Session = Depends(get_sync_db)):
-    """Carte de corrélation — trouve tous les actifs liés à un symbole.
+@router.get("/correlation-map")
+def get_correlation_map(q: str = "", lookback: int = 120, db: Session = Depends(get_sync_db)):
+    """Carte de corrélation — accepte noms en français.
 
-    Exemple : /correlation-map/CL=F → tous les actifs corrélés au pétrole
+    Exemples : ?q=petrole, ?q=or, ?q=bitcoin, ?q=CL=F, ?q=NVDA
     """
     from backend.modules.scanner.correlation_map import compute_correlation_map
-    return compute_correlation_map(db, symbol, lookback)
+    from backend.modules.scanner.quick_analyse import resolve_symbol
+    resolved = resolve_symbol(q)
+    return compute_correlation_map(db, resolved, lookback)
 
 
 @router.get("/impact-simulation")
-def simulate_impact_endpoint(symbol: str, move_pct: float, lookback: int = 120, db: Session = Depends(get_sync_db)):
+def simulate_impact_endpoint(q: str = "", move_pct: float = 10, lookback: int = 120, db: Session = Depends(get_sync_db)):
     """Simule l'impact d'un mouvement sur les actifs corrélés.
 
-    Exemple : /impact-simulation?symbol=CL=F&move_pct=20 → si Oil fait +20%
+    Exemple : ?q=petrole&move_pct=20
     """
     from backend.modules.scanner.correlation_map import simulate_impact
-    return simulate_impact(db, symbol, move_pct, lookback)
+    from backend.modules.scanner.quick_analyse import resolve_symbol
+    resolved = resolve_symbol(q)
+    return simulate_impact(db, resolved, move_pct, lookback)
 
 
 @router.get("/fundamental/{symbol}")

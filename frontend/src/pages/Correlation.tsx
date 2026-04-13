@@ -33,8 +33,8 @@ export default function Correlation() {
     setImpactData(null);
 
     Promise.all([
-      axios.get(`/api/scanner/correlation-map/${encodeURIComponent(s)}`),
-      axios.get(`/api/scanner/impact-simulation?symbol=${encodeURIComponent(s)}&move_pct=${movePct}`),
+      axios.get(`/api/scanner/correlation-map?q=${encodeURIComponent(s)}&lookback=120`),
+      axios.get(`/api/scanner/impact-simulation?q=${encodeURIComponent(s)}&move_pct=${movePct}`),
     ])
       .then(([corrRes, impactRes]) => {
         if (corrRes.data.error) setError(corrRes.data.error);
