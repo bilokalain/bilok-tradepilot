@@ -23,6 +23,7 @@ const navSections = [
     title: "PIPELINE",
     items: [
       { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+      { to: "/theses", icon: Lightbulb, label: "Mes Thèses" },
       { to: "/scanner", icon: ScanSearch, label: "Scanner" },
       { to: "/analyser", icon: Brain, label: "Analyseur" },
       { to: "/scoring", icon: Target, label: "Scoring" },
@@ -36,7 +37,6 @@ const navSections = [
     items: [
       { to: "/analyse", icon: SearchCheck, label: "Analyse rapide" },
       { to: "/correlation", icon: GitBranch, label: "Corrélation" },
-      { to: "/theses", icon: Lightbulb, label: "Mes Thèses" },
       { to: "/backtest", icon: FlaskConical, label: "Backtesting" },
     ],
   },
