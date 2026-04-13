@@ -65,28 +65,14 @@ def get_all_theses(
     capital: float = Query(100_000),
     db: Session = Depends(get_sync_db),
 ):
-    """Thèses de Trade pour tous les actifs (avec cache)."""
-    now = time.time()
-    if (now - _theses_cache["last_updated"]) < CACHE_TTL and _theses_cache["data"]:
-        return _theses_cache["data"]
-
-    if not _theses_cache["updating"]:
-        _theses_cache["updating"] = True
-        from backend.config.settings import settings
-        threading.Thread(target=_update_theses_bg, args=(settings.DATABASE_URL, capital), daemon=True).start()
-
+    """Thèses de Trade depuis le cache disque."""
+    from backend.cache_global import get_signals_cache
+    cached = get_signals_cache()
+    if cached:
+        return cached
     if _theses_cache["data"]:
         return _theses_cache["data"]
-
-    # Premier appel — calcul direct sur quelques actifs
-    service = ScoringService(db)
-    from backend.database.models import Asset
-    assets = db.query(Asset).filter_by(is_active=True).limit(10).all()
     results = []
-    for asset in assets:
-        t = service.generate_thesis(asset.symbol, capital)
-        if "error" not in t:
-            results.append(t)
     return results
 
 
@@ -95,29 +81,15 @@ def get_active_signals(
     capital: float = Query(100_000),
     db: Session = Depends(get_sync_db),
 ):
-    """Signaux actifs (avec cache)."""
-    now = time.time()
-    if (now - _signals_cache["last_updated"]) < CACHE_TTL and _signals_cache["data"]:
-        return _signals_cache["data"]
-
-    if not _signals_cache["updating"]:
-        _signals_cache["updating"] = True
-        from backend.config.settings import settings
-        threading.Thread(target=_update_signals_bg, args=(settings.DATABASE_URL, capital), daemon=True).start()
-
+    """Signaux actifs depuis le cache disque."""
+    from backend.cache_global import get_signals_cache
+    cached = get_signals_cache()
+    if cached:
+        return cached
+    # Fallback mémoire
     if _signals_cache["data"]:
         return _signals_cache["data"]
-
-    # Premier appel — calcul direct rapide
-    service = ScoringService(db)
-    from backend.database.models import Asset
-    assets = db.query(Asset).filter_by(is_active=True).limit(10).all()
-    results = []
-    for asset in assets:
-        t = service.generate_thesis(asset.symbol, capital)
-        if "error" not in t and t.get("action") == "GO":
-            results.append(t)
-    return results
+    return []
 
 
 @router.get("/v2/{symbol}")
