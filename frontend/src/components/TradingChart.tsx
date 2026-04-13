@@ -20,7 +20,7 @@ interface Props {
 }
 
 type ChartType = "candles" | "line" | "area";
-type Indicator = "sma20" | "sma50" | "sma200" | "ema9" | "ema21" | "bb" | "volume";
+type Indicator = "sma20" | "sma50" | "sma200" | "ema9" | "ema21" | "bb" | "volume" | "vwap" | "donchian";
 
 const PERIODS = [
   { label: "1S", days: 5 },
@@ -48,6 +48,25 @@ export default function TradingChart({
   const [indicators, setIndicators] = useState<Set<Indicator>>(new Set(showSMA ? ["sma20", "sma50", "volume"] : ["volume"]));
   const [showIndicatorPanel, setShowIndicatorPanel] = useState(false);
   const [crosshairData, setCrosshairData] = useState<any>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showTradingView, setShowTradingView] = useState(false);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = () => {
+    if (!isFullscreen) {
+      fullscreenRef.current?.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
 
   const toggleIndicator = (ind: Indicator) => {
     setIndicators((prev) => {
@@ -148,6 +167,12 @@ export default function TradingChart({
     if (indicators.has("bb") && data.length >= 20) {
       addBollingerBands(chart, data, closes, 20, 2);
     }
+    if (indicators.has("vwap") && data.length >= 20) {
+      addVWAPLine(chart, data);
+    }
+    if (indicators.has("donchian") && data.length >= 20) {
+      addDonchianChannels(chart, data, 20);
+    }
 
     // === Volume ===
     if (indicators.has("volume")) {
@@ -177,8 +202,33 @@ export default function TradingChart({
     return () => { observer.disconnect(); chart.remove(); chartRef.current = null; };
   }, [data, height, chartType, indicators]);
 
+  // TradingView widget
+  if (showTradingView && symbol) {
+    const tvSymbol = symbol.replace("-USD", "USD").replace("=X", "").replace("=F", "1!");
+    return (
+      <div ref={fullscreenRef} className={`bg-card border border-border rounded-xl overflow-hidden ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
+          <span className="text-sm font-semibold text-gold">TradingView — {symbol}</span>
+          <div className="flex gap-2">
+            <button onClick={() => setShowTradingView(false)} className="px-3 py-1 text-[10px] bg-surface rounded-lg text-text-secondary hover:text-gold">
+              Retour au graphique Bilok
+            </button>
+            <button onClick={toggleFullscreen} className="px-2 py-1 text-[10px] bg-surface rounded-lg text-text-secondary hover:text-gold">
+              {isFullscreen ? "⊡" : "⛶"}
+            </button>
+          </div>
+        </div>
+        <iframe
+          src={`https://www.tradingview.com/widgetembed/?symbol=${tvSymbol}&interval=D&theme=dark&style=1&locale=fr&toolbar_bg=0A0A0A&hide_side_toolbar=0&allow_symbol_change=1&studies=RSI@tv-basicstudies,MACD@tv-basicstudies&show_popup_button=true`}
+          style={{ width: "100%", height: isFullscreen ? "calc(100vh - 45px)" : `${height + 50}px`, border: "none" }}
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div ref={fullscreenRef} className={`bg-card border border-border rounded-xl overflow-hidden ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
       {/* Top bar — Stats */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
         <div className="flex items-center gap-4">
@@ -239,6 +289,26 @@ export default function TradingChart({
             ))}
           </div>
 
+          {/* TradingView */}
+          {symbol && (
+            <button
+              onClick={() => setShowTradingView(true)}
+              className="px-2 py-1 text-[10px] rounded transition-colors text-text-secondary hover:text-gold border border-border/50"
+              title="Ouvrir TradingView (100+ indicateurs, dessin, plein écran)"
+            >
+              TV
+            </button>
+          )}
+
+          {/* Plein écran */}
+          <button
+            onClick={toggleFullscreen}
+            className="px-2 py-1 text-[10px] rounded transition-colors text-text-secondary hover:text-gold"
+            title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+          >
+            {isFullscreen ? "⊡" : "⛶"}
+          </button>
+
           {/* Indicateurs toggle */}
           <div className="relative">
             <button
@@ -260,6 +330,8 @@ export default function TradingChart({
                   { id: "ema9" as Indicator, label: "EMA 9", color: "#A78BFA" },
                   { id: "ema21" as Indicator, label: "EMA 21", color: "#F472B6" },
                   { id: "bb" as Indicator, label: "Bollinger Bands", color: "#34D399" },
+                  { id: "vwap" as Indicator, label: "VWAP", color: "#FB923C" },
+                  { id: "donchian" as Indicator, label: "Donchian (20)", color: "#38BDF8" },
                   { id: "volume" as Indicator, label: "Volume", color: "#D4AF37" },
                 ]).map((ind) => (
                   <button
@@ -372,6 +444,42 @@ function addBollingerBands(chart: IChartApi, data: OHLCVBar[], closes: number[],
 
   chart.addSeries(LineSeries, { color: "#34D39944", lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }).setData(upperData);
   chart.addSeries(LineSeries, { color: "#34D39944", lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }).setData(lowerData);
+}
+
+function addVWAPLine(chart: IChartApi, data: OHLCVBar[]) {
+  const period = 20;
+  const vwapValues: (number | null)[] = [];
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) { vwapValues.push(null); continue; }
+    let sumPV = 0, sumV = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      const tp = (data[j].high + data[j].low + data[j].close) / 3;
+      sumPV += tp * data[j].volume;
+      sumV += data[j].volume;
+    }
+    vwapValues.push(sumV > 0 ? sumPV / sumV : null);
+  }
+  const vwapData = data.map((d, i) => ({ time: d.date as any, value: vwapValues[i] })).filter((d) => d.value !== null) as any[];
+  chart.addSeries(LineSeries, { color: "#FB923C77", lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }).setData(vwapData);
+}
+
+function addDonchianChannels(chart: IChartApi, data: OHLCVBar[], period: number) {
+  const upper: (number | null)[] = [];
+  const lower: (number | null)[] = [];
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) { upper.push(null); lower.push(null); continue; }
+    let hi = -Infinity, lo = Infinity;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (data[j].high > hi) hi = data[j].high;
+      if (data[j].low < lo) lo = data[j].low;
+    }
+    upper.push(hi);
+    lower.push(lo);
+  }
+  const upperData = data.map((d, i) => ({ time: d.date as any, value: upper[i] })).filter((d) => d.value !== null) as any[];
+  const lowerData = data.map((d, i) => ({ time: d.date as any, value: lower[i] })).filter((d) => d.value !== null) as any[];
+  chart.addSeries(LineSeries, { color: "#38BDF844", lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }).setData(upperData);
+  chart.addSeries(LineSeries, { color: "#38BDF844", lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false }).setData(lowerData);
 }
 
 function formatVolume(vol: number): string {
