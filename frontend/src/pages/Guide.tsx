@@ -784,13 +784,22 @@ const SECTIONS = [
         </Table>
         <Callout>Les clés FRED et Reddit sont gratuites et enrichissent fortement le modèle. Sans elles, le système utilise des estimations.</Callout>
 
+        <H3>Architecture du cache</H3>
+        <P>Le système utilise un <B>cache disque persistant</B> pour afficher tous les résultats instantanément :</P>
+        <Table headers={["Quand", "Ce qui se passe"]}>
+          <TR><TD b>La nuit (Celery Beat)</TD><TD>Recalcule tout : Scanner (218 actifs × 10 critères), Analyseur (régime + stratégies), Scoring (signaux GO), Performance, Portefeuille → sauvegarde sur disque</TD></TR>
+          <TR><TD b>La journée</TD><TD>Tous les modules affichent instantanément depuis le cache disque — aucun calcul lourd</TD></TR>
+          <TR><TD b>En temps réel</TD><TD>Seuls les calculs légers sont live : Analyse rapide (1 actif), Corrélation, Exécution d'un trade</TD></TR>
+        </Table>
+        <P>Les fichiers cache sont dans <Code>data/*_cache.json</Code> et survivent aux redémarrages.</P>
+
         <H3>Commandes</H3>
         <div className="bg-surface rounded-xl p-4 font-mono text-xs space-y-2">
-          <div><span className="text-gold">bash scripts/start_all.sh</span> <span className="text-text-secondary">— Démarrer tout</span></div>
+          <div><span className="text-gold">bash scripts/start_all.sh</span> <span className="text-text-secondary">— Démarrer tout (backend + frontend + Celery + tunnel)</span></div>
           <div><span className="text-gold">bash scripts/stop_all.sh</span> <span className="text-text-secondary">— Arrêter tout</span></div>
-          <div><span className="text-gold">bash scripts/status.sh</span> <span className="text-text-secondary">— Vérifier l'état</span></div>
-          <div><span className="text-gold">make worker</span> <span className="text-text-secondary">— Lancer le pipeline automatique</span></div>
-          <div><span className="text-gold">make beat</span> <span className="text-text-secondary">— Lancer le scheduler</span></div>
+          <div><span className="text-gold">bash scripts/status.sh</span> <span className="text-text-secondary">— Vérifier l'état de tous les services</span></div>
+          <div><span className="text-gold">python scripts/precompute_all.py</span> <span className="text-text-secondary">— Pré-calculer tous les modules (remplir le cache)</span></div>
+          <div><span className="text-gold">bash scripts/keep_alive.sh</span> <span className="text-text-secondary">— Surveille et relance les services automatiquement</span></div>
           <div><span className="text-gold">pytest tests/</span> <span className="text-text-secondary">— Lancer les 123 tests</span></div>
         </div>
 
@@ -809,7 +818,10 @@ const SECTIONS = [
           <TR><TD b>Analyseur</TD><TD>Régime global, Catalyseurs, Sector Rotation, Lead-Lag, Anti-corrélation</TD></TR>
           <TR><TD b>Tests unitaires</TD><TD>123 (100% pass)</TD></TR>
           <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP 94%) + XGBoost (15K samples)</TD></TR>
-          <TR><TD b>Pages frontend</TD><TD>13 + Analyse Rapide interactive</TD></TR>
+          <TR><TD b>Pages frontend</TD><TD>16 (Pipeline + Outils + Guide)</TD></TR>
+          <TR><TD b>Cache</TD><TD>Persistant sur disque — affichage instantané, recalculé la nuit</TD></TR>
+          <TR><TD b>Keep-alive</TD><TD>Vérifie et relance les services toutes les 30 secondes</TD></TR>
+          <TR><TD b>Max positions</TD><TD>10 simultanées + file d'attente + remplacement auto</TD></TR>
         </Table>
 
         <Callout>Bilok-TradePilot est un outil d'aide à la décision, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas perdre. Commencez toujours par le paper trading.</Callout>
