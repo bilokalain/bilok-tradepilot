@@ -211,7 +211,7 @@ def quick_analyse(query: str) -> dict:
         except Exception:
             pass
 
-    # 6. Score global
+    # 6. Scores détaillés
     novelty = compute_novelty_score(close) if len(close) >= 252 else 50
     complexity = compute_complexity_premium(close, high, low) if len(close) >= 50 else 50
 
@@ -223,15 +223,24 @@ def quick_analyse(query: str) -> dict:
         "novelty": round(novelty, 1),
         "complexity": round(complexity, 1),
     }
-    global_score = np.mean(list(scores.values()))
 
-    # 7. Recommandation
-    if best_strategy and best_conviction >= 60 and global_score >= 55:
-        action = "GO"
-    elif best_strategy and best_conviction >= 40:
-        action = "WAIT"
-    else:
-        action = "NO_TRADE"
+    # 7. Score V2 (même méthode que le pipeline)
+    from backend.modules.scoring.scorer_v2 import compute_score_v2
+    from backend.modules.analyser.performance_matrix import get_best_strategy, get_strategy_sharpe
+
+    best_strat_name = best_strategy["strategy"] if best_strategy else "momentum"
+    backtest_sharpe = get_strategy_sharpe(symbol, best_strat_name) if get_best_strategy(symbol) else 0
+
+    score_v2_result = compute_score_v2(
+        scanner_score=tech_score,
+        strategy_conviction=best_conviction,
+        backtest_sharpe=backtest_sharpe,
+        symbol=symbol,
+        asset_class="CRYPTO" if "-USD" in symbol else "FOREX" if "=X" in symbol else "COMMODITY" if "=F" in symbol else "ACTION_US",
+    )
+
+    global_score = score_v2_result["score_v2"]
+    action = score_v2_result["action"]
 
     # SL/TP avec précision adaptée
     if best_strategy and best_strategy.get("direction") == "LONG":
@@ -276,6 +285,7 @@ def quick_analyse(query: str) -> dict:
         "data_points": len(df),
         "action": action,
         "global_score": round(global_score, 1),
+        "score_v2": score_v2_result,
         "scores": scores,
         "regime": regime_result,
         "best_strategy": {
