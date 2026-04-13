@@ -22,7 +22,7 @@ const SECTIONS = [
 
         <H3>Le pipeline en un mot</H3>
         <div className="bg-surface rounded-xl p-4 my-4 font-mono text-xs leading-relaxed text-gold">
-          51 actifs → Scanner (9 critères) → Analyseur (stratégie) → Scoring (GO/ATTENTE) → Exécution (ordre) → Portefeuille (risque) → Rentabilité (feedback) → retour au Scanner
+          Vos Thèses (convictions) → Scanner (218 actifs × 10 critères) → Analyseur (14 stratégies) → Scoring V2 (8+1 sources) → Exécution (Bracket Orders Alpaca) → Portefeuille (VaR + Risk Budget) → Performance (Benchmarks + Feedback) → retour au Scanner
         </div>
       </>
     ),
@@ -533,6 +533,83 @@ const SECTIONS = [
           <TR><TD b>Momentum Rotation</TD><TD>Classement relatif des 218 actifs (prouvé académiquement)</TD></TR>
         </Table>
         <P>Exemple : sur AAPL, les basiques (Trend Following, Breakout) donnaient <B>NEUTRAL</B>. Multi-Signal donne <B>LONG avec 95 de conviction</B> car 5 indicateurs sur 6 sont alignés.</P>
+      </>
+    ),
+  },
+  {
+    id: "theses",
+    title: "Mes Thèses (entrée du pipeline)",
+    icon: <Shield size={18} />,
+    content: (
+      <>
+        <P>Les thèses sont votre <B>entrée personnelle</B> dans le pipeline. Elles permettent d'intégrer des informations que le modèle ne peut pas voir seul : géopolitique, rumeurs, convictions sectorielles.</P>
+
+        <H3>Comment ça marche</H3>
+        <Table headers={["Étape", "Ce qui se passe"]}>
+          <TR><TD b>1. Vous créez une thèse</TD><TD>"Le pétrole va monter — guerre en Iran" (conviction FORTE)</TD></TR>
+          <TR><TD b>2. Le système identifie les actifs</TD><TD>XOM, CVX, COP, XLE, CL=F (long) + XLU (short)</TD></TR>
+          <TR><TD b>3. Les scores sont boostés</TD><TD>+11 points sur les actifs liés (conviction FORTE = 75%)</TD></TR>
+          <TR><TD b>4. Le sizing est ajusté</TD><TD>×1.22 sur les actifs de la thèse</TD></TR>
+          <TR><TD b>5. Le plan de trade est généré</TD><TD>Entry, SL, TP pour chaque actif</TD></TR>
+        </Table>
+
+        <H3>11 thèmes prédéfinis</H3>
+        <Table headers={["Thème", "Actifs Long", "Actifs Short"]}>
+          <TR><TD b>Pétrole</TD><TD>CL=F, XOM, CVX, COP, XLE</TD><TD>XLU, NEE</TD></TR>
+          <TR><TD b>Or</TD><TD>GC=F, GLD, SI=F, PL=F</TD><TD>SPY, QQQ</TD></TR>
+          <TR><TD b>Tech / IA</TD><TD>NVDA, AMD, MSFT, GOOGL, PLTR</TD><TD>—</TD></TR>
+          <TR><TD b>Bitcoin</TD><TD>BTC, ETH, SOL, COIN, DOGE</TD><TD>—</TD></TR>
+          <TR><TD b>Récession</TD><TD>TLT, GLD, XLU, JNJ, KO</TD><TD>SPY, QQQ, ARKK</TD></TR>
+          <TR><TD b>Guerre</TD><TD>LMT, RTX, BA, GC=F, CL=F</TD><TD>SPY, EEM</TD></TR>
+          <TR><TD b>Inflation</TD><TD>GC=F, CL=F, XLE, ZW=F</TD><TD>TLT, QQQ, ARKK</TD></TR>
+        </Table>
+
+        <H3>4 niveaux de conviction</H3>
+        <Table headers={["Niveau", "Boost score", "Boost sizing"]}>
+          <TR><TD b>FAIBLE (25%)</TD><TD>+3.75 pts</TD><TD>×1.08</TD></TR>
+          <TR><TD b>MOYENNE (50%)</TD><TD>+7.5 pts</TD><TD>×1.15</TD></TR>
+          <TR><TD b>FORTE (75%)</TD><TD>+11.25 pts</TD><TD>×1.22</TD></TR>
+          <TR><TD b>CERTAINE (90%)</TD><TD>+13.5 pts</TD><TD>×1.27</TD></TR>
+        </Table>
+
+        <Callout>Sans thèse active, le système fonctionne normalement avec ses algorithmes seuls. Vous pouvez avoir plusieurs thèses en même temps. Chaque thèse expire après l'horizon défini.</Callout>
+      </>
+    ),
+  },
+  {
+    id: "correlation",
+    title: "Corrélation rapide + Backtest",
+    icon: <BarChart3 size={18} />,
+    content: (
+      <>
+        <P>La page Corrélation permet de trouver <B>tous les actifs liés</B> à un actif donné et de <B>simuler l'impact d'un choc</B>.</P>
+
+        <H3>Carte de corrélation</H3>
+        <P>Tapez un actif (ou un nom en français : pétrole, or, bitcoin...) et le système compare les 218 actifs en base :</P>
+        <Table headers={["Catégorie", "Corrélation", "Signification"]}>
+          <TR><TD b>Corrélés positivement</TD><TD>&gt; 0.4</TD><TD>Bougent AVEC — si l'un monte, l'autre aussi</TD></TR>
+          <TR><TD b>Corrélés négativement</TD><TD>&lt; -0.2</TD><TD>Bougent CONTRE — hedge naturel</TD></TR>
+          <TR><TD b>Neutres</TD><TD>-0.2 à 0.4</TD><TD>Indépendants</TD></TR>
+        </Table>
+
+        <H3>Simulation d'impact</H3>
+        <P>Entrez un choc (ex: pétrole +20%) et le système calcule l'impact sur chaque actif corrélé via le <B>beta de corrélation</B>. Exemple :</P>
+        <Table headers={["Actif", "Beta", "Impact si Oil +20%"]}>
+          <TR><TD b>XOM (ExxonMobil)</TD><TD>0.85</TD><TD>+17%</TD></TR>
+          <TR><TD b>CVX (Chevron)</TD><TD>0.80</TD><TD>+16%</TD></TR>
+          <TR><TD b>XLU (Utilities)</TD><TD>-0.30</TD><TD>-6%</TD></TR>
+        </Table>
+
+        <H3>Backtest de corrélation (25 ans)</H3>
+        <P>Le backtest vérifie si la corrélation est <B>fiable dans le temps</B> :</P>
+        <Table headers={["Analyse", "Ce qu'elle teste"]}>
+          <TR><TD b>Rolling Correlation</TD><TD>La corrélation jour par jour sur 25 ans — quand elle casse</TD></TR>
+          <TR><TD b>Par période</TD><TD>Corrélation pendant chaque crise (2008, COVID, Bear 2022...)</TD></TR>
+          <TR><TD b>Beta Backtest</TD><TD>Quand A fait +2%, B fait-il vraiment +beta*2% ?</TD></TR>
+          <TR><TD b>Score de fiabilité</TD><TD>0-100 — au-dessus de 70 = fiable pour trader</TD></TR>
+        </Table>
+
+        <Callout>Exemple réel : CL=F/XOM = fiabilité 62.5/100. La corrélation tient en crise (COVID 0.66) mais casse pendant le Rally IA (pétrole -7%, XOM +8%). Utiliser avec stops serrés.</Callout>
       </>
     ),
   },
