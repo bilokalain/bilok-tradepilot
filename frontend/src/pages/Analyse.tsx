@@ -23,11 +23,34 @@ const STRATEGY_LABELS: Record<string, string> = {
   ichimoku: "Ichimoku",
 };
 
+interface HistoryItem {
+  symbol: string;
+  name: string;
+  score: number;
+  action: string;
+  direction: string;
+  price: number;
+  timestamp: string;
+}
+
+function loadHistory(): HistoryItem[] {
+  try {
+    return JSON.parse(localStorage.getItem("analyse_history") || "[]");
+  } catch { return []; }
+}
+
+function saveToHistory(item: HistoryItem) {
+  const history = loadHistory().filter((h) => h.symbol !== item.symbol);
+  history.unshift(item);
+  localStorage.setItem("analyse_history", JSON.stringify(history.slice(0, 20)));
+}
+
 export default function Analyse() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [history, setHistory] = useState<HistoryItem[]>(loadHistory());
 
   const handleSearch = (q?: string) => {
     const searchQuery = q || query;
@@ -43,6 +66,17 @@ export default function Analyse() {
           setError(res.data.error);
         } else {
           setResult(res.data);
+          const item: HistoryItem = {
+            symbol: res.data.symbol,
+            name: res.data.info?.name || res.data.symbol,
+            score: res.data.global_score,
+            action: res.data.action,
+            direction: res.data.best_strategy?.direction || "NEUTRAL",
+            price: res.data.last_price,
+            timestamp: new Date().toLocaleString("fr-FR"),
+          };
+          saveToHistory(item);
+          setHistory(loadHistory());
         }
       })
       .catch((err) => setError(err.response?.data?.detail || "Erreur de connexion"))
@@ -90,6 +124,51 @@ export default function Analyse() {
           </button>
         ))}
       </div>
+
+      {/* Historique */}
+      {history.length > 0 && !result && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-text-secondary font-semibold uppercase tracking-wider">Historique des analyses</p>
+            <button
+              onClick={() => { localStorage.removeItem("analyse_history"); setHistory([]); }}
+              className="text-[10px] text-text-secondary hover:text-red-400 transition-colors"
+            >
+              Effacer
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {history.map((h) => (
+              <button
+                key={h.symbol + h.timestamp}
+                onClick={() => { setQuery(h.symbol); handleSearch(h.symbol); }}
+                className="flex items-center justify-between bg-card border border-border rounded-xl p-3 hover:border-gold/20 transition-colors text-left"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-semibold text-gold text-sm">{h.symbol}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${
+                      h.action === "GO" ? "text-gold bg-gold/10 border-gold/20" :
+                      h.action === "WAIT" ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" :
+                      "text-text-secondary bg-surface border-border"
+                    }`}>{h.action}</span>
+                    {h.direction !== "NEUTRAL" && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${
+                        h.direction === "LONG" ? "text-gold bg-gold/10 border-gold/20" : "text-red-400 bg-red-400/10 border-red-400/20"
+                      }`}>{h.direction}</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[180px]">{h.name}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono text-sm">{h.score.toFixed(1)}</p>
+                  <p className="text-[9px] text-text-secondary">${h.price.toFixed(2)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-400/10 border border-red-400/20 rounded-xl text-sm text-red-400 mb-6">
