@@ -49,7 +49,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    scannerApi.getOhlcv(selectedSymbol, 90).then((res) => setOhlcv(res.data)).catch(() => {});
+    scannerApi.getOhlcv(selectedSymbol, 1000).then((res) => setOhlcv(res.data)).catch(() => {});
   }, [selectedSymbol]);
 
   if (loadingMain && results.length === 0) {
@@ -94,7 +94,7 @@ export default function Dashboard() {
                   : <option value="AAPL">AAPL</option>}
               </select>
             </div>
-            {ohlcv?.data ? <TradingChart data={ohlcv.data} height={350} /> : <div className="h-64 flex items-center justify-center text-text-secondary text-sm">Chargement...</div>}
+            {ohlcv?.data ? <TradingChart data={ohlcv.data} height={400} symbol={selectedSymbol} /> : <div className="h-64 flex items-center justify-center text-text-secondary text-sm">Chargement...</div>}
           </InfoCard>
         </div>
 
