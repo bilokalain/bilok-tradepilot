@@ -126,6 +126,30 @@ def simulate_impact_endpoint(q: str = "", move_pct: float = 10, lookback: int = 
     return simulate_impact(db, resolved, move_pct, lookback)
 
 
+@router.get("/correlation-backtest")
+def backtest_correlation(a: str = "", b: str = "", db: Session = Depends(get_sync_db)):
+    """Backtest complet de la corrélation entre deux actifs.
+
+    Exemple : ?a=petrole&b=XOM
+    """
+    from backend.modules.scanner.correlation_backtest import full_correlation_backtest
+    from backend.modules.scanner.quick_analyse import resolve_symbol
+    resolved_a = resolve_symbol(a)
+    resolved_b = resolve_symbol(b)
+    return full_correlation_backtest(db, resolved_a, resolved_b)
+
+
+@router.get("/correlation-rolling")
+def rolling_corr(a: str = "", b: str = "", window: int = 60, db: Session = Depends(get_sync_db)):
+    """Corrélation glissante entre deux actifs.
+
+    Exemple : ?a=CL=F&b=XOM&window=60
+    """
+    from backend.modules.scanner.correlation_backtest import rolling_correlation
+    from backend.modules.scanner.quick_analyse import resolve_symbol
+    return rolling_correlation(db, resolve_symbol(a), resolve_symbol(b), window)
+
+
 @router.get("/fundamental/{symbol}")
 def get_fundamentals(symbol: str):
     """Analyse fondamentale complète d'un actif."""
