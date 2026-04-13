@@ -14,6 +14,7 @@ import Performance from "./pages/Performance";
 import Settings from "./pages/Settings";
 import Analyse from "./pages/Analyse";
 import Correlation from "./pages/Correlation";
+import Theses from "./pages/Theses";
 import Guide from "./pages/Guide";
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
         <Route path="/scanner" element={<Scanner />} />
         <Route path="/analyse" element={<Analyse />} />
         <Route path="/correlation" element={<Correlation />} />
+        <Route path="/theses" element={<Theses />} />
         <Route path="/asset/:symbol" element={<AssetDetail />} />
         <Route path="/analyser" element={<Analyser />} />
         <Route path="/scoring" element={<Scoring />} />

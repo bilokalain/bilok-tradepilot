@@ -12,6 +12,7 @@ import {
   BookOpen,
   SearchCheck,
   GitBranch,
+  Lightbulb,
   Settings,
 } from "lucide-react";
 import Notifications from "./Notifications";
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/scanner", icon: ScanSearch, label: "Scanner" },
   { to: "/analyse", icon: SearchCheck, label: "Analyse rapide" },
   { to: "/correlation", icon: GitBranch, label: "Corrélation" },
+  { to: "/theses", icon: Lightbulb, label: "Mes Thèses" },
   { to: "/analyser", icon: Brain, label: "Analyseur" },
   { to: "/scoring", icon: Target, label: "Scoring" },
   { to: "/execution", icon: Zap, label: "Exécution" },

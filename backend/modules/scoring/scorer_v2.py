@@ -28,6 +28,7 @@ def compute_score_v2(
     strategy_conviction: float,
     backtest_sharpe: float,
     regime_global: dict | None = None,
+    symbol: str = "",
     fundamental_score: float | None = None,
     catalyst_adjustment: dict | None = None,
     correlation_check: dict | None = None,
@@ -206,12 +207,36 @@ def compute_score_v2(
         }
 
     # ============================================================
+    # 9. Thèses Manuelles (boost/malus)
+    # ============================================================
+    try:
+        from backend.modules.analyser.manual_thesis import compute_thesis_boost
+        thesis_boost = compute_thesis_boost(symbol)
+    except Exception:
+        thesis_boost = {"score_modifier": 0, "sizing_modifier": 1.0, "reasons": [], "has_thesis": False}
+
+    if thesis_boost.get("has_thesis"):
+        components["manual_thesis"] = {
+            "score": round(50 + thesis_boost["score_modifier"], 1),
+            "weight": 0.0,  # Pas de poids — c'est un bonus/malus additif
+            "modifier": thesis_boost["score_modifier"],
+            "sizing_modifier": thesis_boost["sizing_modifier"],
+            "reasons": thesis_boost["reasons"],
+            "description": f"Thèse manuelle : {', '.join(thesis_boost['reasons'][:2])}",
+        }
+
+    # ============================================================
     # SCORE FINAL
     # ============================================================
     final_score = sum(
         comp["score"] * comp["weight"]
         for comp in components.values()
+        if comp["weight"] > 0
     )
+
+    # Ajouter le boost des thèses (additif, pas pondéré)
+    if thesis_boost.get("has_thesis"):
+        final_score += thesis_boost["score_modifier"]
 
     # Ajustement catalyseur (multiplicatif en plus du poids)
     if catalyst_adjustment and catalyst_adjustment.get("has_catalyst"):
@@ -239,6 +264,8 @@ def compute_score_v2(
     if regime_global:
         modifiers = regime_global.get("asset_class_modifiers", {})
         sizing_modifier *= modifiers.get(asset_class, 1.0)
+    if thesis_boost.get("has_thesis"):
+        sizing_modifier *= thesis_boost.get("sizing_modifier", 1.0)
 
     return {
         "score_v2": round(final_score, 1),
