@@ -9,21 +9,60 @@ const SECTIONS = [
     content: (
       <>
         <H3>Connexion</H3>
-        <P>Ouvrez <Code>http://localhost:5173</Code> et connectez-vous avec <Code>admin@tradepilot.local</Code> / <Code>tradepilot2024</Code>.</P>
+        <P>Ouvrez <Code>http://localhost:5173</Code> et connectez-vous. Créez un compte ou utilisez le compte admin : <Code>admin@tradepilot.local</Code> / <Code>tradepilot2024</Code>.</P>
+        <P>L'application est aussi accessible <B>depuis internet</B> via le lien Cloudflare Tunnel (partageable avec d'autres utilisateurs).</P>
 
         <H3>Ce que vous voyez sur le Dashboard</H3>
         <Table headers={["Élément", "Signification"]}>
-          <TR><TD b>Actifs scannés</TD><TD>Nombre d'actifs analysés (51 = actions, crypto, forex, matières premières)</TD></TR>
-          <TR><TD b>Score moyen</TD><TD>La "note" moyenne de tous les actifs. Au-dessus de 60 = marché globalement favorable</TD></TR>
-          <TR><TD b>Signaux GO</TD><TD>Nombre d'actifs qui remplissent TOUTES les conditions pour trader. <B>C'est le chiffre le plus important</B></TD></TR>
-          <TR><TD b>Régime</TD><TD>L'état du marché : Haussier (prix montent), Baissier (descendent), Latéral (stagnent)</TD></TR>
-          <TR><TD b>Santé système</TD><TD>Note 0-100 de la fiabilité du système. En dessous de 40 = pause automatique</TD></TR>
+          <TR><TD b>Actifs scannés</TD><TD>218 actifs analysés (101 US, 50 EU, 20 crypto, 26 ETF, 10 forex, 10 commodities)</TD></TR>
+          <TR><TD b>Score moyen</TD><TD>Moyenne des 10 critères sur les 218 actifs. Au-dessus de 60 = marché favorable</TD></TR>
+          <TR><TD b>Signaux GO</TD><TD>Actifs qui remplissent les 8 conditions du Score V2. <B>C'est le chiffre le plus important</B></TD></TR>
+          <TR><TD b>Régime</TD><TD>Régime global multi-assets : RISK-ON (favorable), RISK-OFF (prudence), STAGFLATION, GOLDILOCKS</TD></TR>
+          <TR><TD b>Santé système</TD><TD>Meta-Score 0-100. Pilote l'engagement : FULL (&gt;80), NORMAL (60-80), PRUDENT (40-60), MINIMAL (&lt;40)</TD></TR>
         </Table>
 
-        <H3>Le pipeline en un mot</H3>
-        <div className="bg-surface rounded-xl p-4 my-4 font-mono text-xs leading-relaxed text-gold">
-          Vos Thèses (convictions) → Scanner (218 actifs × 10 critères) → Analyseur (14 stratégies) → Scoring V2 (8+1 sources) → Exécution (Bracket Orders Alpaca) → Portefeuille (VaR + Risk Budget) → Performance (Benchmarks + Feedback) → retour au Scanner
+        <H3>Le pipeline complet</H3>
+        <div className="bg-surface rounded-xl p-4 my-4 text-xs leading-relaxed">
+          <div className="font-mono text-gold mb-3">
+            Thèses → Scanner → Analyseur → Scoring V2 → Exécution → Portefeuille → Performance → Feedback ↩
+          </div>
+          <Table headers={["Module", "Ce qu'il fait"]}>
+            <TR><TD b>Mes Thèses</TD><TD>Vos convictions personnelles (ex: "pétrole va monter") — boost les scores des actifs liés</TD></TR>
+            <TR><TD b>Scanner</TD><TD>218 actifs × 10 critères × 20 indicateurs AT — note chaque actif de 0 à 100</TD></TR>
+            <TR><TD b>Analyseur</TD><TD>Régime global + 14 stratégies + catalyseurs + sector rotation + lead-lag + anti-corrélation</TD></TR>
+            <TR><TD b>Scoring V2</TD><TD>8 sources (scanner + conviction + régime + fondamentaux + catalyseurs + corrélation + secteur + lead-lag) + thèses</TD></TR>
+            <TR><TD b>Exécution</TD><TD>Bracket Orders Alpaca (entry + SL + TP automatiques), Score V2 pré-trade, max 10 positions + file d'attente</TD></TR>
+            <TR><TD b>Portefeuille</TD><TD>VaR, Risk Budget (max -15%), Max Drawdown Control, Rebalancing, Beta, Exposition sectorielle</TD></TR>
+            <TR><TD b>Performance</TD><TD>Benchmarks SPY/60-40, Sharpe/Sortino/Calmar live, Rapport hebdomadaire, Feedback loop</TD></TR>
+          </Table>
         </div>
+
+        <H3>Les outils complémentaires</H3>
+        <Table headers={["Outil", "Ce qu'il fait"]}>
+          <TR><TD b>Analyse rapide</TD><TD>Tapez n'importe quel actif (même hors des 218) — analyse complète en 5 secondes avec prix live Alpaca</TD></TR>
+          <TR><TD b>Corrélation</TD><TD>Trouvez tous les actifs liés à un thème + simulez l'impact d'un choc + backtest corrélation 25 ans</TD></TR>
+          <TR><TD b>Backtesting</TD><TD>5 modules : stratégies, corrélation, walk-forward, thèse, analyse profonde</TD></TR>
+        </Table>
+
+        <H3>Le graphique</H3>
+        <P>Le graphique professionnel inclut :</P>
+        <Table headers={["Fonctionnalité", "Détail"]}>
+          <TR><TD b>Périodes</TD><TD>1S, 1M, 3M, 6M, 1A, 2A, 5A, MAX (jusqu'à 64 ans)</TD></TR>
+          <TR><TD b>Types</TD><TD>Chandeliers, Ligne, Zone</TD></TR>
+          <TR><TD b>9 indicateurs</TD><TD>SMA 20/50/200, EMA 9/21, Bollinger, VWAP, Donchian, Volume</TD></TR>
+          <TR><TD b>Plein écran</TD><TD>Bouton ⛶ pour agrandir, ESC pour quitter</TD></TR>
+          <TR><TD b>TradingView</TD><TD>Bouton TV → 100+ indicateurs, outils de dessin, multi-timeframe</TD></TR>
+          <TR><TD b>OHLCV au survol</TD><TD>Open, High, Low, Close, Volume en temps réel au passage de la souris</TD></TR>
+        </Table>
+
+        <H3>Données</H3>
+        <Table headers={["Métrique", "Valeur"]}>
+          <TR><TD b>Actifs</TD><TD>218 (US, EU, Crypto, ETF, Forex, Commodities)</TD></TR>
+          <TR><TD b>Historique</TD><TD>1.6M barres daily (depuis 1962 — 64 ans) + 412K barres 1H</TD></TR>
+          <TR><TD b>Broker</TD><TD>Alpaca connecté (paper trading avec bracket orders)</TD></TR>
+          <TR><TD b>IA</TD><TD>FinBERT (NLP 94%) + XGBoost (15K samples)</TD></TR>
+          <TR><TD b>Notifications</TD><TD>Email + fichier log (scan, positions, rapport hebdo)</TD></TR>
+        </Table>
       </>
     ),
   },
