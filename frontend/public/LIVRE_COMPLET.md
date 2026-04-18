@@ -189,7 +189,7 @@ Chaque module a une responsabilité unique et une question à laquelle il répon
 | **Portefeuille** | Le risque global est-il maîtrisé ? |
 | **Performance** | Qu'avons-nous appris ? |
 
-Le principe est celui d'un entonnoir intelligent. On commence avec 335 actifs. Le Scanner en retient une poignée. L'Analyseur choisit la stratégie. Le Scoring décide si le rapport risque/rendement justifie l'action. L'Exécution passe l'ordre. Le Portefeuille vérifie que le risque global reste acceptable. Et la Performance analyse le résultat pour améliorer le cycle suivant.
+Le principe est celui d'un entonnoir intelligent. On commence avec 500 actifs. Le Scanner en retient une poignée. L'Analyseur choisit la stratégie. Le Scoring décide si le rapport risque/rendement justifie l'action. L'Exécution passe l'ordre. Le Portefeuille vérifie que le risque global reste acceptable. Et la Performance analyse le résultat pour améliorer le cycle suivant.
 
 Chaque étape filtre, affine et valide. Un actif qui passe tous les filtres a été examiné sous 10 angles différents, évalué par 8 sources de scoring, validé contre le risque portefeuille, et exécuté avec les protections appropriées.
 
@@ -197,7 +197,7 @@ Chaque étape filtre, affine et valide. Un actif qui passe tous les filtres a é
 
 Pour comprendre le système, suivons le parcours concret d'un signal — de sa naissance à sa conclusion.
 
-**Jour 1, 00h00 UTC** — Le pipeline nocturne se déclenche. Le Scanner passe en revue les 335 actifs de l'univers d'investissement. Pour chacun, il calcule 10 scores indépendants : technique, corrélation, sentiment, génome explosif, capital institutionnel, vélocité fondamentale, macro tailwind, topologie sociale, unicité du signal et analyse fondamentale. L'action HIMS obtient un score final de 70.1/100. Elle est promue dans la shortlist.
+**Jour 1, 00h00 UTC** — Le pipeline nocturne se déclenche. Le Scanner passe en revue les 500 actifs de l'univers d'investissement. Pour chacun, il calcule 10 scores indépendants : technique, corrélation, sentiment, génome explosif, capital institutionnel, vélocité fondamentale, macro tailwind, topologie sociale, unicité du signal et analyse fondamentale. L'action HIMS obtient un score final de 70.1/100. Elle est promue dans la shortlist.
 
 **00h57** — L'Analyseur détecte le régime de HIMS : BULL avec 68% de confiance. Il teste les 12 stratégies disponibles et sélectionne Momentum Adaptatif, avec une conviction de 72% et une direction LONG. Entrée estimée à 28.39$, SL à 24.80$, TP à 33.77$.
 
@@ -444,7 +444,7 @@ Cette tension entre conviction humaine et validation algorithmique est au coeur 
 
 Chaque jour de bourse, des milliers d'actifs s'échangent à travers le monde. Actions américaines, européennes, crypto-monnaies, devises, matières premières, ETF — l'univers d'investissement est vaste. Le défi n'est pas de trouver quelque chose à trader. C'est de trouver la bonne chose.
 
-Le Scanner de Marché est le premier module du pipeline. Sa mission : réduire l'univers de 335 actifs à une poignée de candidats qui méritent une analyse approfondie. Pour cela, il utilise 10 critères indépendants — chacun mesurant une dimension différente de la qualité d'un signal.
+Le Scanner de Marché est le premier module du pipeline. Sa mission : réduire l'univers de 500 actifs à une poignée de candidats qui méritent une analyse approfondie. Pour cela, il utilise 10 critères indépendants — chacun mesurant une dimension différente de la qualité d'un signal.
 
 **Pourquoi 10 critères ?**
 
@@ -1019,7 +1019,7 @@ Un seul veto suffit à rejeter l'actif, quel que soit son score sur les autres c
 | 45-55 | Neutre — rien de remarquable |
 | < 45 | Signal faible ou contraire — éviter |
 
-Le scanner transforme 335 actifs en une shortlist de 10-30 candidats. Ces candidats passent ensuite au Module 2 — l'Analyseur de Stratégies — qui déterminera **comment** les trader.
+Le scanner transforme 500 actifs en une shortlist de 10-30 candidats. Ces candidats passent ensuite au Module 2 — l'Analyseur de Stratégies — qui déterminera **comment** les trader.
 
 Le taux de détection du scanner (combien de top movers du jour étaient dans la shortlist) est mesuré quotidiennement. Dans sa configuration actuelle, le système détecte environ 90% des mouvements significatifs du jour — ce qui signifie que les actifs qui bougent le plus étaient dans le radar du scanner.
 
@@ -2191,7 +2191,7 @@ Le NLP de sentiment utilise FinBERT, un modèle BERT fine-tuné sur du texte fin
 
 **Données marché — Yahoo Finance + Alpaca :**
 
-Yahoo Finance (via yfinance) pour les données historiques quotidiennes (gratuit, 335 actifs). Alpaca pour les prix temps réel pendant les heures de marché. Alpha Vantage et Polygon.io pour les données supplémentaires (fondamentaux, intraday).
+Yahoo Finance (via yfinance) pour les données historiques quotidiennes (gratuit, 500 actifs). Alpaca pour les prix temps réel pendant les heures de marché. Alpha Vantage et Polygon.io pour les données supplémentaires (fondamentaux, intraday).
 
 ---
 
@@ -2203,7 +2203,7 @@ Le pipeline Celery est le coeur automatisé du système. Il s'exécute chaque nu
 
 | Tâche | Horaire (UTC) | Durée | Description |
 |-------|---------------|-------|-------------|
-| `update_market_data` | 21h30 | ~15 min | Télécharger les OHLCV du jour pour les 335 actifs |
+| `update_market_data` | 21h30 | ~15 min | Télécharger les OHLCV du jour pour les 500 actifs |
 | `daily_pipeline` | 22h00 | ~45 min | Scan + Analyse + Scoring + Exécution |
 | `intraday_scan` | 13h45, 15h45 | ~10 min | Scan rapide pendant les heures de marché |
 | `tp_sl_monitor` | Toutes les 5 min | ~2 min | Vérifier SL/TP + trailing stop + essoufflement |
@@ -2215,7 +2215,7 @@ Le pipeline Celery est le coeur automatisé du système. Il s'exécute chaque nu
 ```python
 chain(
     task_update_market_data.s(),      # 1. Données fraîches
-    task_scan_all.s(),                 # 2. Scanner 335 actifs
+    task_scan_all.s(),                 # 2. Scanner 500 actifs
     task_analyse_shortlist.s(),        # 3. Analyser la shortlist
     task_score_and_execute.s(),        # 4. Scoring + exécution
     task_portfolio_check.s(),          # 5. Vérification portefeuille
@@ -2352,9 +2352,9 @@ Comme mentionné au chapitre 50, un seul module calcule le sizing. Cela élimine
 
 À quoi ressemble une journée avec Bilok-TradePilot ?
 
-**21h30 UTC — Mise à jour des données.** Le pipeline télécharge les OHLCV du jour pour les 335 actifs. Yahoo Finance est interrogé actif par actif avec un délai de 0.3s entre chaque requête pour éviter le rate limiting. ~15 minutes pour tout mettre à jour.
+**21h30 UTC — Mise à jour des données.** Le pipeline télécharge les OHLCV du jour pour les 500 actifs. Yahoo Finance est interrogé actif par actif avec un délai de 0.3s entre chaque requête pour éviter le rate limiting. ~15 minutes pour tout mettre à jour.
 
-**22h00 UTC — Le pipeline nocturne.** Le scan complet démarre. Les 335 actifs passent à travers les 10 critères du scanner. Chaque actif prend 2-3 secondes à analyser. La shortlist de 10-30 candidats est transmise à l'analyseur. Les régimes sont détectés, les stratégies sélectionnées, les thèses de trade générées. Les signaux GO sont envoyés aux brokers.
+**22h00 UTC — Le pipeline nocturne.** Le scan complet démarre. Les 500 actifs passent à travers les 10 critères du scanner. Chaque actif prend 2-3 secondes à analyser. La shortlist de 10-30 candidats est transmise à l'analyseur. Les régimes sont détectés, les stratégies sélectionnées, les thèses de trade générées. Les signaux GO sont envoyés aux brokers.
 
 **22h45 UTC — Résultats.** Le dashboard affiche les nouvelles positions ouvertes, les signaux en attente, les positions existantes avec leur état de santé. Un email de résumé est envoyé si des trades significatifs ont été passés.
 
@@ -2621,15 +2621,16 @@ où $\hat{S} = \min\!\left(\frac{\text{Sharpe}}{2}, 1\right) \times 100$ est le 
 
 ## Annexe C : Univers d'Investissement
 
-L'univers de Bilok-TradePilot couvre 335 actifs répartis en 5 classes :
+L'univers de Bilok-TradePilot couvre 500 actifs répartis en 6 classes :
 
 | Classe | Nombre | Exemples |
 |--------|--------|----------|
-| **Actions US** | ~200 | AAPL, MSFT, NVDA, TSLA, META, AMZN, GOOGL |
-| **Actions EU** | ~30 | MC.PA, SAP.DE, NESN.SW, AZN.L, BNP.PA |
-| **ETF** | ~40 | SPY, QQQ, IWM, GLD, TLT, XLK, XLF |
-| **Crypto** | ~20 | BTC-USD, ETH-USD, SOL-USD, ADA-USD |
-| **Forex / Commodities** | ~45 | EURUSD=X, GC=F, CL=F, SI=F |
+| **Actions US** | 233 | AAPL, MSFT, NVDA, TSLA, META, AMZN, GOOGL, CRSP, LEU, APP |
+| **ETF** | 89 | SPY, QQQ, IWM, GLD, TLT, XLK, URNM, AIQ, ROBO, SCHD, KRUZ |
+| **Actions EU** | 76 | MC.PA, SAP.DE, ASML.AS, NESN.SW, RHM.DE, RR.L, EVO.ST, ITX.MC |
+| **Crypto** | 53 | BTC-USD, ETH-USD, SOL-USD, TON-USD, KAS-USD, ONDO-USD, OCEAN-USD |
+| **Forex** | 30 | EURUSD=X, GBPUSD=X, USDJPY=X, USDZAR=X, AUDJPY=X, EURTRY=X |
+| **Commodities** | 19 | GC=F, CL=F, SI=F, KC=F, PA=F, CT=F, RB=F |
 
 La sélection est réévaluée trimestriellement. Les actifs qui ne génèrent jamais de signal (score scanner < 30 pendant 90 jours) sont retirés. Les actifs qui émergent (IPO prometteuses, nouvelles cryptos majeures) sont ajoutés.
 
