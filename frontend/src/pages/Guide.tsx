@@ -15,8 +15,8 @@ const SECTIONS = [
         <H3>Ce que vous voyez sur le Dashboard</H3>
         <Table headers={["Élément", "Signification"]}>
           <TR><TD b>Thèses M0</TD><TD>Nombre de convictions personnelles actives + conviction moyenne. Influence directement le scoring des actifs liés</TD></TR>
-          <TR><TD b>Actifs scannés</TD><TD>218 actifs analysés (101 US, 50 EU, 20 crypto, 26 ETF, 10 forex, 10 commodities)</TD></TR>
-          <TR><TD b>Score moyen</TD><TD>Moyenne des 10 critères sur les 218 actifs. Au-dessus de 60 = marché favorable</TD></TR>
+          <TR><TD b>Actifs scannés</TD><TD>500 actifs analysés (233 US, 76 EU, 53 crypto, 89 ETF, 30 forex, 19 commodities)</TD></TR>
+          <TR><TD b>Score moyen</TD><TD>Moyenne des 10 critères sur les 500 actifs. Au-dessus de 60 = marché favorable</TD></TR>
           <TR><TD b>Signaux GO</TD><TD>Actifs qui remplissent les 8 conditions du Score V2. <B>C'est le chiffre le plus important</B></TD></TR>
           <TR><TD b>Régime</TD><TD>Régime global multi-assets : RISK-ON (favorable), RISK-OFF (prudence), STAGFLATION, GOLDILOCKS</TD></TR>
           <TR><TD b>Santé système</TD><TD>Meta-Score 0-100. Pilote l'engagement : FULL (&gt;80), NORMAL (60-80), PRUDENT (40-60), MINIMAL (&lt;40)</TD></TR>
@@ -33,14 +33,14 @@ const SECTIONS = [
         <Callout>Vous pouvez supprimer une thèse directement depuis le Dashboard quand elle n'est plus pertinente (ex: événement passé, marché a invalidé votre scénario). L'effet sur le scoring est immédiat.</Callout>
 
         <H3>Top Movers du jour</H3>
-        <P>Le Dashboard affiche les <B>plus fortes variations</B> parmi les 308 actifs surveillés :</P>
+        <P>Le Dashboard affiche les <B>plus fortes variations</B> parmi les 500 actifs surveillés :</P>
         <Table headers={["Section", "Ce qu'elle montre"]}>
           <TR><TD b>Hausse</TD><TD>Top 10 des plus fortes hausses du jour — badge "EN POS" si vous êtes déjà en position</TD></TR>
           <TR><TD b>Baisse</TD><TD>Top 10 des plus fortes baisses — identifie les actifs à shorter ou éviter</TD></TR>
-          <TR><TD b>Taux de détection</TD><TD>Barre de progression : combien de top movers du marché global sont dans nos 308 actifs. Vert &gt; 70%, jaune 50-70%, rouge &lt; 50%</TD></TR>
+          <TR><TD b>Taux de détection</TD><TD>Barre de progression : combien de top movers du marché global sont dans nos 500 actifs. Vert &gt; 70%, jaune 50-70%, rouge &lt; 50%</TD></TR>
           <TR><TD b>Actifs manqués</TD><TD>Badges rouges des symboles qui performent mais ne sont pas dans le scanner</TD></TR>
         </Table>
-        <Callout>Le taux de détection permet de savoir si notre sélection de 308 actifs couvre bien le marché. Si des actifs sont régulièrement manqués, ils peuvent être ajoutés au scanner.</Callout>
+        <Callout>Le taux de détection permet de savoir si notre sélection de 500 actifs couvre bien le marché. Si des actifs sont régulièrement manqués, ils peuvent être ajoutés au scanner.</Callout>
 
         <H3>Le pipeline complet</H3>
         <div className="bg-surface rounded-xl p-4 my-4 text-xs leading-relaxed">
@@ -49,7 +49,7 @@ const SECTIONS = [
           </div>
           <Table headers={["Module", "Ce qu'il fait"]}>
             <TR><TD b>M0 Mes Thèses</TD><TD>Vos convictions personnelles — boost les scores des actifs liés</TD></TR>
-            <TR><TD b>M1 Scanner</TD><TD>308 actifs × 11 critères (dont Narrative Momentum) — note de 0 à 100</TD></TR>
+            <TR><TD b>M1 Scanner</TD><TD>500 actifs × 11 critères (dont Narrative Momentum) — note de 0 à 100</TD></TR>
             <TR><TD b>M2 Analyseur</TD><TD>Régime global + 14 stratégies + catalyseurs + sector rotation</TD></TR>
             <TR><TD b>M3 Scoring V2</TD><TD>4 composantes (Conviction 35% + Bayésien 30% + SQC 20% + Scanner 15%) — poids auto-calibrés</TD></TR>
             <TR><TD b>M4 Exécution</TD><TD>Multi-Broker IBKR (réel) + Alpaca (paper), SL/TP, trailing stop, sizing intelligent</TD></TR>
@@ -78,8 +78,8 @@ const SECTIONS = [
 
         <H3>Données</H3>
         <Table headers={["Métrique", "Valeur"]}>
-          <TR><TD b>Actifs</TD><TD>218 (US, EU, Crypto, ETF, Forex, Commodities)</TD></TR>
-          <TR><TD b>Historique</TD><TD>1.6M barres daily (depuis 1962 — 64 ans) + 412K barres 1H</TD></TR>
+          <TR><TD b>Actifs</TD><TD>500 (233 US, 76 EU, 53 Crypto, 89 ETF, 30 Forex, 19 Commodities)</TD></TR>
+          <TR><TD b>Historique</TD><TD>2.4M barres daily (jusqu'à 10 ans d'historique) + 412K barres 1H</TD></TR>
           <TR><TD b>Broker</TD><TD>Alpaca connecté (paper trading avec bracket orders)</TD></TR>
           <TR><TD b>IA</TD><TD>FinBERT (NLP 94%) + XGBoost (15K samples)</TD></TR>
           <TR><TD b>Notifications</TD><TD>Email + fichier log (scan, positions, rapport hebdo)</TD></TR>
@@ -93,7 +93,7 @@ const SECTIONS = [
     icon: <ScanSearch size={18} />,
     content: (
       <>
-        <P>Le scanner est le <B>filtre d'entrée</B>. Sur 305 actifs (US, EU, ETF, Crypto, Forex, Commodities, Biotech, Défense, Moonshots), il identifie ceux qui méritent votre attention. Chaque actif reçoit une note de 0 à 100 basée sur <B>11 dimensions indépendantes</B>.</P>
+        <P>Le scanner est le <B>filtre d'entrée</B>. Sur 500 actifs (US, EU, ETF, Crypto, Forex, Commodities, Biotech, Défense, Moonshots), il identifie ceux qui méritent votre attention. Chaque actif reçoit une note de 0 à 100 basée sur <B>11 dimensions indépendantes</B>.</P>
         <Callout>Les poids des 11 critères s'ajustent automatiquement avec le temps grâce au système d'apprentissage. Les critères qui prédisent bien les trades gagnants voient leur poids augmenter (+30% max).</Callout>
 
         <H3>Les 11 critères</H3>
@@ -236,7 +236,7 @@ const SECTIONS = [
           <TR><TD b>Multi-Signal</TD><TD>Exige 4+ indicateurs sur 6 d'accord</TD><TD>Réduit les faux signaux de ~60%. Conv. max = 95</TD></TR>
           <TR><TD b>Keltner Breakout</TD><TD>Canaux adaptatifs (ATR)</TD><TD>S'adapte à chaque actif au lieu d'un range fixe 20j</TD></TR>
           <TR><TD b>VWAP Reversion</TD><TD>Retour au prix moyen pondéré volume</TD><TD>Le "vrai" prix moyen du marché, plus précis que Bollinger</TD></TR>
-          <TR><TD b>Momentum Rotation</TD><TD>Classement des 218 actifs</TD><TD>Achète les top 20%, vend les bottom 20%. Prouvé académiquement</TD></TR>
+          <TR><TD b>Momentum Rotation</TD><TD>Classement des 500 actifs</TD><TD>Achète les top 20%, vend les bottom 20%. Prouvé académiquement</TD></TR>
         </Table>
 
         <H3>Stratégies avancées</H3>
@@ -576,7 +576,7 @@ const SECTIONS = [
         </Table>
 
         <H3>Saisonnalité — Quel mois trader ?</H3>
-        <P>Analyse des rendements moyens par mois sur 5 à 64 ans de données (215 actifs) :</P>
+        <P>Analyse des rendements moyens par mois sur 5 à 64 ans de données (500 actifs) :</P>
         <Table headers={["Mois", "Rendement moyen", "% d'actifs positifs", "Verdict"]}>
           <TR><TD b>Janvier</TD><TD>+4.21%</TD><TD>78%</TD><TD>Meilleur mois — effet "January"</TD></TR>
           <TR><TD b>Avril</TD><TD>+2.49%</TD><TD>85%</TD><TD>Très bon — le plus régulier</TD></TR>
@@ -590,7 +590,7 @@ const SECTIONS = [
         <Callout>Conseil : privilégiez janvier et avril pour les nouvelles positions. Évitez septembre.</Callout>
 
         <H3>Cycles économiques — Comment le marché se comporte en crise</H3>
-        <P>Performance de 217 actifs pendant les grandes périodes historiques :</P>
+        <P>Performance de 500 actifs pendant les grandes périodes historiques :</P>
         <Table headers={["Période", "Rendement moyen", "Ce qui se passe"]}>
           <TR><TD b>Dot-com Crash (2000-02)</TD><TD>-16.7%</TD><TD>Tech s'effondre. UNH et LMT survivent (+255%)</TD></TR>
           <TR><TD b>Crise 2008 (2007-09)</TD><TD>-43.7%</TD><TD>Banques détruites (Citi -98%). NFLX +69%</TD></TR>
@@ -605,7 +605,7 @@ const SECTIONS = [
         <Callout>Un backtest positif sur 10 ans ne garantit PAS un profit régulier. Les performances passées ne préjugent pas des résultats futurs. C'est pour ça que le paper trading de 3 mois est indispensable.</Callout>
 
         <H3>Backtest Pro vs Classique</H3>
-        <P>Les 5 stratégies pro ont été comparées aux 4 classiques sur 218 actifs :</P>
+        <P>Les 5 stratégies pro ont été comparées aux 4 classiques sur 500 actifs :</P>
         <Table headers={["", "Pro", "Classique", "Égalité"]}>
           <TR><TD b>Actifs gagnés</TD><TD>110</TD><TD>68</TD><TD>39</TD></TR>
         </Table>
@@ -671,7 +671,7 @@ const SECTIONS = [
           <TR><TD b>Multi-Signal</TD><TD>Exige 4/6 indicateurs d'accord (au lieu d'un seul crossover)</TD></TR>
           <TR><TD b>Keltner Breakout</TD><TD>Canaux ATR adaptatifs (au lieu d'un range fixe 20 jours)</TD></TR>
           <TR><TD b>VWAP Reversion</TD><TD>Prix moyen pondéré par volume (au lieu de Bollinger simple)</TD></TR>
-          <TR><TD b>Momentum Rotation</TD><TD>Classement relatif des 218 actifs (prouvé académiquement)</TD></TR>
+          <TR><TD b>Momentum Rotation</TD><TD>Classement relatif des 500 actifs (prouvé académiquement)</TD></TR>
         </Table>
         <P>Exemple : sur AAPL, les basiques (Trend Following, Breakout) donnaient <B>NEUTRAL</B>. Multi-Signal donne <B>LONG avec 95 de conviction</B> car 5 indicateurs sur 6 sont alignés.</P>
       </>
@@ -726,7 +726,7 @@ const SECTIONS = [
         <P>La page Corrélation permet de trouver <B>tous les actifs liés</B> à un actif donné et de <B>simuler l'impact d'un choc</B>.</P>
 
         <H3>Carte de corrélation</H3>
-        <P>Tapez un actif (ou un nom en français : pétrole, or, bitcoin...) et le système compare les 218 actifs en base :</P>
+        <P>Tapez un actif (ou un nom en français : pétrole, or, bitcoin...) et le système compare les 500 actifs en base :</P>
         <Table headers={["Catégorie", "Corrélation", "Signification"]}>
           <TR><TD b>Corrélés positivement</TD><TD>&gt; 0.4</TD><TD>Bougent AVEC — si l'un monte, l'autre aussi</TD></TR>
           <TR><TD b>Corrélés négativement</TD><TD>&lt; -0.2</TD><TD>Bougent CONTRE — hedge naturel</TD></TR>
@@ -760,7 +760,7 @@ const SECTIONS = [
     icon: <ScanSearch size={18} />,
     content: (
       <>
-        <P>La page <B>Analyse Rapide</B> permet d'analyser <B>n'importe quel actif au monde</B> en tapant son nom ou symbole — même s'il n'est pas dans les 218 actifs suivis.</P>
+        <P>La page <B>Analyse Rapide</B> permet d'analyser <B>n'importe quel actif au monde</B> en tapant son nom ou symbole — même s'il n'est pas dans les 500 actifs suivis.</P>
 
         <H3>Recherche intelligente (autocomplete)</H3>
         <P>Tapez un <B>nom</B> ou un <B>symbole</B> et des suggestions apparaissent en temps réel :</P>
@@ -774,7 +774,7 @@ const SECTIONS = [
         </Table>
         <P>La recherche combine <B>3 sources</B> par ordre de priorité :</P>
         <Table headers={["Source", "Vitesse", "Couverture"]}>
-          <TR><TD b>1. Base de données</TD><TD>Instantané</TD><TD>218 actifs du pipeline</TD></TR>
+          <TR><TD b>1. Base de données</TD><TD>Instantané</TD><TD>500 actifs du pipeline</TD></TR>
           <TR><TD b>2. Aliases français</TD><TD>Instantané</TD><TD>100+ noms courants (CAC 40, pétrole, or, Bitcoin, tout le DAX/SMI...)</TD></TR>
           <TR><TD b>3. TradingView</TD><TD>~100ms</TD><TD>Tous les marchés mondiaux (des milliers d'actifs)</TD></TR>
         </Table>
@@ -932,7 +932,7 @@ const SECTIONS = [
         <Table headers={["Couche", "Service", "Détail"]}>
           <TR><TD b>Frontend</TD><TD>Vercel (gratuit)</TD><TD>bilok-tradepilot.vercel.app — URL propre, HTTPS, CDN mondial</TD></TR>
           <TR><TD b>Backend API</TD><TD>Mac local + Cloudflare Tunnel</TD><TD>FastAPI exposé via tunnel sécurisé (HTTPS)</TD></TR>
-          <TR><TD b>Base de données</TD><TD>PostgreSQL local</TD><TD>218 actifs, 1.6M barres, 412K barres 1H</TD></TR>
+          <TR><TD b>Base de données</TD><TD>PostgreSQL local</TD><TD>500 actifs, 2.4M barres daily, 412K barres 1H</TD></TR>
           <TR><TD b>Cache</TD><TD>Redis local</TD><TD>Sessions, Celery broker</TD></TR>
         </Table>
         <Callout>Le Mac doit rester allumé pour que le backend fonctionne. Si le tunnel redémarre, il faut rebuilder le frontend avec la nouvelle URL API puis redéployer sur Vercel.</Callout>
@@ -948,13 +948,13 @@ const SECTIONS = [
         <H3>Architecture du cache</H3>
         <P>Le système utilise un <B>cache disque persistant</B> pour afficher tous les résultats instantanément :</P>
         <Table headers={["Quand", "Ce qui se passe"]}>
-          <TR><TD b>21h30 UTC</TD><TD>MAJ données daily (218 actifs)</TD></TR>
+          <TR><TD b>21h30 UTC</TD><TD>MAJ données daily (500 actifs)</TD></TR>
           <TR><TD b>22h UTC</TD><TD>Pipeline complet automatique : Scanner → Cache Corrélation → Analyseur → Scoring → Exécution → Portefeuille → Performance (~35 min)</TD></TR>
           <TR><TD b>Toutes les 4h</TD><TD>MAJ données intraday 1H</TD></TR>
           <TR><TD b>La journée</TD><TD>Tous les modules affichent instantanément depuis le cache disque — aucun calcul lourd</TD></TR>
           <TR><TD b>En temps réel</TD><TD>Seuls les calculs légers sont live : Analyse rapide (1 actif), Corrélation, Exécution d'un trade</TD></TR>
         </Table>
-        <P>Le cache de corrélation (218×218 actifs) est calculé <B>une seule fois</B> après le scanner et partagé par tous les modules — ce qui réduit le pipeline de ~2h à ~35 min.</P>
+        <P>Le cache de corrélation (500×500 actifs) est calculé <B>une seule fois</B> après le scanner et partagé par tous les modules — ce qui réduit le pipeline de ~2h à ~35 min.</P>
         <P>Les fichiers cache sont dans <Code>data/*_cache.json</Code> et survivent aux redémarrages.</P>
 
         <H3>Administration</H3>
@@ -989,7 +989,7 @@ const SECTIONS = [
 
         <H3>Statistiques du système</H3>
         <Table headers={["Métrique", "Valeur"]}>
-          <TR><TD b>Actifs en base</TD><TD>308 (US, EU, Crypto, Forex, Commodities, ETF thématiques, Moonshots, Défense, Biotech, Quantum)</TD></TR>
+          <TR><TD b>Actifs en base</TD><TD>500 (233 US, 76 EU, 53 Crypto, 89 ETF, 30 Forex, 19 Commodities)</TD></TR>
           <TR><TD b>Barres daily</TD><TD>1.8M+ (depuis 1962 — 64 ans)</TD></TR>
           <TR><TD b>Barres intraday 1H</TD><TD>420K+</TD></TR>
           <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques)</TD></TR>
@@ -1008,7 +1008,7 @@ const SECTIONS = [
           <TR><TD b>Analyseur</TD><TD>Régime global, Catalyseurs, Sector Rotation, Lead-Lag, Anti-corrélation</TD></TR>
           <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP 94%) + XGBoost (auto-retrain) + Narrative Momentum</TD></TR>
           <TR><TD b>Admin</TD><TD>4 onglets : IBKR Live, Historique des trades, Alpaca Paper, Système</TD></TR>
-          <TR><TD b>Cache</TD><TD>Persistant sur disque + cache corrélation centralisé (304×304 en 2.3s)</TD></TR>
+          <TR><TD b>Cache</TD><TD>Persistant sur disque + cache corrélation centralisé (500×500)</TD></TR>
           <TR><TD b>Keep-alive</TD><TD>Backend + Frontend + Celery Worker + Celery Beat + Tunnel</TD></TR>
           <TR><TD b>Max positions</TD><TD>15 simultanées + file d'attente + remplacement auto + positions SHORT</TD></TR>
           <TR><TD b>TP/SL Monitor</TD><TD>Toutes les 5 min : trailing stop, TP, SL, essoufflement, signal inverse, queue</TD></TR>
