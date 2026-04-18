@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useCallback, useEffect, useState } from "react";
+import api from "../services/api";
 
 interface StressResult {
   scenario: string;
@@ -13,19 +13,30 @@ export default function Portfolio() {
   const [summary, setSummary] = useState<any>(null);
   const [stress, setStress] = useState<StressResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  const fetchData = useCallback((isManual = false) => {
+    if (isManual) setRefreshing(true);
     Promise.all([
-      axios.get("/api/portfolio/summary"),
-      axios.get("/api/portfolio/stress-test"),
+      api.get("/portfolio/summary"),
+      api.get("/portfolio/stress-test"),
     ])
       .then(([sumRes, stressRes]) => {
         setSummary(sumRes.data);
         setStress(stressRes.data);
       })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        if (isManual) setRefreshing(false);
+      });
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(() => fetchData(), 60_000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   if (loading) return <p className="text-text-secondary">Chargement...</p>;
 
@@ -33,9 +44,18 @@ export default function Portfolio() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-2">Portefeuille</h2>
-      <p className="text-text-secondary mb-6 text-sm">
-        Risk Parity — Stress Testing — Régime Portefeuille
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-2xl font-bold">Portefeuille</h2>
+        <button
+          onClick={() => fetchData(true)}
+          disabled={refreshing}
+          className="px-3 py-1.5 text-sm bg-card border border-border rounded-lg hover:bg-surface transition-colors disabled:opacity-50"
+        >
+          {refreshing ? "Rafraîchissement..." : "Rafraîchir"}
+        </button>
+      </div>
+      <p className="text-text-secondary text-sm mb-6 max-w-3xl">
+        Gestion dynamique du risque et de l'allocation — Risk Parity, stress testing sur scénarios historiques (Mars 2020, crypto crash), détection de régime portefeuille (ALPHA/BETA/STRESS) et contrôle du drawdown depuis le peak equity.
       </p>
 
       {/* Métriques */}

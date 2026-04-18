@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Lightbulb, Plus, Trash2, Eye, X } from "lucide-react";
-import axios from "axios";
+import api from "../services/api";
 import InfoCard from "../components/ui/InfoCard";
 
 const THEMES = [
@@ -44,14 +44,14 @@ export default function Theses() {
   const [horizon, setHorizon] = useState(30);
 
   const loadTheses = () => {
-    axios.get("/api/analyser/theses").then((res) => setTheses(res.data)).catch(() => {});
+    api.get("/analyser/theses").then((res) => setTheses(res.data)).catch(() => {});
   };
 
   useEffect(() => { loadTheses(); }, []);
 
   const handleCreate = () => {
     setLoading(true);
-    axios.post("/api/analyser/thesis", {
+    api.post("/analyser/thesis", {
       theme: customTheme || theme,
       direction, conviction, reason,
       horizon_days: horizon,
@@ -62,12 +62,12 @@ export default function Theses() {
   };
 
   const handleDelete = (id: string) => {
-    axios.delete(`/api/analyser/thesis/${id}`).then(() => loadTheses());
+    api.delete(`/analyser/thesis/${id}`).then(() => loadTheses());
   };
 
   const handleViewPlan = (id: string) => {
     setPlan(null);
-    axios.get(`/api/analyser/thesis/${id}/plan`).then((res) => setPlan(res.data));
+    api.get(`/analyser/thesis/${id}/plan`).then((res) => setPlan(res.data));
   };
 
   return (
@@ -75,8 +75,8 @@ export default function Theses() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold">Mes Thèses</h2>
-          <p className="text-text-secondary text-sm mt-1">
-            Vos convictions personnelles intégrées au modèle. Sans thèse, le système fonctionne normalement.
+          <p className="text-text-secondary text-sm mt-1 max-w-3xl">
+            Gestion des thèses de trading manuelles — créez vos convictions directionnelles sur un thème (IA, énergie, crypto) avec un horizon et une conviction. Le pipeline intègre vos thèses dans le scoring pour amplifier ou filtrer les signaux automatiques.
           </p>
         </div>
         <button

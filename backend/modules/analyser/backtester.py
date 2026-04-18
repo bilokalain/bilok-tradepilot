@@ -30,6 +30,11 @@ from backend.modules.analyser.strategies import (
 )
 
 
+# Frais de transaction réalistes
+COMMISSION_PCT = 0.001     # 0.1% par côté (entrée + sortie = 0.2%)
+SLIPPAGE_PCT = 0.0005      # 0.05% de slippage moyen par exécution
+
+
 @dataclass
 class BacktestTrade:
     entry_date: date
@@ -40,6 +45,7 @@ class BacktestTrade:
     quantity: float = 1
     pnl: float = 0
     pnl_pct: float = 0
+    fees: float = 0
     strategy: str = ""
     exit_reason: str = ""
 
@@ -69,6 +75,10 @@ class BacktestResult:
     @property
     def win_rate(self) -> float:
         return self.winning_trades / self.num_trades * 100 if self.num_trades else 0
+
+    @property
+    def total_fees(self) -> float:
+        return sum(t.fees for t in self.trades)
 
     @property
     def profit_factor(self) -> float:
@@ -121,6 +131,7 @@ class BacktestResult:
             "max_drawdown": round(self.max_drawdown, 2),
             "sharpe_ratio": round(self.sharpe_ratio, 3),
             "calmar_ratio": round(self.calmar_ratio, 3),
+            "total_fees": round(self.total_fees, 2),
             "equity_curve": [round(e, 2) for e in self.equity_curve[::5]],  # échantillonné
             "trades": [
                 {
@@ -138,6 +149,22 @@ class BacktestResult:
         }
 
 
+def _apply_slippage(price: float, direction: str, is_entry: bool) -> float:
+    """Applique le slippage au prix.
+
+    Entrée : on paye plus cher (LONG) ou on vend moins cher (SHORT)
+    Sortie : inverse
+    """
+    if (direction == "LONG" and is_entry) or (direction == "SHORT" and not is_entry):
+        return price * (1 + SLIPPAGE_PCT)
+    return price * (1 - SLIPPAGE_PCT)
+
+
+def _compute_fees(price: float, quantity: float) -> float:
+    """Calcule les frais de commission pour une transaction."""
+    return price * quantity * COMMISSION_PCT
+
+
 def run_backtest(df: pd.DataFrame, strategy_name: str, symbol: str,
                  initial_capital: float = 100_000,
                  risk_per_trade: float = 0.02) -> BacktestResult:
@@ -145,6 +172,8 @@ def run_backtest(df: pd.DataFrame, strategy_name: str, symbol: str,
 
     Paramètres :
     - risk_per_trade : fraction du capital risquée par trade (2%)
+
+    Inclut les frais de commission (0.1% par côté) et le slippage (0.05%).
     """
     result = BacktestResult(
         strategy=strategy_name,
@@ -176,9 +205,11 @@ def run_backtest(df: pd.DataFrame, strategy_name: str, symbol: str,
             if position.direction == "LONG":
                 # Check stop loss
                 if current_price <= position.entry_price - 2 * atr_val:
-                    position.exit_price = current_price
+                    position.exit_price = _apply_slippage(current_price, "LONG", is_entry=False)
                     position.exit_date = current_date
-                    position.pnl = (position.exit_price - position.entry_price) * position.quantity
+                    exit_fees = _compute_fees(position.exit_price, position.quantity)
+                    position.fees += exit_fees
+                    position.pnl = (position.exit_price - position.entry_price) * position.quantity - exit_fees
                     position.pnl_pct = (position.exit_price / position.entry_price - 1) * 100
                     position.exit_reason = "STOP_LOSS"
                     capital += position.pnl
@@ -186,9 +217,11 @@ def run_backtest(df: pd.DataFrame, strategy_name: str, symbol: str,
                     position = None
                 # Check take profit (3 ATR)
                 elif current_price >= position.entry_price + 3 * atr_val:
-                    position.exit_price = current_price
+                    position.exit_price = _apply_slippage(current_price, "LONG", is_entry=False)
                     position.exit_date = current_date
-                    position.pnl = (position.exit_price - position.entry_price) * position.quantity
+                    exit_fees = _compute_fees(position.exit_price, position.quantity)
+                    position.fees += exit_fees
+                    position.pnl = (position.exit_price - position.entry_price) * position.quantity - exit_fees
                     position.pnl_pct = (position.exit_price / position.entry_price - 1) * 100
                     position.exit_reason = "TAKE_PROFIT"
                     capital += position.pnl
@@ -197,18 +230,22 @@ def run_backtest(df: pd.DataFrame, strategy_name: str, symbol: str,
 
             elif position.direction == "SHORT":
                 if current_price >= position.entry_price + 2 * atr_val:
-                    position.exit_price = current_price
+                    position.exit_price = _apply_slippage(current_price, "SHORT", is_entry=False)
                     position.exit_date = current_date
-                    position.pnl = (position.entry_price - position.exit_price) * position.quantity
+                    exit_fees = _compute_fees(position.exit_price, position.quantity)
+                    position.fees += exit_fees
+                    position.pnl = (position.entry_price - position.exit_price) * position.quantity - exit_fees
                     position.pnl_pct = (1 - position.exit_price / position.entry_price) * 100
                     position.exit_reason = "STOP_LOSS"
                     capital += position.pnl
                     result.trades.append(position)
                     position = None
                 elif current_price <= position.entry_price - 3 * atr_val:
-                    position.exit_price = current_price
+                    position.exit_price = _apply_slippage(current_price, "SHORT", is_entry=False)
                     position.exit_date = current_date
-                    position.pnl = (position.entry_price - position.exit_price) * position.quantity
+                    exit_fees = _compute_fees(position.exit_price, position.quantity)
+                    position.fees += exit_fees
+                    position.pnl = (position.entry_price - position.exit_price) * position.quantity - exit_fees
                     position.pnl_pct = (1 - position.exit_price / position.entry_price) * 100
                     position.exit_reason = "TAKE_PROFIT"
                     capital += position.pnl
@@ -235,25 +272,32 @@ def run_backtest(df: pd.DataFrame, strategy_name: str, symbol: str,
                 quantity = risk_amount / stop_distance if stop_distance > 0 else 0
 
                 if quantity > 0:
+                    slipped_entry = _apply_slippage(current_price, signal["direction"], is_entry=True)
+                    entry_fees = _compute_fees(slipped_entry, round(quantity, 4))
+                    capital -= entry_fees
                     position = BacktestTrade(
                         entry_date=current_date,
                         direction=signal["direction"],
-                        entry_price=current_price,
+                        entry_price=slipped_entry,
                         quantity=round(quantity, 4),
                         strategy=strategy_name,
+                        fees=entry_fees,
                     )
 
         result.equity_curve.append(capital)
 
     # Fermer la position ouverte à la fin
     if position:
-        position.exit_price = float(df["close"].iloc[-1])
+        raw_exit = float(df["close"].iloc[-1])
+        position.exit_price = _apply_slippage(raw_exit, position.direction, is_entry=False)
         position.exit_date = df.index[-1]
+        exit_fees = _compute_fees(position.exit_price, position.quantity)
+        position.fees += exit_fees
         if position.direction == "LONG":
-            position.pnl = (position.exit_price - position.entry_price) * position.quantity
+            position.pnl = (position.exit_price - position.entry_price) * position.quantity - exit_fees
             position.pnl_pct = (position.exit_price / position.entry_price - 1) * 100
         else:
-            position.pnl = (position.entry_price - position.exit_price) * position.quantity
+            position.pnl = (position.entry_price - position.exit_price) * position.quantity - exit_fees
             position.pnl_pct = (1 - position.exit_price / position.entry_price) * 100
         position.exit_reason = "END_OF_DATA"
         capital += position.pnl
@@ -289,8 +333,29 @@ def run_walk_forward(df: pd.DataFrame, strategy_name: str, symbol: str,
         if len(test_data) < 50:
             continue
 
-        # Backtest sur la portion test (out-of-sample)
-        test_result = run_backtest(test_data, strategy_name, symbol)
+        # Backtest sur fold complet (train+test) pour que les indicateurs
+        # se réchauffent sur les données train — élimine le look-ahead bias.
+        # Seuls les trades dont l'entrée tombe dans la période test comptent.
+        full_result = run_backtest(fold_data, strategy_name, symbol)
+
+        test_start_date = test_data.index[0]
+        test_trades = [t for t in full_result.trades if t.entry_date >= test_start_date]
+
+        # Reconstruire l'equity curve à partir des trades test uniquement
+        test_equity = [full_result.equity_curve[0]]  # capital initial
+        capital = test_equity[0]
+        for t in test_trades:
+            capital += t.pnl
+            test_equity.append(capital)
+
+        test_result = BacktestResult(
+            strategy=strategy_name,
+            symbol=symbol,
+            period=f"{test_start_date} → {fold_data.index[-1]}",
+            trades=test_trades,
+            equity_curve=test_equity,
+        )
+
         results.append({
             "fold": fold + 1,
             "train_period": f"{train_data.index[0]} → {train_data.index[-1]}",

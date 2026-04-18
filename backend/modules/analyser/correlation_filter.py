@@ -22,7 +22,17 @@ from backend.database.models import Asset, OHLCVDaily, Position, PositionStatus
 
 def compute_correlation(db: Session, symbol_a: str, symbol_b: str,
                         lookback: int = 60) -> float | None:
-    """Calcule la corrélation entre deux actifs sur N jours."""
+    """Corrélation entre deux actifs — lit depuis le cache disque si disponible."""
+    # Essayer le cache d'abord (instantané)
+    try:
+        from backend.modules.scanner.correlation_cache import get_pairwise_correlation
+        cached = get_pairwise_correlation(symbol_a, symbol_b, str(lookback) if lookback in (60, 252) else "60")
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
+    # Fallback : calcul direct depuis la BDD
     asset_a = db.query(Asset).filter_by(symbol=symbol_a).first()
     asset_b = db.query(Asset).filter_by(symbol=symbol_b).first()
     if not asset_a or not asset_b:
@@ -37,7 +47,6 @@ def compute_correlation(db: Session, symbol_a: str, symbol_b: str,
     closes_a = pd.Series([float(r.close) for r in reversed(rows_a)])
     closes_b = pd.Series([float(r.close) for r in reversed(rows_b)])
 
-    # Aligner les longueurs
     min_len = min(len(closes_a), len(closes_b))
     ret_a = closes_a.iloc[:min_len].pct_change().dropna()
     ret_b = closes_b.iloc[:min_len].pct_change().dropna()

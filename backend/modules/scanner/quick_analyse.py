@@ -11,9 +11,12 @@ et le système :
 Tout en une seule requête, sans sauvegarder en BDD.
 """
 
+import logging
 import numpy as np
 import pandas as pd
 import yfinance as yf
+
+logger = logging.getLogger("tradepilot.quick_analyse")
 
 from backend.modules.scanner.indicators import (
     compute_technical_score, sma, rsi, macd, bollinger_bands, atr,
@@ -61,6 +64,55 @@ SYMBOL_ALIASES = {
     "DOGECOIN": "DOGE-USD", "DOGE": "DOGE-USD",
     "CARDANO": "ADA-USD", "ADA": "ADA-USD",
     "RIPPLE": "XRP-USD", "XRP": "XRP-USD",
+    # Actions EU — noms courants
+    "BNP PARIBAS": "BNP.PA", "BNP": "BNP.PA",
+    "DANONE": "BN.PA",
+    "HERMES": "RMS.PA", "HERMÈS": "RMS.PA",
+    "L'OREAL": "OR.PA", "LOREAL": "OR.PA", "L'ORÉAL": "OR.PA",
+    "TOTAL": "TTE.PA", "TOTALENERGIES": "TTE.PA",
+    "SANOFI": "SAN.PA",
+    "AIR LIQUIDE": "AI.PA",
+    "SCHNEIDER": "SU.PA", "SCHNEIDER ELECTRIC": "SU.PA",
+    "ESSILOR": "EL.PA", "ESSILORLUXOTTICA": "EL.PA",
+    "VINCI": "DG.PA",
+    "AIRBUS": "AIR.PA",
+    "SAFRAN": "SAF.PA",
+    "SAINT GOBAIN": "SGO.PA", "SAINT-GOBAIN": "SGO.PA",
+    "PERNOD": "RI.PA", "PERNOD RICARD": "RI.PA",
+    "KERING": "KER.PA",
+    "STELLANTIS": "STLAP.PA",
+    "RENAULT": "RNO.PA",
+    "SOCIETE GENERALE": "GLE.PA", "SOCIÉTÉ GÉNÉRALE": "GLE.PA",
+    "CREDIT AGRICOLE": "ACA.PA", "CRÉDIT AGRICOLE": "ACA.PA",
+    "AXA": "CS.PA",
+    "ORANGE": "ORA.PA",
+    "ENGIE": "ENGI.PA",
+    "BOUYGUES": "EN.PA",
+    "CAPGEMINI": "CAP.PA",
+    "DASSAULT": "AM.PA", "DASSAULT SYSTEMES": "DSY.PA",
+    "THALES": "HO.PA",
+    "MICHELIN": "ML.PA",
+    "LEGRAND": "LR.PA",
+    "PUBLICIS": "PUB.PA",
+    "VEOLIA": "VIE.PA",
+    "WORLDLINE": "WLN.PA",
+    "ALSTOM": "ALO.PA",
+    "SIEMENS": "SIE.DE",
+    "SAP": "SAP.DE",
+    "VOLKSWAGEN": "VOW3.DE", "VW": "VOW3.DE",
+    "BMW": "BMW.DE",
+    "MERCEDES": "MBG.DE", "MERCEDES BENZ": "MBG.DE",
+    "BAYER": "BAYN.DE",
+    "BASF": "BAS.DE",
+    "DEUTSCHE BANK": "DBK.DE",
+    "ADIDAS": "ADS.DE",
+    "ASML": "ASML.AS",
+    "SHELL": "SHEL.L",
+    "UNILEVER": "ULVR.L",
+    "NESTLE": "NESN.SW", "NESTLÉ": "NESN.SW",
+    "ROCHE": "ROG.SW",
+    "NOVARTIS": "NOVN.SW",
+    "UBS": "UBSG.SW",
 }
 
 
@@ -70,33 +122,93 @@ def resolve_symbol(query: str) -> str:
     return SYMBOL_ALIASES.get(upper, query.strip())
 
 
+def _symbol_to_tv(symbol: str) -> tuple[str, str]:
+    """Convertit un symbole Yahoo Finance en (symbole TV, exchange TV)."""
+    TV_MAP = {
+        ".PA": ("EURONEXT", lambda s: s.replace(".PA", "")),
+        ".DE": ("XETR", lambda s: s.replace(".DE", "")),
+        ".AS": ("EURONEXT", lambda s: s.replace(".AS", "")),
+        ".L": ("LSE", lambda s: s.replace(".L", "")),
+        ".SW": ("SIX", lambda s: s.replace(".SW", "")),
+        ".MI": ("MIL", lambda s: s.replace(".MI", "")),
+        ".CO": ("CSE", lambda s: s.replace(".CO", "")),
+        ".TO": ("TSX", lambda s: s.replace(".TO", "")),
+        ".MC": ("BME", lambda s: s.replace(".MC", "")),
+        "-USD": ("BINANCE", lambda s: s.replace("-USD", "USDT")),
+        "=X": ("FX_IDC", lambda s: s.replace("=X", "")),
+        "=F": ("NYMEX", lambda s: s.replace("=F", "")),
+    }
+    for suffix, (exchange, transform) in TV_MAP.items():
+        if suffix in symbol:
+            return transform(symbol), exchange
+    # US stocks — pas de suffixe
+    return symbol, ""
+
+
+def _fetch_tvdatafeed(symbol: str, n_bars: int = 500) -> pd.DataFrame | None:
+    """Fallback : télécharge les données via TradingView websocket."""
+    try:
+        from tvDatafeed import TvDatafeed, Interval
+        tv_sym, tv_exchange = _symbol_to_tv(symbol)
+        tv = TvDatafeed()
+        df = tv.get_hist(
+            tv_sym,
+            exchange=tv_exchange,
+            interval=Interval.in_daily,
+            n_bars=n_bars,
+        )
+        if df is not None and not df.empty:
+            # Renommer les colonnes pour matcher le format Yahoo
+            df = df.rename(columns={
+                "open": "Open", "high": "High", "low": "Low",
+                "close": "Close", "volume": "Volume",
+            })
+            return df
+    except Exception as e:
+        logger.warning(f"[QUICK_ANALYSE] TradingView fallback failed for {symbol}: {e}")
+    return None
+
+
 def quick_analyse(query: str) -> dict:
     """Analyse complète d'un actif quelconque."""
     symbol = resolve_symbol(query)
+    data_source = "yahoo"
 
-    # 1. Télécharger les données
+    # 1. Télécharger les données — Yahoo Finance en priorité, TradingView en fallback
+    df = pd.DataFrame()
+    ticker = None
     try:
         ticker = yf.Ticker(symbol)
         df = ticker.history(period="2y", interval="1d")
     except Exception as e:
-        return {"error": f"Impossible de récupérer les données pour '{query}' ({symbol}): {e}"}
+        logger.warning(f"[QUICK_ANALYSE] Yahoo Finance download failed for {symbol}: {e}")
 
     if df.empty or len(df) < 50:
-        return {"error": f"Pas assez de données pour '{query}' ({symbol}). Vérifiez le symbole Yahoo Finance."}
+        # Fallback TradingView
+        tv_df = _fetch_tvdatafeed(symbol)
+        if tv_df is not None and len(tv_df) >= 50:
+            df = tv_df
+            data_source = "tradingview"
+
+    if df.empty or len(df) < 50:
+        return {"error": f"Pas assez de données pour '{query}' ({symbol}). Vérifiez le symbole."}
 
     # Infos de base
     info = {}
     try:
-        ti = ticker.info
-        info = {
-            "name": ti.get("longName") or ti.get("shortName") or symbol,
-            "sector": ti.get("sector", ""),
-            "industry": ti.get("industry", ""),
-            "market_cap": ti.get("marketCap", 0),
-            "currency": ti.get("currency", "USD"),
-            "exchange": ti.get("exchange", ""),
-        }
-    except Exception:
+        if ticker:
+            ti = ticker.info
+            info = {
+                "name": ti.get("longName") or ti.get("shortName") or symbol,
+                "sector": ti.get("sector", ""),
+                "industry": ti.get("industry", ""),
+                "market_cap": ti.get("marketCap", 0),
+                "currency": ti.get("currency", "USD"),
+                "exchange": ti.get("exchange", ""),
+            }
+    except Exception as e:
+        logger.warning(f"[QUICK_ANALYSE] Failed to fetch ticker info for {symbol}: {e}")
+    if not info:
         info = {"name": symbol, "sector": "", "industry": "", "market_cap": 0, "currency": "USD", "exchange": ""}
 
     close = pd.Series(df["Close"].values, dtype=float)
@@ -113,8 +225,8 @@ def quick_analyse(query: str) -> dict:
         if quote and quote.get("price"):
             live_price = float(quote["price"])
             last_price = live_price  # Utiliser le prix live
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[QUICK_ANALYSE] Live price fetch failed for {symbol}: {e}")
 
     # 2. Indicateurs techniques
     tech_score = compute_technical_score(close, high, low, volume)
@@ -208,8 +320,8 @@ def quick_analyse(query: str) -> dict:
             if result["conviction"] > best_conviction and result["direction"] != "NEUTRAL":
                 best_conviction = result["conviction"]
                 best_strategy = result
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[QUICK_ANALYSE] Strategy '{name}' failed for {symbol}: {e}")
 
     # 6. Scores détaillés
     novelty = compute_novelty_score(close) if len(close) >= 252 else 50
@@ -225,22 +337,50 @@ def quick_analyse(query: str) -> dict:
     }
 
     # 7. Score V2 (même méthode que le pipeline)
-    from backend.modules.scoring.scorer_v2 import compute_score_v2
-    from backend.modules.analyser.performance_matrix import get_best_strategy, get_strategy_sharpe
+    try:
+        from backend.modules.scoring.scorer_v2 import compute_score_v2
+        from backend.modules.analyser.performance_matrix import get_best_strategy, get_strategy_sharpe
 
-    best_strat_name = best_strategy["strategy"] if best_strategy else "momentum"
-    backtest_sharpe = get_strategy_sharpe(symbol, best_strat_name) if get_best_strategy(symbol) else 0
+        best_strat_name = best_strategy["strategy"] if best_strategy else "momentum"
+        # Essayer avec le best_strat, sinon avec le best du backtest
+        bt_best = get_best_strategy(symbol)
+        if bt_best:
+            backtest_sharpe = get_strategy_sharpe(symbol, bt_best)
+        else:
+            backtest_sharpe = 0
 
-    score_v2_result = compute_score_v2(
-        scanner_score=tech_score,
-        strategy_conviction=best_conviction,
-        backtest_sharpe=backtest_sharpe,
-        symbol=symbol,
-        asset_class="CRYPTO" if "-USD" in symbol else "FOREX" if "=X" in symbol else "COMMODITY" if "=F" in symbol else "ACTION_US",
-    )
+        # Classe d'actif
+        if "-USD" in symbol:
+            asset_class = "CRYPTO"
+        elif "=X" in symbol:
+            asset_class = "FOREX"
+        elif "=F" in symbol:
+            asset_class = "COMMODITY"
+        elif any(s in symbol for s in [".PA", ".DE", ".AS", ".SW", ".MI", ".CO", ".L"]):
+            asset_class = "ACTION_EU"
+        else:
+            asset_class = "ACTION_US"
 
-    global_score = score_v2_result["score_v2"]
-    action = score_v2_result["action"]
+        score_v2_result = compute_score_v2(
+            scanner_score=float(tech_score),
+            strategy_conviction=float(best_conviction),
+            backtest_sharpe=float(backtest_sharpe),
+            symbol=symbol,
+            asset_class=asset_class,
+        )
+
+        global_score = float(score_v2_result["score_v2"])
+        action = score_v2_result["action"]
+    except Exception as e:
+        # Fallback simplifié si V2 échoue
+        global_score = float(np.mean(list(scores.values())))
+        if best_strategy and best_conviction >= 60 and global_score >= 55:
+            action = "GO"
+        elif best_strategy and best_conviction >= 40:
+            action = "WAIT"
+        else:
+            action = "NO_TRADE"
+        score_v2_result = {"score_v2": global_score, "action": action, "error": str(e)}
 
     # SL/TP avec précision adaptée
     if best_strategy and best_strategy.get("direction") == "LONG":
@@ -281,7 +421,7 @@ def quick_analyse(query: str) -> dict:
         "info": info,
         "last_price": round(last_price, price_decimals),
         "live_price": round(live_price, price_decimals) if live_price else None,
-        "price_source": "alpaca_live" if live_price else "yahoo_close",
+        "price_source": "alpaca_live" if live_price else data_source,
         "data_points": len(df),
         "action": action,
         "global_score": round(global_score, 1),

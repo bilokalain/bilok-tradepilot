@@ -78,6 +78,7 @@ def compute_observation_likelihood(scanner_score: float, strategy_conviction: fl
     """
     # La confiance du régime module l'impact des observations
     # Haute confiance = on fait plus confiance aux observations
+    regime_confidence = float(np.clip(regime_confidence, 0, 1))
     confidence_factor = 0.5 + regime_confidence * 0.5  # entre 0.5 et 1.0
 
     raw = scanner_score * 0.40 + strategy_conviction * 0.40 + regime_confidence * 100 * 0.20
@@ -102,7 +103,8 @@ def compute_bayesian_score(close: pd.Series, scanner_score: float,
     # Poids adaptatifs
     # Confiance haute (>0.4) → observations pèsent plus
     # Confiance basse (<0.3) → prior pèse plus
-    obs_weight = 0.4 + regime_confidence * 0.4  # entre 0.4 et 0.8
+    clamped_confidence = float(np.clip(regime_confidence, 0, 1))
+    obs_weight = 0.4 + clamped_confidence * 0.4  # entre 0.4 et 0.8
     prior_weight = 1.0 - obs_weight
 
     posterior = prior * prior_weight + likelihood * obs_weight

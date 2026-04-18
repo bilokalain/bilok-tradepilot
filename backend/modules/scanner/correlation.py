@@ -99,9 +99,31 @@ def detect_correlation_break(closes_dict: dict[str, pd.Series],
 def compute_correlation_score(closes_dict: dict[str, pd.Series], symbol: str) -> float:
     """Score de corrélation composite (0-100) pour un actif.
 
-    Combine :
-    - Ruptures de corrélation détectées
-    - Diversité des corrélations multi-temporelles
+    Utilise le cache disque si disponible (instantané).
+    Sinon fallback sur le calcul direct.
     """
+    # Essayer le cache d'abord
+    try:
+        from backend.modules.scanner.correlation_cache import get_correlation_cache
+        cache = get_correlation_cache()
+        if cache and symbol in cache.get("corr_60", {}):
+            row = cache["corr_60"][symbol]
+            row_long = cache.get("corr_252", {}).get(symbol, {})
+            breaks = []
+            for other, corr_short in row.items():
+                if other == symbol:
+                    continue
+                corr_long = row_long.get(other, corr_short)
+                delta = abs(corr_short - corr_long)
+                if delta > 0.3:
+                    breaks.append(delta)
+            if not breaks:
+                return 50.0
+            avg_delta = np.mean(breaks)
+            return round(min(100, 50 + avg_delta * 100), 2)
+    except Exception:
+        pass
+
+    # Fallback : calcul direct
     result = detect_correlation_break(closes_dict, symbol)
     return result["score"]

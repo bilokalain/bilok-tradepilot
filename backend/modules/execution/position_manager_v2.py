@@ -19,7 +19,7 @@ from backend.database.models import OrderSide as DBOrderSide, OrderStatus as DBO
 
 logger = logging.getLogger("tradepilot.position_manager_v2")
 
-MAX_POSITIONS = 10
+MAX_POSITIONS = 20
 QUEUE_FILE = Path("data/signal_queue.json")
 QUEUE_FILE.parent.mkdir(exist_ok=True)
 
@@ -32,7 +32,8 @@ def _load_queue() -> list[dict]:
     if QUEUE_FILE.exists():
         try:
             return json.loads(QUEUE_FILE.read_text())
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[POSITION] Erreur lecture file d'attente: {e}")
             return []
     return []
 
@@ -220,13 +221,12 @@ def process_queue_after_close(db: Session) -> list[dict]:
             try:
                 account = alpaca_broker.get_account()
                 capital = account.get("equity", 100_000)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[POSITION] Erreur récupération compte Alpaca: {e}")
 
-        position_size = capital * 0.05
-        quantity = round(position_size / entry_price, 4)
-        if "-USD" not in symbol:
-            quantity = max(1, int(quantity))
+        from backend.modules.execution.sizing import compute_position_size, quantize
+        sizing = compute_position_size(capital=capital, entry_price=entry_price, score=next_signal.get("score", 50))
+        quantity = quantize(sizing["quantity"], symbol)
 
         # Envoyer à Alpaca si possible
         alpaca_result = None
@@ -237,8 +237,8 @@ def process_queue_after_close(db: Session) -> list[dict]:
                 alpaca_result = _place_bracket_order(symbol, "buy" if direction == "LONG" else "sell", float(quantity), sl, tp)
                 if alpaca_result and "error" not in alpaca_result:
                     broker = "alpaca_bracket"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"[POSITION] Erreur placement bracket order {symbol}: {e}")
 
         # Sauvegarder
         db.add(Order(

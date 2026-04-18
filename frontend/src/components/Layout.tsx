@@ -14,6 +14,7 @@ import {
   GitBranch,
   Lightbulb,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import Notifications from "./Notifications";
 import ErrorBoundary from "./ErrorBoundary";
@@ -43,8 +44,10 @@ const navSections = [
   {
     title: "",
     items: [
+      { to: "/admin", icon: ShieldCheck, label: "Admin" },
       { to: "/settings", icon: Settings, label: "Paramètres" },
       { to: "/guide", icon: BookOpen, label: "Guide" },
+      { to: "/livres", icon: BookOpen, label: "Livre" },
     ],
   },
 ];

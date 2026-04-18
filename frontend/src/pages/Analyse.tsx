@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Search, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import axios from "axios";
+import { useState, useEffect, useRef } from "react";
+import { Search, TrendingUp, TrendingDown, Minus, Share2, MessageCircle, Mail, Copy, Check } from "lucide-react";
+import api from "../services/api";
 import TradingChart from "../components/TradingChart";
 import ScoreGauge from "../components/ui/ScoreGauge";
 import InfoCard from "../components/ui/InfoCard";
@@ -45,12 +45,82 @@ function saveToHistory(item: HistoryItem) {
   localStorage.setItem("analyse_history", JSON.stringify(history.slice(0, 20)));
 }
 
+interface SearchSuggestion {
+  symbol: string;
+  name: string;
+  asset_class: string;
+  source: string;
+  relevance: number;
+}
+
+const CLASS_LABELS: Record<string, string> = {
+  ACTION_US: "Action US",
+  ACTION_EU: "Action EU",
+  CRYPTO: "Crypto",
+  FOREX: "Forex",
+  COMMODITY: "Matière 1ère",
+  ETF: "ETF",
+  INDEX: "Indice",
+};
+
 export default function Analyse() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>(loadHistory());
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(-1);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fermer suggestions au clic extérieur
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Recherche autocomplete avec debounce
+  const searchSuggestions = (q: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (q.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      api
+        .get(`/scanner/search?q=${encodeURIComponent(q)}`)
+        .then((res) => {
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            setSuggestions(res.data);
+            setShowSuggestions(true);
+            setSelectedIdx(-1);
+          } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+          }
+        })
+        .catch(() => {});
+    }, 300);
+  };
+
+  const handleInputChange = (val: string) => {
+    setQuery(val);
+    searchSuggestions(val);
+  };
+
+  const selectSuggestion = (s: SearchSuggestion) => {
+    setQuery(s.symbol);
+    setShowSuggestions(false);
+    handleSearch(s.symbol);
+  };
 
   const handleSearch = (q?: string) => {
     const searchQuery = q || query;
@@ -59,8 +129,8 @@ export default function Analyse() {
     setError("");
     setResult(null);
 
-    axios
-      .get(`/api/scanner/analyse?q=${encodeURIComponent(searchQuery)}`)
+    api
+      .get(`/scanner/analyse?q=${encodeURIComponent(searchQuery)}`)
       .then((res) => {
         if (res.data.error) {
           setError(res.data.error);
@@ -86,25 +156,66 @@ export default function Analyse() {
   return (
     <div className="max-w-5xl mx-auto">
       <h2 className="text-2xl font-bold mb-2">Analyse rapide</h2>
-      <p className="text-text-secondary text-sm mb-6">
-        Tapez n'importe quel actif — analyse complète en quelques secondes
+      <p className="text-text-secondary text-sm mb-6 max-w-3xl">
+        Analyse instantanée de n'importe quel actif — actions, crypto, indices, forex. Le moteur évalue les indicateurs techniques, détecte le régime de marché, sélectionne la stratégie optimale et génère une recommandation actionable avec niveaux d'entrée, stop-loss et take-profit.
       </p>
 
-      {/* Barre de recherche */}
-      <div className="flex gap-3 mb-4">
+      {/* Barre de recherche avec autocomplete */}
+      <div className="flex gap-3 mb-4" ref={searchRef}>
         <div className="flex-1 relative">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary z-10" />
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder="AAPL, S&P 500, BITCOIN, CAC 40, PLTR, AMC..."
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (selectedIdx >= 0 && selectedIdx < suggestions.length) {
+                  selectSuggestion(suggestions[selectedIdx]);
+                } else {
+                  setShowSuggestions(false);
+                  handleSearch();
+                }
+              } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setSelectedIdx((i) => Math.min(i + 1, suggestions.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setSelectedIdx((i) => Math.max(i - 1, -1));
+              } else if (e.key === "Escape") {
+                setShowSuggestions(false);
+              }
+            }}
+            placeholder="Tapez un nom ou symbole : BNP, Apple, Bitcoin, CAC 40..."
             className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 text-sm font-mono focus:outline-none focus:border-gold/50 transition-colors"
           />
+
+          {/* Dropdown suggestions */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[320px] overflow-y-auto">
+              {suggestions.map((s, i) => (
+                <button
+                  key={s.symbol}
+                  onClick={() => selectSuggestion(s)}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors ${
+                    i === selectedIdx ? "bg-gold/10" : "hover:bg-surface"
+                  } ${i > 0 ? "border-t border-border/30" : ""}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-semibold text-gold text-sm">{s.symbol}</span>
+                    <span className="text-xs text-text-secondary truncate max-w-[200px]">{s.name}</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 bg-surface rounded text-text-secondary whitespace-nowrap">
+                    {CLASS_LABELS[s.asset_class] || s.asset_class}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <button
-          onClick={() => handleSearch()}
+          onClick={() => { setShowSuggestions(false); handleSearch(); }}
           disabled={loading || !query.trim()}
           className="px-6 py-3 bg-gold/10 text-gold border border-gold/20 rounded-xl text-sm font-semibold hover:bg-gold/20 transition-colors disabled:opacity-50"
         >
@@ -333,6 +444,124 @@ function AnalyseResult({ data }: { data: any }) {
             ))}
           </div>
         </InfoCard>
+      )}
+
+      {/* ============ SCORES DES CRITÈRES ============ */}
+      {data.scores && Object.keys(data.scores).length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">Scores par critère</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[
+              { key: "technical", label: "Technique", icon: "📊" },
+              { key: "genome", label: "Génome", icon: "🧬" },
+              { key: "ipi", label: "Institutionnel", icon: "🏦" },
+              { key: "ivf", label: "Vélocité Fond.", icon: "⚡" },
+              { key: "correlation", label: "Corrélation", icon: "🔗" },
+              { key: "sentiment", label: "Sentiment", icon: "💬" },
+              { key: "mts", label: "Macro", icon: "🌍" },
+              { key: "sgi", label: "Social", icon: "👥" },
+              { key: "sus", label: "Unicité", icon: "💎" },
+              { key: "narrative", label: "Narrative", icon: "📖" },
+            ].map(({ key, label, icon }) => {
+              const score = data.scores[key] ?? (key === "sus" ? ((data.scores.novelty ?? 50) + (data.scores.complexity ?? 50)) / 2 : null);
+              if (score === null) return null;
+              return (
+                <div key={key} className="bg-card border border-border rounded-xl p-3 text-center">
+                  <span className="text-lg">{icon}</span>
+                  <p className="text-[10px] text-text-secondary mt-1">{label}</p>
+                  <p className={`text-lg font-mono font-bold mt-1 ${score >= 65 ? "text-emerald-400" : score >= 45 ? "text-yellow-400" : "text-red-400"}`}>
+                    {score.toFixed(0)}
+                  </p>
+                  <div className="h-1 bg-surface rounded-full mt-1 overflow-hidden">
+                    <div className={`h-full rounded-full ${score >= 65 ? "bg-emerald-400" : score >= 45 ? "bg-yellow-400" : "bg-red-400"}`} style={{ width: `${score}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ============ BOUTON PARTAGER ============ */}
+      <ShareAnalysis data={data} />
+    </div>
+  );
+}
+
+function ShareAnalysis({ data }: { data: any }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const buildMessage = () => {
+    const scores = data.scores || {};
+    const best = data.best_strategy || {};
+    const lines = [
+      `📊 *${data.symbol}* — Analyse Bilok-TradePilot`,
+      ``,
+      `💰 Prix: $${data.last_price}`,
+      `📈 Score global: ${data.global_score?.toFixed(1)}/100 → *${data.action}*`,
+      `🎯 Direction: ${best.direction || "NEUTRAL"}`,
+      best.name ? `⚡ Stratégie: ${best.name} (conviction ${best.conviction?.toFixed(0)}%)` : "",
+      data.regime?.regime ? `🌍 Régime: ${data.regime.regime}` : "",
+      ``,
+      `📊 Scores:`,
+      scores.technical ? `  Technique: ${scores.technical.toFixed(0)}/100` : "",
+      scores.genome ? `  Génome: ${scores.genome.toFixed(0)}/100` : "",
+      scores.ipi ? `  Institutionnel: ${scores.ipi.toFixed(0)}/100` : "",
+      scores.ivf ? `  Vélocité: ${scores.ivf.toFixed(0)}/100` : "",
+      ``,
+      `🔗 Analysé sur Bilok-TradePilot`,
+      `https://app.bilok-tradepilot.be`,
+      ``,
+      `⚠️ Ce document est fourni à titre informatif uniquement et ne constitue en aucun cas un conseil en investissement, une recommandation d'achat ou de vente, ni une incitation à effectuer une quelconque transaction financière. Les performances passées ne préjugent pas des performances futures. Tout investissement comporte des risques de perte en capital. Consultez un conseiller financier agréé avant toute décision d'investissement.`,
+    ].filter(Boolean);
+    return lines.join("\n");
+  };
+
+  const shareWhatsApp = () => {
+    const text = encodeURIComponent(buildMessage());
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+    setShowMenu(false);
+  };
+
+  const shareEmail = () => {
+    const subject = encodeURIComponent(`Analyse ${data.symbol} — Bilok-TradePilot`);
+    const body = encodeURIComponent(buildMessage());
+    window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
+    setShowMenu(false);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(buildMessage());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setShowMenu(!showMenu)}
+        className="flex items-center gap-2 px-4 py-2.5 bg-gold/10 text-gold border border-gold/20 rounded-xl text-sm font-semibold hover:bg-gold/20 transition-colors"
+      >
+        <Share2 size={16} />
+        Partager cette analyse
+      </button>
+
+      {showMenu && (
+        <div className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-xl shadow-xl p-2 space-y-1 z-50 min-w-[220px]">
+          <button onClick={shareWhatsApp} className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-surface transition-colors text-sm">
+            <MessageCircle size={16} className="text-emerald-400" />
+            <span>WhatsApp</span>
+          </button>
+          <button onClick={shareEmail} className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-surface transition-colors text-sm">
+            <Mail size={16} className="text-blue-400" />
+            <span>Email</span>
+          </button>
+          <button onClick={copyToClipboard} className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-surface transition-colors text-sm">
+            {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} className="text-text-secondary" />}
+            <span>{copied ? "Copié !" : "Copier le texte"}</span>
+          </button>
+        </div>
       )}
     </div>
   );

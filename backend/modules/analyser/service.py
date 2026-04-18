@@ -3,18 +3,26 @@
 Corrigé avec la matrice de performance réelle issue des backtests.
 Le Module 2 sélectionne maintenant la stratégie qui a le meilleur Sharpe
 historique pour chaque actif, avec ajustement selon le régime de marché.
+
+Intègre la détection de Strategy Decay : les stratégies en QUARANTINE
+sont automatiquement écartées au profit de la suivante dans le classement.
 """
+
+import logging
 
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from backend.database.models import Asset, OHLCVDaily
+from backend.database.models import Asset, OHLCVDaily, Signal, Position, PositionStatus
+from backend.modules.analyser.decay import check_strategy_decay, StrategyPerformance
 from backend.modules.analyser.regime import detect_regime
 from backend.modules.analyser.strategies import run_all_strategies, ALL_STRATEGIES
 from backend.modules.analyser.performance_matrix import (
     BACKTEST_MATRIX, get_best_strategy, get_strategy_sharpe,
     get_profitable_strategies, get_strategy_ranking,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # Poids de régime pour ajuster la sélection basée sur le backtest
@@ -33,6 +41,59 @@ class AnalyserService:
 
     def __init__(self, db: Session):
         self.db = db
+
+    def _build_strategy_performance(self, strategy_name: str) -> StrategyPerformance:
+        """Construit un StrategyPerformance depuis les positions clôturées en BDD."""
+        # Positions clôturées liées à cette stratégie via la table signals
+        rows = (
+            self.db.query(Position.pnl, Position.pnl_percent)
+            .join(Signal, Signal.asset_id == Position.asset_id)
+            .filter(
+                Signal.strategy_name == strategy_name,
+                Position.status == PositionStatus.CLOSED,
+                Position.pnl.isnot(None),
+            )
+            .all()
+        )
+
+        perf = StrategyPerformance(strategy_name=strategy_name)
+        for pnl, pnl_pct in rows:
+            perf.total_trades += 1
+            ret = pnl_pct if pnl_pct is not None else 0.0
+            perf.returns.append(ret)
+            if pnl is not None and pnl > 0:
+                perf.winning_trades += 1
+                perf.total_profit += pnl
+            elif pnl is not None:
+                perf.total_loss += pnl  # négatif
+
+        return perf
+
+    def _filter_quarantined(self, ranked_strategies: list[dict]) -> tuple[list[dict], list[dict]]:
+        """Filtre les stratégies en QUARANTINE du classement.
+
+        Retourne (strategies_actives, strategies_quarantined).
+        """
+        active = []
+        quarantined = []
+        for entry in ranked_strategies:
+            strat_name = entry["strategy"]
+            perf = self._build_strategy_performance(strat_name)
+            decay_result = check_strategy_decay(perf)
+            entry["decay_status"] = decay_result["status"]
+            entry["decay_health"] = decay_result["health_score"]
+
+            if decay_result["status"] == "QUARANTINE":
+                quarantined.append(entry)
+                reasons = ", ".join(decay_result["reasons"])
+                logger.warning(
+                    "Strategy QUARANTINE : %s — health=%.0f — %s",
+                    strat_name, decay_result["health_score"], reasons,
+                )
+            else:
+                active.append(entry)
+
+        return active, quarantined
 
     def _load_ohlcv(self, asset_id: int) -> pd.DataFrame:
         rows = (
@@ -85,11 +146,25 @@ class AnalyserService:
                 })
             adjusted_ranking.sort(key=lambda x: x["adjusted_sharpe"], reverse=True)
 
-            # Meilleure stratégie ajustée
-            best = adjusted_ranking[0]
-            best_strategy = best["strategy"]
+            # Filtrer les stratégies en quarantaine (Strategy Decay)
+            active_strategies, quarantined = self._filter_quarantined(adjusted_ranking)
+
+            if active_strategies:
+                best = active_strategies[0]
+                best_strategy = best["strategy"]
+            elif adjusted_ranking:
+                # Toutes en quarantaine — fallback sur la meilleure malgré tout
+                logger.warning(
+                    "Toutes les stratégies en quarantaine pour %s — fallback sur la première",
+                    symbol,
+                )
+                best = adjusted_ranking[0]
+                best_strategy = best["strategy"]
+            else:
+                best_strategy = "trend_following"
         else:
             adjusted_ranking = []
+            quarantined = []
             best_strategy = "trend_following"  # Fallback
 
         # 3. Exécuter la stratégie sélectionnée pour obtenir le signal
@@ -113,6 +188,7 @@ class AnalyserService:
                 "backtest_sharpe": get_strategy_sharpe(symbol, best_strategy),
             },
             "strategy_ranking": adjusted_ranking,
+            "quarantined_strategies": [q["strategy"] for q in quarantined],
             "profitable_strategies": get_profitable_strategies(symbol),
             "all_strategies": self._run_all_with_ranking(
                 df["close"], df["high"], df["low"], df["volume"], symbol, regime

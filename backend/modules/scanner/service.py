@@ -10,8 +10,11 @@ Matrice adaptative selon : classe d'actif, régime de marché, horizon.
 Vetos croisés : MTS < 20, SUS < 25, IPI < 20 → rejet.
 """
 
+import logging
 import pandas as pd
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger("tradepilot.scanner.service")
 
 from backend.database.models import Asset, OHLCVDaily
 from backend.modules.scanner.indicators import compute_technical_score
@@ -23,46 +26,47 @@ from backend.modules.scanner.fundamental_velocity import compute_ivf_score
 from backend.modules.scanner.macro import compute_mts_score
 from backend.modules.scanner.social import compute_sgi_score
 from backend.modules.scanner.uniqueness import compute_sus_score
+from backend.modules.scanner.narrative import compute_narrative_score
 
 
 # Matrice de poids adaptatifs par classe d'actif
 WEIGHT_MATRIX = {
     "ACTION_US": {
-        "correlation": 0.08, "sentiment": 0.08, "technical": 0.18,
-        "genome": 0.12, "ipi": 0.15, "ivf": 0.14,
-        "mts": 0.10, "sgi": 0.05, "sus": 0.10,
+        "correlation": 0.07, "sentiment": 0.07, "technical": 0.16,
+        "genome": 0.10, "ipi": 0.13, "ivf": 0.12,
+        "mts": 0.08, "sgi": 0.05, "sus": 0.08, "narrative": 0.14,
     },
     "ACTION_EU": {
-        "correlation": 0.10, "sentiment": 0.06, "technical": 0.18,
-        "genome": 0.12, "ipi": 0.12, "ivf": 0.14,
-        "mts": 0.12, "sgi": 0.05, "sus": 0.11,
+        "correlation": 0.09, "sentiment": 0.05, "technical": 0.16,
+        "genome": 0.10, "ipi": 0.11, "ivf": 0.12,
+        "mts": 0.10, "sgi": 0.05, "sus": 0.10, "narrative": 0.12,
     },
     "ETF": {
-        "correlation": 0.12, "sentiment": 0.05, "technical": 0.20,
-        "genome": 0.10, "ipi": 0.10, "ivf": 0.10,
-        "mts": 0.15, "sgi": 0.03, "sus": 0.15,
+        "correlation": 0.10, "sentiment": 0.04, "technical": 0.18,
+        "genome": 0.08, "ipi": 0.08, "ivf": 0.08,
+        "mts": 0.13, "sgi": 0.03, "sus": 0.13, "narrative": 0.15,
     },
     "CRYPTO": {
-        "correlation": 0.06, "sentiment": 0.15, "technical": 0.15,
-        "genome": 0.14, "ipi": 0.05, "ivf": 0.08,
-        "mts": 0.07, "sgi": 0.18, "sus": 0.12,
+        "correlation": 0.05, "sentiment": 0.13, "technical": 0.13,
+        "genome": 0.12, "ipi": 0.04, "ivf": 0.07,
+        "mts": 0.06, "sgi": 0.15, "sus": 0.10, "narrative": 0.15,
     },
     "FOREX": {
-        "correlation": 0.15, "sentiment": 0.05, "technical": 0.20,
-        "genome": 0.08, "ipi": 0.05, "ivf": 0.10,
-        "mts": 0.20, "sgi": 0.02, "sus": 0.15,
+        "correlation": 0.13, "sentiment": 0.04, "technical": 0.18,
+        "genome": 0.07, "ipi": 0.04, "ivf": 0.09,
+        "mts": 0.18, "sgi": 0.02, "sus": 0.13, "narrative": 0.12,
     },
     "COMMODITY": {
-        "correlation": 0.10, "sentiment": 0.08, "technical": 0.18,
-        "genome": 0.10, "ipi": 0.10, "ivf": 0.12,
-        "mts": 0.15, "sgi": 0.05, "sus": 0.12,
+        "correlation": 0.09, "sentiment": 0.07, "technical": 0.16,
+        "genome": 0.09, "ipi": 0.09, "ivf": 0.10,
+        "mts": 0.13, "sgi": 0.04, "sus": 0.10, "narrative": 0.13,
     },
 }
 
 DEFAULT_WEIGHTS = {
-    "correlation": 0.10, "sentiment": 0.08, "technical": 0.18,
-    "genome": 0.12, "ipi": 0.10, "ivf": 0.12,
-    "mts": 0.12, "sgi": 0.08, "sus": 0.10,
+    "correlation": 0.08, "sentiment": 0.07, "technical": 0.16,
+    "genome": 0.10, "ipi": 0.09, "ivf": 0.10,
+    "mts": 0.10, "sgi": 0.06, "sus": 0.10, "narrative": 0.14,
 }
 
 VETO_THRESHOLDS = {
@@ -205,8 +209,23 @@ class ScannerService:
         sus_result = compute_sus_score(close, high, low, all_tech_scores, symbol)
         sus_score = sus_result["score"]
 
-        # --- Score final avec poids adaptatifs ---
-        weights = WEIGHT_MATRIX.get(asset_class, DEFAULT_WEIGHTS)
+        # --- 11. Narrative Momentum ---
+        narrative_result = compute_narrative_score(close, high, low, volume)
+        narrative_score = narrative_result["score"]
+
+        # --- Score final avec poids adaptatifs + apprentissage ---
+        base_weights = WEIGHT_MATRIX.get(asset_class, DEFAULT_WEIGHTS).copy()
+        weights = base_weights
+        try:
+            from backend.modules.learning.adaptive_engine import get_adapted_weights
+            adapted = get_adapted_weights(base_weights)
+            if adapted != base_weights:
+                weights = adapted
+                logger.info(f"[SCANNER] {symbol}: poids adaptés par apprentissage appliqués")
+            else:
+                logger.debug(f"[SCANNER] {symbol}: poids adaptés identiques aux poids de base")
+        except Exception as e:
+            logger.warning(f"[SCANNER] {symbol}: échec poids adaptatifs, fallback poids de base: {e}")
         scores = {
             "correlation": corr_score,
             "sentiment": sentiment_score,
@@ -217,6 +236,7 @@ class ScannerService:
             "mts": mts_score,
             "sgi": sgi_score,
             "sus": sus_score,
+            "narrative": narrative_score,
         }
 
         # Vetos croisés

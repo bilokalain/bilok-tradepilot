@@ -84,6 +84,7 @@ def register_user(email: str, password: str, name: str = "") -> dict:
         "email": email,
         "password_hash": hash_password(password),
         "name": name,
+        "is_admin": False,
         "created_at": datetime.utcnow().isoformat(),
     }
     _save_users(users)
@@ -95,7 +96,7 @@ def authenticate_user(email: str, password: str) -> Optional[dict]:
     user = users.get(email)
     if not user or not verify_password(password, user["password_hash"]):
         return None
-    return {"email": user["email"], "name": user.get("name", "")}
+    return {"email": user["email"], "name": user.get("name", ""), "is_admin": user.get("is_admin", False)}
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[dict]:
@@ -108,7 +109,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     user = users.get(email)
     if not user:
         raise HTTPException(status_code=401, detail="Utilisateur non trouvé")
-    return {"email": user["email"], "name": user.get("name", "")}
+    return {"email": user["email"], "name": user.get("name", ""), "is_admin": user.get("is_admin", False)}
 
 
 async def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
@@ -124,15 +125,32 @@ def get_all_users() -> list[dict]:
     """Liste tous les utilisateurs (sans les mots de passe)."""
     users = _load_users()
     return [
-        {"email": u["email"], "name": u.get("name", ""), "created_at": u.get("created_at", "")}
+        {"email": u["email"], "name": u.get("name", ""), "is_admin": u.get("is_admin", False), "created_at": u.get("created_at", "")}
         for u in users.values()
     ]
+
+
+def set_user_admin(email: str, is_admin: bool) -> dict:
+    """Définit ou retire le statut admin d'un utilisateur."""
+    users = _load_users()
+    if email not in users:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    users[email]["is_admin"] = is_admin
+    _save_users(users)
+    return {"email": email, "is_admin": is_admin}
 
 
 def init_default_user():
     users = _load_users()
     if "admin@tradepilot.local" not in users:
         register_user("admin@tradepilot.local", "tradepilot2024", "Admin")
+        # Marquer le compte par défaut comme admin
+        users = _load_users()
+        users["admin@tradepilot.local"]["is_admin"] = True
+        _save_users(users)
+    elif not users["admin@tradepilot.local"].get("is_admin"):
+        users["admin@tradepilot.local"]["is_admin"] = True
+        _save_users(users)
 
 
 init_default_user()

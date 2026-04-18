@@ -16,8 +16,8 @@ venv/
 .venv/
 env/
 
-# --- Node (frontend) ---
-frontend/node_modules/
+# --- Node ---
+node_modules/
 frontend/dist/
 frontend/.vite/
 
@@ -57,6 +57,19 @@ backend/models/*.safetensors
 .coverage
 htmlcov/
 .pytest_cache/
+
+# --- Logs ---
+logs/
+frontend/logs/
+
+# --- IB Gateway ---
+IB Gateway 10.37/
+
+# --- Vercel ---
+frontend/.vercel/
+
+# --- Claude ---
+.claude/scheduled_tasks.lock
 
 # --- Misc ---
 *.pem

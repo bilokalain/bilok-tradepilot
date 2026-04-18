@@ -1,6 +1,9 @@
 """Module 6 — Suivi de Rentabilité : Logique métier"""
 
+import logging
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger("tradepilot.performance.service")
 
 from backend.database.models import Position, PositionStatus
 from backend.modules.portfolio.service import PortfolioService
@@ -62,10 +65,23 @@ class PerformanceService:
         # EWS
         ews = compute_ews(equity_curve, trades)
 
-        # Métriques de base
+        # Métriques de base — inclure les positions live Alpaca
         win_rate = 0
-        if trades:
-            win_rate = sum(1 for t in trades if t["pnl"] > 0) / len(trades)
+        trades_with_pnl = [t for t in trades if t["pnl"] != 0]
+        if trades_with_pnl:
+            win_rate = sum(1 for t in trades_with_pnl if t["pnl"] > 0) / len(trades_with_pnl)
+
+        # Si pas assez de trades fermés avec P&L, utiliser les positions live Alpaca
+        if len(trades_with_pnl) < 5:
+            try:
+                from backend.modules.execution.broker_alpaca import alpaca_broker
+                if alpaca_broker.is_configured:
+                    live_positions = alpaca_broker.get_positions()
+                    if live_positions:
+                        live_winners = sum(1 for p in live_positions if float(p.get("pnl", 0)) >= 0)
+                        win_rate = live_winners / len(live_positions)
+            except Exception as e:
+                logger.warning(f"[PERFORMANCE] Alpaca live positions fetch failed: {e}")
 
         sharpe = portfolio_summary["regime"]["metrics"]["sharpe_ratio"] if "metrics" in portfolio_summary.get("regime", {}) else 0
 

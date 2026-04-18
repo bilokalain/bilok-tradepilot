@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { Search, Link as LinkIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 import { analyserApi, type AnalysisResult, type RegimeSummary } from "../services/api";
 
 const REGIME_COLORS: Record<string, string> = {
@@ -7,6 +9,14 @@ const REGIME_COLORS: Record<string, string> = {
   RANGE: "text-blue-400",
   CRISIS: "text-red-600",
   TRANSITION: "text-yellow-400",
+};
+
+const REGIME_BG: Record<string, string> = {
+  BULL: "bg-gold/10 border-gold/20",
+  BEAR: "bg-red-400/10 border-red-400/20",
+  RANGE: "bg-blue-400/10 border-blue-400/20",
+  CRISIS: "bg-red-600/10 border-red-600/20",
+  TRANSITION: "bg-yellow-400/10 border-yellow-400/20",
 };
 
 const REGIME_LABELS: Record<string, string> = {
@@ -20,8 +30,11 @@ const REGIME_LABELS: Record<string, string> = {
 const STRATEGY_LABELS: Record<string, string> = {
   trend_following: "Trend Following",
   mean_reversion: "Mean Reversion",
+  mean_reversion_v2: "Mean Reversion V2",
   breakout: "Breakout",
   momentum: "Momentum Adaptatif",
+  fibonacci: "Fibonacci",
+  ichimoku: "Ichimoku",
   microstructure: "Microstructure",
   cnn_pattern: "CNN Pattern",
 };
@@ -31,6 +44,58 @@ export default function Analyser() {
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AnalysisResult | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [regimeFilter, setRegimeFilter] = useState("all");
+  const [directionFilter, setDirectionFilter] = useState("all");
+  const [strategyFilter, setStrategyFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("conviction_desc");
+
+  // Stratégies uniques détectées
+  const uniqueStrategies = useMemo(() => {
+    const strats = new Set<string>();
+    results.forEach((r) => { if (r.best_strategy?.name) strats.add(r.best_strategy.name); });
+    return Array.from(strats).sort();
+  }, [results]);
+
+  // Compteurs par régime
+  const regimeCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: results.length };
+    results.forEach((r) => { counts[r.regime.regime] = (counts[r.regime.regime] || 0) + 1; });
+    return counts;
+  }, [results]);
+
+  // Filtrage + tri
+  const filteredResults = useMemo(() => {
+    let filtered = results;
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((r) =>
+        r.symbol.toLowerCase().includes(q) ||
+        r.name.toLowerCase().includes(q)
+      );
+    }
+
+    if (regimeFilter !== "all") {
+      filtered = filtered.filter((r) => r.regime.regime === regimeFilter);
+    }
+
+    if (directionFilter !== "all") {
+      filtered = filtered.filter((r) => r.best_strategy?.direction === directionFilter);
+    }
+
+    if (strategyFilter !== "all") {
+      filtered = filtered.filter((r) => r.best_strategy?.name === strategyFilter);
+    }
+
+    const sorted = [...filtered];
+    if (sortBy === "conviction_desc") sorted.sort((a, b) => (b.best_strategy?.conviction || 0) - (a.best_strategy?.conviction || 0));
+    else if (sortBy === "conviction_asc") sorted.sort((a, b) => (a.best_strategy?.conviction || 0) - (b.best_strategy?.conviction || 0));
+    else if (sortBy === "name_asc") sorted.sort((a, b) => a.symbol.localeCompare(b.symbol));
+    else if (sortBy === "regime") sorted.sort((a, b) => a.regime.regime.localeCompare(b.regime.regime));
+
+    return sorted;
+  }, [results, searchQuery, regimeFilter, directionFilter, strategyFilter, sortBy]);
 
   useEffect(() => {
     Promise.all([analyserApi.getRegime(), analyserApi.analyseAll()])
@@ -44,7 +109,10 @@ export default function Analyser() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Analyseur de Stratégies</h2>
+      <h2 className="text-2xl font-bold mb-2">Analyseur de Stratégies</h2>
+      <p className="text-text-secondary text-sm mb-6 max-w-3xl">
+        Détection probabiliste du régime de marché et sélection adaptative parmi 12+ stratégies — Trend Following, Mean Reversion, Breakout, Momentum, Fibonacci, Ichimoku. La matrice performance régime×stratégie se met à jour automatiquement. Les stratégies en perte d'edge sont détectées et mises en quarantaine.
+      </p>
 
       {/* Régime de marché global */}
       {regime && (
@@ -75,35 +143,127 @@ export default function Analyser() {
         </div>
       )}
 
+      {/* Filtres */}
+      <div className="space-y-3 mb-6">
+        {/* Recherche */}
+        <div className="relative">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Rechercher un actif..."
+            className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm font-mono focus:outline-none focus:border-gold/50 transition-colors"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary text-xs">✕</button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {/* Filtre régime */}
+          {["all", "BULL", "BEAR", "RANGE", "TRANSITION"].map((r) => (
+            <button
+              key={r}
+              onClick={() => setRegimeFilter(r)}
+              className={`text-[11px] px-3 py-1.5 rounded-lg border font-semibold transition-colors ${
+                regimeFilter === r
+                  ? r === "all" ? "text-gold bg-gold/10 border-gold/20"
+                  : `${REGIME_COLORS[r]} ${REGIME_BG[r]}`
+                  : "text-text-secondary border-border hover:text-text-primary"
+              }`}
+            >
+              {r === "all" ? "Tous" : REGIME_LABELS[r]}
+              <span className="ml-1.5 text-[10px] opacity-60">{regimeCounts[r] || 0}</span>
+            </button>
+          ))}
+
+          <div className="w-px bg-border mx-1" />
+
+          {/* Filtre direction */}
+          {[
+            { key: "all", label: "Toutes dir." },
+            { key: "LONG", label: "LONG" },
+            { key: "SHORT", label: "SHORT" },
+            { key: "NEUTRAL", label: "NEUTRAL" },
+          ].map((d) => (
+            <button
+              key={d.key}
+              onClick={() => setDirectionFilter(d.key)}
+              className={`text-[11px] px-3 py-1.5 rounded-lg border font-semibold transition-colors ${
+                directionFilter === d.key
+                  ? d.key === "LONG" ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/20"
+                  : d.key === "SHORT" ? "text-red-400 bg-red-400/10 border-red-400/20"
+                  : d.key === "NEUTRAL" ? "text-text-secondary bg-surface border-border"
+                  : "text-gold bg-gold/10 border-gold/20"
+                  : "text-text-secondary border-border hover:text-text-primary"
+              }`}
+            >
+              {d.label}
+            </button>
+          ))}
+
+          <div className="w-px bg-border mx-1" />
+
+          {/* Filtre stratégie */}
+          <select
+            value={strategyFilter}
+            onChange={(e) => setStrategyFilter(e.target.value)}
+            className="text-[11px] px-2 py-1.5 rounded-lg border border-border bg-card text-text-secondary font-semibold cursor-pointer"
+          >
+            <option value="all">Toutes stratégies</option>
+            {uniqueStrategies.map((s) => (
+              <option key={s} value={s}>{STRATEGY_LABELS[s] || s}</option>
+            ))}
+          </select>
+
+          {/* Tri */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-[11px] px-2 py-1.5 rounded-lg border border-border bg-card text-text-secondary font-semibold cursor-pointer"
+          >
+            <option value="conviction_desc">Conviction ↓</option>
+            <option value="conviction_asc">Conviction ↑</option>
+            <option value="name_asc">Nom A→Z</option>
+            <option value="regime">Par régime</option>
+          </select>
+        </div>
+      </div>
+
       {loading ? (
         <p className="text-text-secondary">Analyse en cours...</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Liste des résultats */}
-          <div className="lg:col-span-2 space-y-2">
-            {results.map((r) => (
+          <div className="lg:col-span-2">
+            <div className="text-xs text-text-secondary mb-2">
+              {filteredResults.length} actifs{filteredResults.length !== results.length ? ` (filtré sur ${results.length})` : ""}
+            </div>
+            <div className="space-y-1 max-h-[700px] overflow-y-auto">
+            {filteredResults.length === 0 ? (
+              <p className="text-text-secondary text-sm text-center py-8">Aucun actif ne correspond à vos filtres</p>
+            ) : filteredResults.map((r) => (
               <button
                 key={r.symbol}
                 onClick={() => setSelected(r)}
-                className={`w-full flex items-center justify-between p-4 rounded-xl transition-colors text-left ${
+                className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors text-left ${
                   selected?.symbol === r.symbol
                     ? "bg-gold/10 border border-gold/20"
                     : "bg-card border border-border hover:bg-surface"
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <span className="font-mono font-semibold text-gold w-20">
+                  <Link to={`/asset/${r.symbol}`} className="font-mono font-semibold text-gold w-20 hover:underline" onClick={(e) => e.stopPropagation()}>
                     {r.symbol}
-                  </span>
+                  </Link>
                   <div>
                     <span className="text-sm">{r.name}</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span
-                        className={`text-xs font-semibold ${REGIME_COLORS[r.regime.regime]}`}
-                      >
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${REGIME_COLORS[r.regime.regime]} ${REGIME_BG[r.regime.regime]}`}>
                         {REGIME_LABELS[r.regime.regime]}
                       </span>
-                      <span className="text-xs text-text-secondary">
+                      <span className="text-[10px] text-text-secondary font-mono">
                         {(r.regime.confidence * 100).toFixed(0)}%
                       </span>
                     </div>
@@ -115,12 +275,14 @@ export default function Analyser() {
                     <>
                       <div className="flex items-center gap-2 justify-end">
                         <DirectionBadge direction={r.best_strategy.direction} />
-                        <span className="text-xs text-text-secondary">
+                        <span className="text-[10px] text-text-secondary">
                           {STRATEGY_LABELS[r.best_strategy.name] || r.best_strategy.name}
                         </span>
                       </div>
-                      <span className="text-sm font-mono">
-                        Conviction : {r.best_strategy.conviction.toFixed(0)}
+                      <span className={`text-sm font-mono font-bold ${
+                        r.best_strategy.conviction >= 65 ? "text-emerald-400" : r.best_strategy.conviction >= 50 ? "text-yellow-400" : "text-text-secondary"
+                      }`}>
+                        {r.best_strategy.conviction.toFixed(0)}
                       </span>
                     </>
                   ) : (
@@ -129,6 +291,7 @@ export default function Analyser() {
                 </div>
               </button>
             ))}
+            </div>
           </div>
 
           {/* Détail */}

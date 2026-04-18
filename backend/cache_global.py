@@ -6,7 +6,10 @@ par Celery Beat la nuit.
 """
 
 import json
+import logging
 from pathlib import Path
+
+logger = logging.getLogger("tradepilot.cache_global")
 
 DATA_DIR = Path("data")
 
@@ -16,7 +19,8 @@ def load_cache(name: str) -> dict | list | None:
     if filepath.exists():
         try:
             return json.loads(filepath.read_text())
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[CACHE] Failed to load cache '{name}': {e}")
             return None
     return None
 

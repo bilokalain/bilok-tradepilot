@@ -1,6 +1,9 @@
 """Module 4 — Exécution V2 : Score V2 + Bracket Orders + Sync Alpaca"""
 
+import logging
 import pandas as pd
+
+logger = logging.getLogger("tradepilot.execution")
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -14,6 +17,59 @@ from backend.modules.scanner.live_data import is_alpaca_symbol
 from backend.modules.scanner.indicators import atr
 
 router = APIRouter()
+
+
+def _place_bracket_order(symbol: str, side: str, quantity: float,
+                          stop_loss: float, take_profit: float) -> dict:
+    """Place un Bracket Order Alpaca : entry + SL + TP en une commande.
+
+    Même si le Mac s'éteint, Alpaca exécutera le SL et TP automatiquement.
+    """
+    try:
+        from alpaca.trading.client import TradingClient
+        from alpaca.trading.requests import MarketOrderRequest
+        from alpaca.trading.enums import OrderSide, TimeInForce, OrderClass
+        from backend.config.settings import settings
+
+        client = TradingClient(
+            api_key=settings.ALPACA_API_KEY,
+            secret_key=settings.ALPACA_SECRET_KEY,
+            paper=("paper" in settings.ALPACA_BASE_URL),
+        )
+
+        alpaca_side = OrderSide.BUY if side == "buy" else OrderSide.SELL
+
+        request = MarketOrderRequest(
+            symbol=symbol,
+            qty=quantity,
+            side=alpaca_side,
+            time_in_force=TimeInForce.GTC,
+            order_class=OrderClass.BRACKET,
+            stop_loss={"stop_price": stop_loss},
+            take_profit={"limit_price": take_profit},
+        )
+
+        order = client.submit_order(request)
+        logger.info(f"[BRACKET] {side} {quantity} {symbol} SL=${stop_loss} TP=${take_profit} → {order.id}")
+
+        return {
+            "broker_order_id": str(order.id),
+            "status": order.status.value if hasattr(order.status, 'value') else str(order.status),
+            "order_class": "BRACKET",
+            "stop_loss_price": stop_loss,
+            "take_profit_price": take_profit,
+        }
+    except Exception as e:
+        logger.warning(f"[BRACKET] Erreur {symbol}: {e}")
+        # Fallback : ordre market simple
+        try:
+            result = alpaca_broker.place_order(symbol, side, quantity, "market")
+            if result and "error" not in result:
+                logger.warning(f"[BRACKET] Fallback market pour {symbol}")
+                return result
+        except Exception as e:
+            logger.error(f"[BRACKET] Fallback market aussi échoué pour {symbol}: {e}")
+        return {"error": str(e)}
 
 
 def _get_price_and_atr(db: Session, asset_id: int) -> tuple:
@@ -149,18 +205,16 @@ def execute_trade(
         bayesian_score=scanner_score, conviction=conviction,
     )
 
-    if kelly["kelly_fraction"] > 0 and kelly["reject_reason"] is None:
-        position_size = kelly["position_size_usd"]
-    else:
-        position_size = capital * 0.03
+    kelly_size = kelly["position_size_usd"] if kelly["kelly_fraction"] > 0 and kelly["reject_reason"] is None else None
 
-    # Appliquer les modifiers V2 (catalyseurs + corrélation + régime)
-    position_size *= score_v2["sizing_modifier"]
-    position_size = min(position_size, capital * 0.10)  # Plafond 10%
-    quantity = round(position_size / entry_price, 4)
-
-    if "-USD" not in symbol:
-        quantity = max(1, int(quantity))
+    from backend.modules.execution.sizing import compute_position_size, quantize
+    sizing = compute_position_size(
+        capital=capital, entry_price=entry_price,
+        score=score_v2["score_v2"], kelly_size=kelly_size,
+        sizing_modifier=score_v2["sizing_modifier"],
+    )
+    position_size = sizing["position_size"]
+    quantity = quantize(sizing["quantity"], symbol)
 
     if quantity <= 0:
         return {"symbol": symbol, "executed": False, "reason": "Quantité trop faible après ajustements"}
@@ -280,20 +334,73 @@ def execute_all(
         return {"total_signals": 0, "executed": 0, "skipped": 0, "results": [],
                 "message": "Aucun signal en cache."}
 
-    # Filtrer les actifs déjà en position
-    open_positions = db.query(Position).filter_by(status=PositionStatus.OPEN).all()
-    open_symbols = {db.query(Asset).filter_by(id=p.asset_id).first().symbol for p in open_positions if db.query(Asset).filter_by(id=p.asset_id).first()}
+    # Filtrer les actifs déjà en position RÉELLE (Alpaca + IBKR uniquement, pas les locaux)
+    open_symbols = set()
+    if alpaca_broker.is_configured:
+        try:
+            for p in alpaca_broker.get_positions():
+                open_symbols.add(p["symbol"])
+        except Exception as e:
+            logger.warning(f"[EXEC] Impossible de récupérer les positions Alpaca: {e}")
+    # IBKR aussi
+    try:
+        from backend.config.settings import settings as _s
+        if _s.IBKR_ACCOUNT_ID:
+            import concurrent.futures as _cf, asyncio as _aio
+            def _get_ibkr_syms():
+                loop = _aio.new_event_loop()
+                _aio.set_event_loop(loop)
+                from ib_insync import IB
+                ib = IB()
+                ib.connect(_s.IBKR_HOST, _s.IBKR_PORT, clientId=70, timeout=10)
+                syms = {p.contract.symbol for p in ib.positions(_s.IBKR_ACCOUNT_ID) if p.position != 0}
+                ib.disconnect()
+                loop.close()
+                return syms
+            try:
+                with _cf.ThreadPoolExecutor() as ex:
+                    open_symbols.update(ex.submit(_get_ibkr_syms).result(timeout=15))
+            except Exception as e:
+                logger.warning(f"[EXEC] IBKR symbols fetch échoué: {e}")
+    except Exception as e:
+        logger.warning(f"[EXEC] IBKR config check échoué: {e}")
 
     results = []
     remaining = capital
 
+    # Mapping position ouverte → direction
+    open_positions_map = {}
+    for p in open_positions:
+        asset = db.query(Asset).filter_by(id=p.asset_id).first()
+        if asset:
+            open_positions_map[asset.symbol] = p.direction.value
+
     for signal in signals:
         sym = signal.get("symbol", "")
-        if sym in open_symbols:
-            results.append({"symbol": sym, "executed": False, "reason": "Déjà en position"})
-            continue
-
         direction = signal.get("direction", "LONG")
+
+        if sym in open_symbols:
+            current_dir = open_positions_map.get(sym, "LONG")
+            if current_dir == direction:
+                results.append({"symbol": sym, "executed": False, "reason": "Déjà en position"})
+                continue
+            # Direction opposée → fermer la position existante et ouvrir la nouvelle
+            try:
+                if alpaca_broker.is_configured and is_alpaca_symbol(sym):
+                    alpaca_broker.close_position(sym)
+                # Fermer en BDD
+                asset_to_close = db.query(Asset).filter_by(symbol=sym).first()
+                if asset_to_close:
+                    from datetime import datetime
+                    for pos in db.query(Position).filter_by(asset_id=asset_to_close.id, status=PositionStatus.OPEN).all():
+                        pos.status = PositionStatus.CLOSED
+                        pos.closed_at = datetime.utcnow()
+                    db.commit()
+                open_symbols.discard(sym)
+                logger.info(f"[EXEC] {sym} retourné: {current_dir} → {direction}")
+            except Exception as e:
+                results.append({"symbol": sym, "executed": False, "reason": f"Erreur fermeture: {e}"})
+                continue
         result = execute_trade.__wrapped__(sym, direction, remaining, db) if hasattr(execute_trade, '__wrapped__') else {"symbol": sym, "executed": False, "reason": "Erreur interne"}
 
         # Appel direct de la logique
@@ -318,32 +425,44 @@ def execute_all(
         sl = round(entry_price - 2 * atr_val, 2) if direction == "LONG" else round(entry_price + 2 * atr_val, 2)
         tp = round(entry_price + 3 * atr_val, 2) if direction == "LONG" else round(entry_price - 3 * atr_val, 2)
 
+        # Sizing centralisé
+        signal_score = signal.get("score", signal.get("thesis_score", 50))
         kelly = compute_position_sizing(remaining, entry_price, sl, tp, 50, conv)
-        size = kelly["position_size_usd"] if kelly["kelly_fraction"] > 0 else remaining * 0.03
-        size = min(size, remaining * 0.10)
-        qty = round(size / entry_price, 4)
-        if "-USD" not in sym:
-            qty = max(1, int(qty))
+        kelly_size = kelly["position_size_usd"] if kelly["kelly_fraction"] > 0 else None
+
+        from backend.modules.execution.sizing import compute_position_size, quantize
+        sizing = compute_position_size(
+            capital=remaining, entry_price=entry_price,
+            score=signal_score, kelly_size=kelly_size,
+        )
+        size = sizing["position_size"]
+        qty = quantize(sizing["quantity"], sym)
 
         # Bracket order
         alpaca_result = None
         if alpaca_broker.is_configured and is_alpaca_symbol(sym):
             alpaca_result = _place_bracket_order(sym, "buy" if direction == "LONG" else "sell", float(qty), sl, tp)
 
-        db.add(Order(
-            asset_id=asset.id,
-            side=DBOrderSide.BUY if direction == "LONG" else DBOrderSide.SELL,
-            quantity=float(qty), price=entry_price, filled_price=entry_price,
-            status=DBOrderStatus.FILLED, tranche=1,
-            broker="alpaca_bracket" if alpaca_result and "error" not in alpaca_result else "local",
-        ))
-        db.add(Position(
-            asset_id=asset.id,
-            direction=SignalDirection.LONG if direction == "LONG" else SignalDirection.SHORT,
-            entry_price=entry_price, quantity=float(qty),
-            stop_loss=sl, take_profit=tp, status=PositionStatus.OPEN,
-        ))
-        db.commit()
+        # Enregistrer en BDD UNIQUEMENT si envoyé à un broker réel
+        broker_used = None
+        if alpaca_result and "error" not in alpaca_result:
+            broker_used = "alpaca_bracket"
+
+        if broker_used:
+            db.add(Order(
+                asset_id=asset.id,
+                side=DBOrderSide.BUY if direction == "LONG" else DBOrderSide.SELL,
+                quantity=float(qty), price=entry_price, filled_price=entry_price,
+                status=DBOrderStatus.FILLED, tranche=1,
+                broker=broker_used,
+            ))
+            db.add(Position(
+                asset_id=asset.id,
+                direction=SignalDirection.LONG if direction == "LONG" else SignalDirection.SHORT,
+                entry_price=entry_price, quantity=float(qty),
+                stop_loss=sl, take_profit=tp, status=PositionStatus.OPEN,
+            ))
+            db.commit()
         remaining -= size
 
         results.append({
@@ -406,8 +525,14 @@ def list_positions(db: Session = Depends(get_sync_db)):
         try:
             for ap in alpaca_broker.get_positions():
                 alpaca_pos[ap["symbol"]] = ap
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[POSITIONS] Impossible de récupérer les positions Alpaca: {e}")
+
+    # Identifier les positions IBKR via les ordres
+    from backend.database.models import Order as OrderModel
+    ibkr_asset_ids = set()
+    for o in db.query(OrderModel).filter_by(broker="ibkr").all():
+        ibkr_asset_ids.add(o.asset_id)
 
     result = []
     for p in positions:
@@ -415,9 +540,12 @@ def list_positions(db: Session = Depends(get_sync_db)):
         if not asset:
             continue
 
-        # Prix live Alpaca ou BDD
+        # Déterminer la source : ibkr > alpaca_live > database
+        is_ibkr = p.asset_id in ibkr_asset_ids and float(p.quantity) <= 50  # IBKR = petites qty réelles
         ap = alpaca_pos.get(asset.symbol)
-        if ap:
+
+        # Prix : Alpaca live si disponible (avec validation), sinon BDD
+        if ap and not is_ibkr:
             current_price = ap["current_price"]
             live_pnl = ap["pnl"]
         else:
@@ -432,18 +560,31 @@ def list_positions(db: Session = Depends(get_sync_db)):
             pnl = (p.entry_price - current_price) * p.quantity
             pnl_pct = (1 - current_price / p.entry_price) * 100
 
+        if is_ibkr:
+            source = "ibkr_live"
+        elif ap:
+            source = "alpaca_live"
+        else:
+            source = "database"
+
         result.append({
             "id": p.id, "symbol": asset.symbol, "name": asset.name,
             "direction": p.direction.value,
             "entry_price": float(p.entry_price), "current_price": current_price,
             "quantity": float(p.quantity),
-            "stop_loss": float(p.stop_loss), "take_profit": float(p.take_profit),
+            "stop_loss": float(p.stop_loss) if p.stop_loss else 0,
+            "take_profit": float(p.take_profit) if p.take_profit else 0,
             "pnl": round(pnl, 2), "pnl_pct": round(pnl_pct, 2),
             "live_pnl": round(live_pnl, 2) if live_pnl is not None else None,
-            "source": "alpaca_live" if ap else "database",
+            "source": source,
             "status": p.status.value,
             "opened_at": p.opened_at.isoformat() if p.opened_at else None,
         })
+
+    # Les positions IBKR sont déjà synchronisées en BDD.
+    # Le TP/SL monitor met à jour les prix toutes les 5 min.
+    # Pas de connexion IBKR live ici — ça bloque la page (timeout 15s+ par position).
+
     return result
 
 
@@ -488,6 +629,88 @@ def get_signal_queue():
         db.close()
 
 
+@router.post("/close/{symbol}")
+def close_position_endpoint(symbol: str, db: Session = Depends(get_sync_db)):
+    """Ferme une position chez le broker ET en BDD."""
+    results = {}
+
+    # 1. Fermer chez Alpaca (annuler les ordres ouverts d'abord)
+    if alpaca_broker.is_configured:
+        try:
+            # Annuler les ordres ouverts qui bloquent les actions
+            open_orders = alpaca_broker.get_orders(status="open")
+            for o in open_orders:
+                if o["symbol"] == symbol:
+                    alpaca_broker.cancel_order(o["id"])
+            # Fermer la position
+            alpaca_result = alpaca_broker.close_position(symbol)
+            results["alpaca"] = alpaca_result
+        except Exception as e:
+            results["alpaca"] = {"error": str(e)}
+
+    # 2. Fermer chez IBKR si configuré
+    try:
+        from backend.modules.execution.broker_ibkr import ibkr_broker
+        if ibkr_broker.is_configured:
+            try:
+                ibkr_result = ibkr_broker.close_position(symbol)
+                results["ibkr"] = ibkr_result
+            except Exception as e:
+                results["ibkr"] = {"error": str(e)}
+    except Exception as e:
+        logger.warning(f"[CLOSE] IBKR import/check échoué pour {symbol}: {e}")
+
+    # 3. Fermer en BDD
+    from datetime import datetime
+    asset = db.query(Asset).filter_by(symbol=symbol).first()
+    if asset:
+        open_positions = db.query(Position).filter_by(
+            asset_id=asset.id, status=PositionStatus.OPEN
+        ).all()
+        for p in open_positions:
+            p.status = PositionStatus.CLOSED
+            p.closed_at = datetime.utcnow()
+            # Récupérer le prix actuel pour le P&L
+            try:
+                if alpaca_broker.is_configured:
+                    price = alpaca_broker.get_last_price(symbol)
+                    if price:
+                        p.exit_price = price
+            except Exception as e:
+                logger.warning(f"[CLOSE] Impossible de récupérer le prix de sortie pour {symbol}: {e}")
+        db.commit()
+        results["db_closed"] = len(open_positions)
+
+    return {"status": "closed", "symbol": symbol, "results": results}
+
+
+@router.get("/health-check")
+def positions_health_check(db: Session = Depends(get_sync_db)):
+    """Évalue la santé de chaque position — détecte l'essoufflement."""
+    from backend.modules.execution.exhaustion_checker import check_all_positions_health
+    return check_all_positions_health(db)
+
+
+@router.post("/check-tp-sl")
+def check_tp_sl(db: Session = Depends(get_sync_db)):
+    """Vérifie et ferme les positions qui ont atteint leur TP ou SL."""
+    from backend.modules.execution.tp_sl_monitor import check_and_close_positions
+    return check_and_close_positions(db)
+
+
+@router.get("/broker/status")
+def broker_status():
+    """Statut des brokers connectés (IBKR + Alpaca)."""
+    from backend.modules.execution.broker_multi import multi_broker
+    # Forcer la tentative de connexion IBKR si configuré
+    if multi_broker.ibkr.is_configured and not multi_broker.ibkr_live:
+        try:
+            multi_broker.ibkr._connect()
+        except Exception as e:
+            logger.warning(f"[BROKER] IBKR connexion échouée: {e}")
+    return multi_broker.get_status()
+
+
 @router.get("/notifications")
 def get_notifications():
     """Historique des notifications envoyées."""
@@ -500,3 +723,14 @@ def get_notifications():
         recent = blocks[-40:]  # 2 blocs par notif (séparateur + contenu)
         return {"notifications": "".join(recent).strip(), "total": len(blocks) // 2}
     return {"notifications": "Aucune notification", "total": 0}
+
+
+@router.get("/opportunity-arbiter")
+def opportunity_arbiter(db: Session = Depends(get_sync_db)):
+    """Arbitrage d'opportunité — compare les positions IBKR vs signaux GO.
+
+    Classe chaque position et signal par EV/jour (espérance de valeur par jour).
+    Recommande des swaps quand un signal GO a plus de potentiel qu'une position fatiguée.
+    """
+    from backend.modules.execution.opportunity_arbiter import run_opportunity_arbitrage
+    return run_opportunity_arbitrage(db)

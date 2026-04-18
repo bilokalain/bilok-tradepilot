@@ -33,8 +33,8 @@ export default function Scoring() {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-2">Moteur de Scoring</h2>
-      <p className="text-text-secondary mb-6 text-sm">
-        Thèses de Trade — Score Bayésien + Qualité du Contexte + Sizing Kelly
+      <p className="text-text-secondary text-sm mb-6 max-w-3xl">
+        Fusion de 8 sources en un score unique (0-100) — Scanner, Stratégie/Backtest, Régime Global, Fondamentaux, Catalyseurs, Corrélation Portefeuille, Rotation Sectorielle et Lead-Lag. Génère des thèses de trade complètes avec direction, entrée, SL, TP et sizing Kelly optimal. Score ≥65 = GO, 50-65 = WAIT, &lt;50 = NO_TRADE.
       </p>
 
       {/* Métriques */}

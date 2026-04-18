@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, TrendingUp, Shield, Brain, Crosshair, BarChart3, Globe, Users, Fingerprint, Sparkles } from "lucide-react";
-import axios from "axios";
+import api from "../services/api";
 import TradingChart from "../components/TradingChart";
 import ScoreGauge from "../components/ui/ScoreGauge";
 import RadarChart from "../components/ui/RadarChart";
@@ -119,7 +119,70 @@ const CRITERIA_CONFIG: Record<string, {
       s >= 35 ? "Signal assez commun. Beaucoup d'autres actifs montrent le même pattern — déjà dans le prix." :
       "Signal très crowdé. Tout le monde voit la même chose, aucun avantage — danger de piège.",
   },
+  fundamental: {
+    label: "Analyse Fondamentale",
+    icon: "📈",
+    color: "#10B981",
+    description: "L'analyse fondamentale évalue la valeur intrinsèque de l'entreprise. 8 dimensions : Valorisation (P/E vs secteur, PEG, DCF), Profitabilité (marges, ROE + tendance trimestrielle), Croissance (accélération revenue/earnings), Santé financière (dette, FCF, liquidité), Dividendes, Score Piotroski (qualité comptable), Earnings Quality (surprises, consensus analystes), et DCF simplifié.",
+    interpret: (s) =>
+      s >= 75 ? "Excellents fondamentaux. Entreprise rentable, en croissance, bien valorisée. Les analystes sont bullish et les earnings battent les estimations." :
+      s >= 60 ? "Bons fondamentaux. L'entreprise est solide avec quelques points d'attention (valorisation ou dette)." :
+      s >= 45 ? "Fondamentaux moyens. Certaines dimensions sont faibles (croissance, valorisation ou santé financière)." :
+      s >= 30 ? "Fondamentaux fragiles. Profitabilité ou croissance en question, ou valorisation excessive." :
+      "Fondamentaux faibles. L'entreprise est en difficulté financière ou très surévaluée.",
+  },
 };
+
+function _buildFundamentalBreakdown(data: any): { families: any[] } | null {
+  if (!data?.dimensions) return null;
+  const dims = data.dimensions;
+  const families: any[] = [];
+
+  const WEIGHTS: Record<string, number> = {
+    valuation: 15, profitability: 20, growth: 20, financial_health: 10,
+    dividends: 5, quality_piotroski: 10, earnings_quality: 10, dcf_simplified: 10,
+  };
+  const LABELS: Record<string, string> = {
+    valuation: "Valorisation", profitability: "Profitabilité", growth: "Croissance",
+    financial_health: "Santé Financière", dividends: "Dividendes",
+    quality_piotroski: "Qualité Piotroski", earnings_quality: "Earnings Quality",
+    dcf_simplified: "DCF Simplifié",
+  };
+
+  for (const [key, dim] of Object.entries(dims) as [string, any][]) {
+    const indicators: any[] = [];
+    if (dim.details) {
+      for (const [dk, dv] of Object.entries(dim.details) as [string, any][]) {
+        if (typeof dv === "object" && dv !== null) {
+          indicators.push({
+            name: dk.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            value: dv.value ?? dv.score ?? "",
+            signal: dv.signal ?? (dv.score != null ? (dv.score >= 65 ? "Bon" : dv.score >= 45 ? "Moyen" : "Faible") : ""),
+          });
+        } else {
+          indicators.push({ name: dk.replace(/_/g, " "), value: String(dv) });
+        }
+      }
+    }
+    // Piotroski : ajouter les checks
+    if (key === "quality_piotroski" && dim.checks) {
+      for (const check of dim.checks) {
+        indicators.push({
+          name: check.name,
+          signal: check.pass ? "Validé" : "Échoué",
+        });
+      }
+    }
+    families.push({
+      name: LABELS[key] || key,
+      score: dim.score ?? 50,
+      weight: WEIGHTS[key] || 0,
+      signal: dim.interpretation || (dim.score >= 70 ? "Solide" : dim.score >= 50 ? "Correct" : "Faible"),
+      indicators,
+    });
+  }
+  return { families };
+}
 
 export default function AssetDetail() {
   const { symbol } = useParams<{ symbol: string }>();
@@ -131,25 +194,37 @@ export default function AssetDetail() {
   const [sentiment, setSentiment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<"daily" | "1h">("daily");
+  const [techBreakdown, setTechBreakdown] = useState<any>(null);
+  const [expandedCriterion, setExpandedCriterion] = useState<string | null>(null);
+  const [criterionBreakdowns, setCriterionBreakdowns] = useState<Record<string, any>>({});
+  const [fundamentalData, setFundamentalData] = useState<any>(null);
 
   useEffect(() => {
     if (!symbol) return;
     setLoading(true);
     Promise.all([
-      scannerApi.getOhlcv(symbol, 250),
-      axios.get(`/api/scanner/results/${symbol}`),
-      axios.get(`/api/analyser/analyse/${symbol}`),
-      axios.get(`/api/scoring/thesis/${symbol}`),
-      axios.get(`/api/scanner/mta/${symbol}`),
-      axios.get(`/api/scanner/sentiment/${symbol}`),
+      scannerApi.getOhlcv(symbol, 250).catch(() => ({ data: null })),
+      api.get(`/scanner/results/${symbol}`).catch(() => ({ data: null })),
+      api.get(`/analyser/analyse/${symbol}`).catch(() => ({ data: null })),
+      api.get(`/scoring/thesis/${symbol}`).catch(() => ({ data: null })),
+      api.get(`/scanner/mta/${symbol}`).catch(() => ({ data: null })),
+      api.get(`/scanner/sentiment/${symbol}`).catch(() => ({ data: null })),
+      api.get(`/scanner/technical-breakdown/${symbol}`).catch(() => ({ data: null })),
     ])
-      .then(([ohlcvRes, scanRes, analysisRes, thesisRes, mtaRes, sentRes]) => {
-        setOhlcv(ohlcvRes.data);
-        setScan(scanRes.data);
-        setAnalysis(analysisRes.data);
-        setThesis(thesisRes.data);
-        setMta(mtaRes.data);
-        setSentiment(sentRes.data);
+      .then(([ohlcvRes, scanRes, analysisRes, thesisRes, mtaRes, sentRes, techRes]) => {
+        if (ohlcvRes.data) setOhlcv(ohlcvRes.data);
+        if (scanRes.data) setScan(scanRes.data);
+        if (analysisRes.data) setAnalysis(analysisRes.data);
+        if (thesisRes.data) setThesis(thesisRes.data);
+        if (mtaRes.data) setMta(mtaRes.data);
+        if (sentRes.data) setSentiment(sentRes.data);
+        if (techRes.data) setTechBreakdown(techRes.data);
+        // Fetch fondamental
+        if (symbol) {
+          api.get(`/scanner/fundamental/${symbol}`).then(r => {
+            if (r.data && r.data.applicable) setFundamentalData(r.data);
+          }).catch(() => {});
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -159,7 +234,7 @@ export default function AssetDetail() {
     setTimeframe(tf);
     if (!symbol) return;
     if (tf === "1h") {
-      axios.get(`/api/scanner/ohlcv-1h/${symbol}?limit=168`).then((res) => {
+      api.get(`/scanner/ohlcv-1h/${symbol}?limit=168`).then((res) => {
         setOhlcv({ ...res.data, data: res.data.data.map((d: any) => ({ ...d, date: d.datetime.split("T")[0] })) });
       });
     } else {
@@ -170,7 +245,7 @@ export default function AssetDetail() {
   if (loading) return <div className="flex items-center justify-center h-64 text-text-secondary">Analyse en cours...</div>;
   if (!scan || scan.error) return <div className="text-red-400 p-6">Actif non trouvé</div>;
 
-  const scores = scan.scores || {};
+  const scores = { ...(scan.scores || {}), fundamental: fundamentalData?.score ?? 0 };
   const details = scan.details || {};
 
   // Données pour le radar chart
@@ -326,10 +401,27 @@ export default function AssetDetail() {
           const weight = (scan.weights?.[key] ?? 0) * 100;
           const interpretation = config.interpret(score);
 
+          const isExpanded = expandedCriterion === key;
+          const breakdown = key === "technical" ? techBreakdown
+            : key === "fundamental" ? (fundamentalData ? _buildFundamentalBreakdown(fundamentalData) : null)
+            : criterionBreakdowns[key];
+          const handleClick = () => {
+            if (isExpanded) { setExpandedCriterion(null); return; }
+            setExpandedCriterion(key);
+            if (key === "technical" && !techBreakdown) {
+              api.get(`/scanner/technical-breakdown/${symbol}`).then(r => setTechBreakdown(r.data)).catch(() => {});
+            } else if (key === "fundamental") {
+              // Déjà chargé via fundamentalData
+            } else if (!criterionBreakdowns[key]) {
+              api.get(`/scanner/criterion-breakdown/${symbol}/${key}`).then(r => {
+                setCriterionBreakdowns(prev => ({ ...prev, [key]: r.data }));
+              }).catch(() => {});
+            }
+          };
           return (
+            <div key={key} onClick={handleClick} className="cursor-pointer">
             <InfoCard
-              key={key}
-              title={config.label}
+              title={`${config.label} ${isExpanded ? "▼" : "▶"}`}
               icon={<span className="text-base">{config.icon}</span>}
               description={config.description}
               accentColor={config.color}
@@ -343,6 +435,45 @@ export default function AssetDetail() {
                   </p>
                 </div>
               </div>
+
+              {/* Breakdown détaillé (tous critères) */}
+              {isExpanded && breakdown?.families && (
+                <div className="space-y-2 mt-2 border-t border-border/50 pt-2" onClick={e => e.stopPropagation()}>
+                  {breakdown.families.map((fam: any, fi: number) => (
+                    <div key={`${fam.name}-${fi}`} className="bg-surface rounded-lg p-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold">{fam.name}</span>
+                        <div className="flex items-center gap-2">
+                          {fam.score != null && <span className={`text-xs font-mono font-bold ${fam.score >= 65 ? "text-emerald-400" : fam.score >= 45 ? "text-yellow-400" : "text-red-400"}`}>{fam.score}</span>}
+                          {fam.weight > 0 && <span className="text-[9px] text-text-secondary">({fam.weight}%)</span>}
+                        </div>
+                      </div>
+                      {fam.signal && <p className="text-[10px] text-text-secondary mb-1">{fam.signal}</p>}
+                      {fam.indicators && fam.indicators.length > 0 && (
+                        <div className="space-y-0.5">
+                          {fam.indicators.map((ind: any, ii: number) => (
+                            <div key={`${ind.name}-${ii}`} className="flex items-center justify-between text-[10px]">
+                              <span className="text-text-secondary">{ind.name}</span>
+                              <div className="flex items-center gap-2">
+                                {ind.value != null && <span className="font-mono">{typeof ind.value === "number" ? ind.value.toFixed(2) : ind.value}</span>}
+                                {ind.signal && <span className={`px-1 py-0.5 rounded ${
+                                  /Haussier|Fort|Hausse|Acheteurs|Au-dessus|Actif|Bullish|Positif|Accumul|Expansion|risk.on|Unique|Inhabituel/i.test(ind.signal) ? "text-emerald-400 bg-emerald-400/10" :
+                                  /Baissier|Faible|Baisse|Vendeurs|En dessous|Inactif|Bearish|Négatif|Contraction|Markdown|Capitulation/i.test(ind.signal) ? "text-red-400 bg-red-400/10" :
+                                  /Suracheté|Attention|Modéré/i.test(ind.signal) ? "text-yellow-400 bg-yellow-400/10" :
+                                  "text-text-secondary bg-surface"
+                                }`}>{ind.signal}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isExpanded && !breakdown && (
+                <p className="text-[10px] text-text-secondary mt-2 text-center animate-pulse">Chargement du détail...</p>
+              )}
 
               {/* Détails spécifiques par critère */}
               {key === "genome" && details.genome && (
@@ -377,6 +508,7 @@ export default function AssetDetail() {
                 ]} />
               )}
             </InfoCard>
+            </div>
           );
         })}
       </div>

@@ -9,11 +9,12 @@ const SECTIONS = [
     content: (
       <>
         <H3>Connexion</H3>
-        <P>Ouvrez <Code>http://localhost:5173</Code> et connectez-vous. Créez un compte ou utilisez le compte admin : <Code>admin@tradepilot.local</Code> / <Code>tradepilot2024</Code>.</P>
-        <P>L'application est aussi accessible <B>depuis internet</B> via le lien Cloudflare Tunnel (partageable avec d'autres utilisateurs).</P>
+        <P>Ouvrez <Code>http://localhost:5173</Code> (local) ou <Code>bilok-tradepilot.vercel.app</Code> (internet). Créez un compte ou utilisez le compte admin : <Code>admin@tradepilot.local</Code> / <Code>tradepilot2024</Code>.</P>
+        <P>L'application est hébergée sur <B>Vercel</B> (frontend) avec le backend sur votre Mac exposé via Cloudflare Tunnel. Partageable avec n'importe qui via le lien Vercel.</P>
 
         <H3>Ce que vous voyez sur le Dashboard</H3>
         <Table headers={["Élément", "Signification"]}>
+          <TR><TD b>Thèses M0</TD><TD>Nombre de convictions personnelles actives + conviction moyenne. Influence directement le scoring des actifs liés</TD></TR>
           <TR><TD b>Actifs scannés</TD><TD>218 actifs analysés (101 US, 50 EU, 20 crypto, 26 ETF, 10 forex, 10 commodities)</TD></TR>
           <TR><TD b>Score moyen</TD><TD>Moyenne des 10 critères sur les 218 actifs. Au-dessus de 60 = marché favorable</TD></TR>
           <TR><TD b>Signaux GO</TD><TD>Actifs qui remplissent les 8 conditions du Score V2. <B>C'est le chiffre le plus important</B></TD></TR>
@@ -21,25 +22,45 @@ const SECTIONS = [
           <TR><TD b>Santé système</TD><TD>Meta-Score 0-100. Pilote l'engagement : FULL (&gt;80), NORMAL (60-80), PRUDENT (40-60), MINIMAL (&lt;40)</TD></TR>
         </Table>
 
+        <H3>Section "Mes Convictions" (M0)</H3>
+        <P>Si vous avez des thèses actives, elles s'affichent directement sur le Dashboard entre les signaux et le pipeline :</P>
+        <Table headers={["Élément", "Détail"]}>
+          <TR><TD b>Direction</TD><TD>Flèche dorée (hausse) ou rouge (baisse) pour chaque thèse</TD></TR>
+          <TR><TD b>Conviction</TD><TD>Badge coloré : CERTAINE (doré vif), FORTE (doré), MOYENNE (jaune), FAIBLE (gris)</TD></TR>
+          <TR><TD b>Horizon</TD><TD>Jours restants avant expiration de la thèse</TD></TR>
+          <TR><TD b>Supprimer</TD><TD>Icône poubelle au survol — retire immédiatement une conviction qui ne tient plus</TD></TR>
+        </Table>
+        <Callout>Vous pouvez supprimer une thèse directement depuis le Dashboard quand elle n'est plus pertinente (ex: événement passé, marché a invalidé votre scénario). L'effet sur le scoring est immédiat.</Callout>
+
+        <H3>Top Movers du jour</H3>
+        <P>Le Dashboard affiche les <B>plus fortes variations</B> parmi les 308 actifs surveillés :</P>
+        <Table headers={["Section", "Ce qu'elle montre"]}>
+          <TR><TD b>Hausse</TD><TD>Top 10 des plus fortes hausses du jour — badge "EN POS" si vous êtes déjà en position</TD></TR>
+          <TR><TD b>Baisse</TD><TD>Top 10 des plus fortes baisses — identifie les actifs à shorter ou éviter</TD></TR>
+          <TR><TD b>Taux de détection</TD><TD>Barre de progression : combien de top movers du marché global sont dans nos 308 actifs. Vert &gt; 70%, jaune 50-70%, rouge &lt; 50%</TD></TR>
+          <TR><TD b>Actifs manqués</TD><TD>Badges rouges des symboles qui performent mais ne sont pas dans le scanner</TD></TR>
+        </Table>
+        <Callout>Le taux de détection permet de savoir si notre sélection de 308 actifs couvre bien le marché. Si des actifs sont régulièrement manqués, ils peuvent être ajoutés au scanner.</Callout>
+
         <H3>Le pipeline complet</H3>
         <div className="bg-surface rounded-xl p-4 my-4 text-xs leading-relaxed">
           <div className="font-mono text-gold mb-3">
-            Thèses → Scanner → Analyseur → Scoring V2 → Exécution → Portefeuille → Performance → Feedback ↩
+            M0 Thèses → M1 Scanner → M2 Analyseur → M3 Scoring V2 → M4 Exécution → M5 Portefeuille → M6 Performance → Feedback ↩ M0
           </div>
           <Table headers={["Module", "Ce qu'il fait"]}>
-            <TR><TD b>Mes Thèses</TD><TD>Vos convictions personnelles (ex: "pétrole va monter") — boost les scores des actifs liés</TD></TR>
-            <TR><TD b>Scanner</TD><TD>218 actifs × 10 critères × 20 indicateurs AT — note chaque actif de 0 à 100</TD></TR>
-            <TR><TD b>Analyseur</TD><TD>Régime global + 14 stratégies + catalyseurs + sector rotation + lead-lag + anti-corrélation</TD></TR>
-            <TR><TD b>Scoring V2</TD><TD>8 sources (scanner + conviction + régime + fondamentaux + catalyseurs + corrélation + secteur + lead-lag) + thèses</TD></TR>
-            <TR><TD b>Exécution</TD><TD>Bracket Orders Alpaca (entry + SL + TP automatiques), Score V2 pré-trade, max 10 positions + file d'attente</TD></TR>
-            <TR><TD b>Portefeuille</TD><TD>VaR, Risk Budget (max -15%), Max Drawdown Control, Rebalancing, Beta, Exposition sectorielle</TD></TR>
-            <TR><TD b>Performance</TD><TD>Benchmarks SPY/60-40, Sharpe/Sortino/Calmar live, Rapport hebdomadaire, Feedback loop</TD></TR>
+            <TR><TD b>M0 Mes Thèses</TD><TD>Vos convictions personnelles — boost les scores des actifs liés</TD></TR>
+            <TR><TD b>M1 Scanner</TD><TD>308 actifs × 11 critères (dont Narrative Momentum) — note de 0 à 100</TD></TR>
+            <TR><TD b>M2 Analyseur</TD><TD>Régime global + 14 stratégies + catalyseurs + sector rotation</TD></TR>
+            <TR><TD b>M3 Scoring V2</TD><TD>4 composantes (Conviction 35% + Bayésien 30% + SQC 20% + Scanner 15%) — poids auto-calibrés</TD></TR>
+            <TR><TD b>M4 Exécution</TD><TD>Multi-Broker IBKR (réel) + Alpaca (paper), SL/TP, trailing stop, sizing intelligent</TD></TR>
+            <TR><TD b>M5 Portefeuille</TD><TD>VaR, Risk Budget, Drawdown Control, Reversal Guard, Equity Curve vs SPY</TD></TR>
+            <TR><TD b>M6 Performance</TD><TD>Apprentissage autonome, Calibrage auto, Feedback loop, Rapport hebdo</TD></TR>
           </Table>
         </div>
 
         <H3>Les outils complémentaires</H3>
         <Table headers={["Outil", "Ce qu'il fait"]}>
-          <TR><TD b>Analyse rapide</TD><TD>Tapez n'importe quel actif (même hors des 218) — analyse complète en 5 secondes avec prix live Alpaca</TD></TR>
+          <TR><TD b>Analyse rapide</TD><TD>Autocomplete intelligent (TradingView) + double source Yahoo/TV + Score V2 cohérent pipeline</TD></TR>
           <TR><TD b>Corrélation</TD><TD>Trouvez tous les actifs liés à un thème + simulez l'impact d'un choc + backtest corrélation 25 ans</TD></TR>
           <TR><TD b>Backtesting</TD><TD>5 modules : stratégies, corrélation, walk-forward, thèse, analyse profonde</TD></TR>
         </Table>
@@ -72,9 +93,10 @@ const SECTIONS = [
     icon: <ScanSearch size={18} />,
     content: (
       <>
-        <P>Le scanner est le <B>filtre d'entrée</B>. Sur 218 actifs, il identifie ceux qui méritent votre attention. Chaque actif reçoit une note de 0 à 100 basée sur <B>10 dimensions indépendantes</B>.</P>
+        <P>Le scanner est le <B>filtre d'entrée</B>. Sur 305 actifs (US, EU, ETF, Crypto, Forex, Commodities, Biotech, Défense, Moonshots), il identifie ceux qui méritent votre attention. Chaque actif reçoit une note de 0 à 100 basée sur <B>11 dimensions indépendantes</B>.</P>
+        <Callout>Les poids des 11 critères s'ajustent automatiquement avec le temps grâce au système d'apprentissage. Les critères qui prédisent bien les trades gagnants voient leur poids augmenter (+30% max).</Callout>
 
-        <H3>Les 10 critères</H3>
+        <H3>Les 11 critères</H3>
 
         <CriterionCard emoji="📊" name="1. Analyse Technique (AT) — 20 indicateurs" description="Étudie les mouvements de prix avec 20 indicateurs répartis en 7 familles. C'est le critère le plus complet du scanner.">
           <Table headers={["Famille", "Indicateurs", "Ce qu'ils mesurent"]}>
@@ -159,6 +181,22 @@ const SECTIONS = [
           </Table>
           <ScoreGuide high="Entreprise très rentable, en croissance, peu endettée" low="Perte, endettement excessif, valorisation extrême" />
           <Callout>AAPL : score fondamental 64.5/100 — très profitable (ROE 152%) mais chère (P/E 33). Le score équilibre les forces et faiblesses.</Callout>
+        </CriterionCard>
+
+        <CriterionCard emoji="🔥" name="11. Narrative Momentum (critère unique)" description="Mesure la vitesse de propagation d'une narrative sur un actif. Les marchés bougent sur les narratives avant les fondamentaux. Ce critère détecte les PLTR, SMCI, IONQ AVANT qu'ils n'explosent.">
+          <Table headers={["Composante", "Ce qu'elle mesure"]}>
+            <TR><TD b>Volume Acceleration</TD><TD>Le volume explose avant le prix — smart money</TD></TR>
+            <TR><TD b>Momentum Shift</TD><TD>Changement de régime : de flat vers directionnel</TD></TR>
+            <TR><TD b>Breakout Freshness</TD><TD>Cassure récente d'un range (dans les 5 derniers jours)</TD></TR>
+            <TR><TD b>Cross-TF Alignment</TD><TD>Daily, weekly, monthly pointent dans la même direction</TD></TR>
+            <TR><TD b>Anomaly Score</TD><TD>Comportement statistiquement inhabituel (Z-score)</TD></TR>
+          </Table>
+          <Table headers={["Signal", "Signification"]}>
+            <TR><TD b>BULLISH_NARRATIVE (&gt; 65)</TD><TD>Narrative haussière en propagation — le mouvement commence</TD></TR>
+            <TR><TD b>BUILDING (50-65)</TD><TD>Narrative en construction — accumulation en cours</TD></TR>
+            <TR><TD b>EXHAUSTED (&lt; 50)</TD><TD>Narrative épuisée — le mouvement est fini</TD></TR>
+          </Table>
+          <ScoreGuide high="Narrative en explosion — volume + momentum + breakout alignés" low="Narrative épuisée — plus personne ne pousse" />
         </CriterionCard>
 
         <H3>Vetos</H3>
@@ -255,12 +293,15 @@ const SECTIONS = [
           </div>
         </div>
 
-        <H3>Composantes du score</H3>
-        <Table headers={["Composante", "Poids", "Ce qu'elle mesure"]}>
-          <TR><TD b>Score Bayésien</TD><TD>50%</TD><TD>Combine l'historique de l'actif + observations actuelles du scanner</TD></TR>
-          <TR><TD b>Qualité du Contexte (SQC)</TD><TD>20%</TD><TD>Liquidité + timing + volatilité — les conditions pratiques</TD></TR>
-          <TR><TD b>Conviction stratégie</TD><TD>30%</TD><TD>À quel point la stratégie est sûre de son signal</TD></TR>
+        <H3>Composantes du score (poids dynamiques)</H3>
+        <P>Les poids s'ajustent automatiquement via le <B>Calibrateur</B> basé sur les top movers du marché :</P>
+        <Table headers={["Composante", "Poids initial", "Ce qu'elle mesure"]}>
+          <TR><TD b>Conviction stratégie</TD><TD>35%</TD><TD>À quel point la stratégie est sûre de son signal — le plus important</TD></TR>
+          <TR><TD b>Score Bayésien</TD><TD>30%</TD><TD>Historique de l'actif + observations actuelles</TD></TR>
+          <TR><TD b>Qualité du Contexte (SQC)</TD><TD>20%</TD><TD>Liquidité + timing + volatilité</TD></TR>
+          <TR><TD b>Score Scanner (11 critères)</TD><TD>15%</TD><TD>Résumé des 11 critères dont le Narrative Momentum</TD></TR>
         </Table>
+        <Callout>Les poids sont ajustés automatiquement chaque nuit. Le calibrateur compare les signaux GO avec les top movers réels du marché. Si le taux de détection est faible, il augmente le poids du scanner et de la conviction, et réduit le bayésien. Suivi dans Performance → Calibrage.</Callout>
 
         <H3>Position Sizing — Kelly</H3>
         <P>La taille de position est <B>cruciale</B>. Le critère de Kelly calcule la taille optimale :</P>
@@ -281,24 +322,33 @@ const SECTIONS = [
     icon: <Zap size={18} />,
     content: (
       <>
-        <P>Passe les ordres <B>directement chez Alpaca</B> (paper trading). Les ordres apparaissent sur app.alpaca.markets. Chaque trade passe par 3 étapes :</P>
+        <P>Le système utilise un <B>Multi-Broker</B> : ordres envoyés en parallèle sur <B>IBKR</B> (argent réel) et <B>Alpaca</B> (paper trading). Si IBKR est indisponible, Alpaca prend le relais automatiquement.</P>
+
+        <H3>Mode Dual Broker</H3>
+        <Table headers={["Mode", "Ce qui se passe"]}>
+          <TR><TD b>DUAL</TD><TD>IBKR (réel) + Alpaca (paper) en parallèle — chaque trade est exécuté sur les deux</TD></TR>
+          <TR><TD b>IBKR_ONLY</TD><TD>Argent réel uniquement — Alpaca non configuré</TD></TR>
+          <TR><TD b>ALPACA_ONLY</TD><TD>Paper trading uniquement — IBKR non connecté</TD></TR>
+        </Table>
 
         <H3>Comment exécuter un trade</H3>
         <Table headers={["Action", "Ce qui se passe"]}>
-          <TR><TD b>Bouton "Exécuter" (un actif)</TD><TD>Envoie un ordre market à Alpaca pour cet actif</TD></TR>
+          <TR><TD b>Bouton "Exécuter" (un actif)</TD><TD>Envoie l'ordre aux deux brokers en parallèle</TD></TR>
           <TR><TD b>Bouton "Lancer le Trading"</TD><TD>Exécute TOUS les signaux GO d'un coup</TD></TR>
+          <TR><TD b>Pipeline nocturne</TD><TD>Les 6 modules s'enchaînent automatiquement à 22h UTC et exécutent les signaux GO</TD></TR>
         </Table>
-        <P>Les actifs <B>déjà en position</B> sont automatiquement retirés de la liste — pas de double exécution. De nouveaux signaux apparaissent quand le scanner détecte de nouvelles opportunités.</P>
+        <P>Les actifs <B>déjà en position</B> sont automatiquement retirés de la liste — pas de double exécution.</P>
 
         <H3>Où sont envoyés les ordres ?</H3>
-        <Table headers={["Type d'actif", "Broker", "Visible chez Alpaca"]}>
-          <TR><TD b>Actions US (AAPL, MSFT...)</TD><TD>Alpaca</TD><TD>Oui</TD></TR>
-          <TR><TD b>ETF (SPY, QQQ...)</TD><TD>Alpaca</TD><TD>Oui</TD></TR>
-          <TR><TD b>Crypto (BTC, ETH, SOL)</TD><TD>Alpaca</TD><TD>Oui</TD></TR>
-          <TR><TD b>Actions EU (.PA, .DE)</TD><TD>Simulation locale</TD><TD>Non</TD></TR>
-          <TR><TD b>Forex, Commodities</TD><TD>Simulation locale</TD><TD>Non</TD></TR>
+        <Table headers={["Type d'actif", "IBKR (réel)", "Alpaca (paper)"]}>
+          <TR><TD b>Actions US (AAPL, MSFT...)</TD><TD>Oui</TD><TD>Oui</TD></TR>
+          <TR><TD b>ETF (SPY, QQQ...)</TD><TD>Oui</TD><TD>Oui</TD></TR>
+          <TR><TD b>Crypto (BTC, ETH, SOL)</TD><TD>Oui</TD><TD>Oui</TD></TR>
+          <TR><TD b>Actions EU (.PA, .DE, .L)</TD><TD>Oui</TD><TD>Non (simulation)</TD></TR>
+          <TR><TD b>Forex (EUR/USD...)</TD><TD>Oui</TD><TD>Non (simulation)</TD></TR>
+          <TR><TD b>Commodities (Or, Pétrole...)</TD><TD>Oui</TD><TD>Non (simulation)</TD></TR>
         </Table>
-        <Callout>Le marché US est ouvert de 15h30 à 22h (heure de Paris). Les ordres passés hors marché seront exécutés à l'ouverture.</Callout>
+        <Callout>IBKR supporte <B>tous les marchés</B> (US, EU, forex, crypto, commodities). Alpaca ne supporte que les actifs US et crypto. En mode DUAL, les actifs EU/forex/commodities sont exécutés uniquement sur IBKR.</Callout>
 
         <H3>1. Vérification des biais comportementaux</H3>
         <Table headers={["Biais", "Ce que c'est", "Comment le système le détecte"]}>
@@ -329,8 +379,31 @@ const SECTIONS = [
           <TR><TD b>FOMO (&gt; 25% de mouvement)</TD><TD>Trade bloqué</TD></TR>
         </Table>
 
-        <H3>5. Gestion post-entrée</H3>
-        <P>Une fois en position, le <B>trailing stop</B> monte automatiquement avec le prix pour protéger vos gains. Les positions Alpaca se synchronisent avec la BDD locale.</P>
+        <H3>5. Gestion post-entrée (toutes les 5 min)</H3>
+        <P>Le <B>TP/SL Monitor</B> vérifie chaque position toutes les 5 minutes pendant les heures de marché :</P>
+        <Table headers={["Vérification", "Action"]}>
+          <TR><TD b>Trailing Stop</TD><TD>Le SL remonte avec le prix (2×ATR). Ne redescend jamais. Protège les gains automatiquement</TD></TR>
+          <TR><TD b>Take Profit</TD><TD>Prix atteint le TP → position fermée, profit pris</TD></TR>
+          <TR><TD b>Stop Loss</TD><TD>Prix touche le SL → position fermée, perte coupée</TD></TR>
+          <TR><TD b>Essoufflement</TD><TD>5 signaux de santé (Momentum, Volume, Narrative, RSI, P/L). Score &lt; 35 = ÉPUISÉ → fermeture auto</TD></TR>
+          <TR><TD b>Signal inverse</TD><TD>Un signal GO apparaît dans la direction opposée → ferme la position et retourne dans le nouveau sens</TD></TR>
+          <TR><TD b>File d'attente</TD><TD>Slot libéré → le meilleur signal GO en attente est exécuté automatiquement</TD></TR>
+        </Table>
+
+        <H3>6. Détection d'essoufflement</H3>
+        <Table headers={["Score santé", "En profit", "En perte"]}>
+          <TR><TD b>&gt; 50 (FORT/MODÉRÉ)</TD><TD>Laisser courir</TD><TD>Laisser le SL protéger</TD></TR>
+          <TR><TD b>35-50 (FAIBLE)</TD><TD>Resserrer SL à 1×ATR</TD><TD>Fermer — libérer le capital</TD></TR>
+          <TR><TD b>&lt; 35 (ÉPUISÉ)</TD><TD>Fermer — prendre le profit</TD><TD>Fermer — couper la perte</TD></TR>
+        </Table>
+
+        <H3>7. Sizing intelligent</H3>
+        <P>La taille de position dépend du score de conviction du signal :</P>
+        <Table headers={["Score signal", "Taille position"]}>
+          <TR><TD b>80+</TD><TD>15% du capital — forte conviction</TD></TR>
+          <TR><TD b>65-80</TD><TD>10% du capital — conviction moyenne</TD></TR>
+          <TR><TD b>58-65</TD><TD>5% du capital — conviction basse</TD></TR>
+        </Table>
       </>
     ),
   },
@@ -405,14 +478,43 @@ const SECTIONS = [
           <TR><TD b>Spike Volatilité</TD><TD>1.5x</TD><TD>2.5x</TD><TD>4x</TD></TR>
         </Table>
 
+        <H3>Equity Curve vs SPY</H3>
+        <P>La page Performance affiche en temps réel :</P>
+        <Table headers={["Métrique", "Ce qu'elle montre"]}>
+          <TR><TD b>Equity Curve</TD><TD>Graphique du capital jour par jour — barres vertes (gain) / rouges (perte)</TD></TR>
+          <TR><TD b>Return vs SPY</TD><TD>Votre rendement comparé au S&P 500 sur la même période</TD></TR>
+          <TR><TD b>Alpha</TD><TD>La surperformance : Return - SPY. Positif = vous battez le marché</TD></TR>
+          <TR><TD b>Max Drawdown</TD><TD>La pire perte depuis le pic — mesure le risque réel</TD></TR>
+        </Table>
+
+        <H3>Apprentissage Autonome</H3>
+        <P>Le système <B>apprend de chaque trade fermé</B> via 3 mécanismes :</P>
+        <Table headers={["Mécanisme", "Ce qu'il fait", "Fréquence"]}>
+          <TR><TD b>Poids adaptatifs</TD><TD>Les 11 critères du scanner voient leur poids ajustés selon leur pouvoir prédictif réel (+30% max / -30% min)</TD><TD>Après chaque trade</TD></TR>
+          <TR><TD b>Matrice live</TD><TD>La meilleure stratégie par actif est recalculée avec les résultats réels, pas juste les backtests</TD><TD>Après chaque trade</TD></TR>
+          <TR><TD b>XGBoost retrain</TD><TD>Le modèle ML se ré-entraîne automatiquement avec les nouveaux trades</TD><TD>Hebdomadaire ou tous les 50 trades</TD></TR>
+        </Table>
+        <Callout>Plus le système trade, plus il devient précis. Après 20-30 trades fermés, les poids adaptatifs commencent à diverger des poids initiaux — le système a trouvé ce qui marche pour votre style.</Callout>
+
         <H3>Feedback Loop</H3>
         <P>Le Module 6 renvoie des informations au Module 1 pour s'améliorer :</P>
         <ul className="list-disc pl-5 space-y-1 text-sm text-text-secondary">
-          <li>Scanner sélectionne mal → réduire son poids</li>
+          <li>Scanner sélectionne mal → réduire son poids automatiquement</li>
           <li>Timing mauvais → raccourcir la shelf life</li>
-          <li>Système CRITIQUE → pause automatique</li>
+          <li>Système CRITIQUE → pause automatique via Reversal Guard</li>
+          <li>Trade épuisé → fermeture automatique et remplacement par le meilleur signal en queue</li>
         </ul>
-        <Callout>C'est ce qui fait que le système apprend de ses erreurs.</Callout>
+        <Callout>Le système forme une boucle fermée : il trade, mesure ses résultats, ajuste ses paramètres, et re-trade avec les nouveaux paramètres.</Callout>
+
+        <H3>Calibrage Automatique (Scoring V2)</H3>
+        <P>Le calibrateur ajuste les poids du scoring en se basant sur les <B>top movers réels</B> du marché :</P>
+        <Table headers={["Étape", "Ce qui se passe"]}>
+          <TR><TD b>1. Mesure</TD><TD>Chaque nuit, identifie les top 20 movers (&gt; 2% de variation)</TD></TR>
+          <TR><TD b>2. Évalue</TD><TD>Combien étaient en signal GO ? = taux de détection</TD></TR>
+          <TR><TD b>3. Ajuste</TD><TD>Si détection &lt; 30% → augmente conviction + scanner, réduit bayésien</TD></TR>
+          <TR><TD b>4. Apprend</TD><TD>Les poids convergent vers l'optimal après 2-3 semaines</TD></TR>
+        </Table>
+        <P>Visible dans la page Performance → section <B>Calibrage Automatique</B> avec graphique historique, poids actuels, et taux de détection jour par jour.</P>
 
         <H3>Benchmarks réels</H3>
         <P>Le système compare votre performance à 2 benchmarks :</P>
@@ -658,16 +760,44 @@ const SECTIONS = [
     icon: <ScanSearch size={18} />,
     content: (
       <>
-        <P>La page <B>Analyse Rapide</B> permet d'analyser <B>n'importe quel actif</B> en tapant son nom ou symbole — même s'il n'est pas dans les 218 actifs suivis.</P>
+        <P>La page <B>Analyse Rapide</B> permet d'analyser <B>n'importe quel actif au monde</B> en tapant son nom ou symbole — même s'il n'est pas dans les 218 actifs suivis.</P>
+
+        <H3>Recherche intelligente (autocomplete)</H3>
+        <P>Tapez un <B>nom</B> ou un <B>symbole</B> et des suggestions apparaissent en temps réel :</P>
+        <Table headers={["Vous tapez", "Le système propose"]}>
+          <TR><TD b>BNP</TD><TD>BNP.PA (BNP Paribas) — trouvé en BDD</TD></TR>
+          <TR><TD b>danone</TD><TD>BN.PA (Danone) — trouvé via les alias français</TD></TR>
+          <TR><TD b>hermes</TD><TD>RMS.PA (Hermès) — alias + résultats TradingView</TD></TR>
+          <TR><TD b>nvidia</TD><TD>NVDA (NVIDIA) — trouvé en BDD</TD></TR>
+          <TR><TD b>petrole</TD><TD>CL=F (Crude Oil) — alias français</TD></TR>
+          <TR><TD b>nestle</TD><TD>NESN.SW (Nestlé) — alias européen</TD></TR>
+        </Table>
+        <P>La recherche combine <B>3 sources</B> par ordre de priorité :</P>
+        <Table headers={["Source", "Vitesse", "Couverture"]}>
+          <TR><TD b>1. Base de données</TD><TD>Instantané</TD><TD>218 actifs du pipeline</TD></TR>
+          <TR><TD b>2. Aliases français</TD><TD>Instantané</TD><TD>100+ noms courants (CAC 40, pétrole, or, Bitcoin, tout le DAX/SMI...)</TD></TR>
+          <TR><TD b>3. TradingView</TD><TD>~100ms</TD><TD>Tous les marchés mondiaux (des milliers d'actifs)</TD></TR>
+        </Table>
+        <P>Navigation clavier : <Code>Flèches</Code> haut/bas pour naviguer, <Code>Entrée</Code> pour sélectionner, <Code>Échap</Code> pour fermer.</P>
 
         <H3>Comment ça marche</H3>
         <Table headers={["Étape", "Ce qui se passe"]}>
-          <TR><TD b>1. Recherche</TD><TD>Tapez AAPL, S&P 500, BITCOIN, CAC 40, PLTR, AMC...</TD></TR>
-          <TR><TD b>2. Téléchargement</TD><TD>Yahoo Finance fournit 2 ans de données daily en ~3 secondes</TD></TR>
-          <TR><TD b>3. Prix live</TD><TD>Si l'actif est sur Alpaca (US, ETF, crypto), le prix temps réel remplace la clôture Yahoo</TD></TR>
+          <TR><TD b>1. Recherche</TD><TD>Autocomplete intelligent — tapez un nom ou symbole</TD></TR>
+          <TR><TD b>2. Téléchargement</TD><TD>Yahoo Finance (priorité) ou TradingView (fallback) fournit 2 ans de données daily</TD></TR>
+          <TR><TD b>3. Prix live</TD><TD>Si l'actif est sur Alpaca (US, ETF, crypto), le prix temps réel remplace la clôture</TD></TR>
           <TR><TD b>4. Analyse</TD><TD>20 indicateurs AT + 6 scores + 12 stratégies calculés sur les données fraîches</TD></TR>
-          <TR><TD b>5. Verdict</TD><TD>GO / ATTENTE / PAS DE TRADE avec prix d'entrée, SL, TP</TD></TR>
+          <TR><TD b>5. Score V2</TD><TD>Même scoring que le pipeline (8 sources pondérées) — cohérent avec les signaux GO</TD></TR>
+          <TR><TD b>6. Verdict</TD><TD>GO / ATTENTE / PAS DE TRADE avec prix d'entrée, SL, TP</TD></TR>
         </Table>
+
+        <H3>Double source de données</H3>
+        <P>Si Yahoo Finance échoue (ticker inconnu, rate-limiting...), le système bascule automatiquement sur <B>TradingView</B> via websocket :</P>
+        <Table headers={["Source", "Rôle", "Avantage"]}>
+          <TR><TD b>Yahoo Finance</TD><TD>Source principale</TD><TD>Gratuit, 20+ ans d'historique, fiable</TD></TR>
+          <TR><TD b>TradingView (fallback)</TD><TD>Backup automatique</TD><TD>Tous les marchés mondiaux, jamais en panne</TD></TR>
+          <TR><TD b>Alpaca</TD><TD>Prix live</TD><TD>Temps réel pour US/ETF/Crypto</TD></TR>
+        </Table>
+        <P>Le champ <Code>price_source</Code> dans les résultats indique la source utilisée.</P>
 
         <H3>Ce que vous voyez</H3>
         <P>Tout est <B>cliquable</B> pour voir les définitions et interprétations :</P>
@@ -675,16 +805,11 @@ const SECTIONS = [
           <TR><TD b>6 scores (AT, Génome, IPI...)</TD><TD>Oui</TD><TD>Définition + interprétation dynamique du score pour cet actif</TD></TR>
           <TR><TD b>8 indicateurs (RSI, MACD, SMA...)</TD><TD>Oui</TD><TD>Définition + "RSI à 65 = zone neutre, pas de signal extrême"</TD></TR>
           <TR><TD b>12 stratégies</TD><TD>Oui</TD><TD>Qu'est-ce que c'est ? Quand ça fonctionne ? Comment ça entre ? + Signal avec Entry/SL/TP</TD></TR>
+          <TR><TD b>Score V2</TD><TD>Oui</TD><TD>Détail des 8 composantes avec poids et scores individuels</TD></TR>
         </Table>
 
-        <H3>Prix live vs clôture</H3>
-        <Table headers={["Type d'actif", "Source du prix", "Indicateur visuel"]}>
-          <TR><TD b>Actions US, ETF, Crypto</TD><TD>Alpaca temps réel</TD><TD>Point doré animé "Prix live Alpaca"</TD></TR>
-          <TR><TD b>Actions EU, Forex, Commodities</TD><TD>Dernière clôture Yahoo</TD><TD>Point gris "Dernière clôture Yahoo"</TD></TR>
-        </Table>
-
-        <H3>Noms acceptés</H3>
-        <P>Le système comprend les alias : <Code>S&P 500</Code> → ^GSPC, <Code>BITCOIN</Code> → BTC-USD, <Code>CAC 40</Code> → ^FCHI, <Code>GOLD</Code> → GC=F, <Code>EUR/USD</Code> → EURUSD=X</P>
+        <H3>Historique</H3>
+        <P>Les 20 dernières analyses sont sauvegardées avec le score, la direction et le prix. Cliquez sur un historique pour relancer l'analyse.</P>
       </>
     ),
   },
@@ -773,10 +898,29 @@ const SECTIONS = [
     icon: <Settings size={18} />,
     content: (
       <>
-        <H3>Clés API configurées</H3>
+        <H3>Brokers</H3>
+        <Table headers={["Variable", "Valeur", "Description"]}>
+          <TR><TD b>ALPACA_API_KEY</TD><TD>Configuré</TD><TD>Paper trading US — ordres simulés</TD></TR>
+          <TR><TD b>ALPACA_SECRET_KEY</TD><TD>Configuré</TD><TD>Idem</TD></TR>
+          <TR><TD b>IBKR_ACCOUNT_ID</TD><TD>À configurer</TD><TD>Argent réel — tous les marchés (US, EU, forex, crypto, commodities)</TD></TR>
+          <TR><TD b>IBKR_PORT</TD><TD>7497 (paper) / 7496 (live)</TD><TD>Port de connexion à IB Gateway ou TWS</TD></TR>
+          <TR><TD b>IBKR_HOST</TD><TD>127.0.0.1</TD><TD>Adresse de IB Gateway (local)</TD></TR>
+          <TR><TD b>IBKR_CLIENT_ID</TD><TD>1</TD><TD>ID client pour la connexion API</TD></TR>
+        </Table>
+
+        <H3>Configuration IBKR (argent réel)</H3>
+        <P>Pour activer le trading réel :</P>
+        <Table headers={["Étape", "Action"]}>
+          <TR><TD b>1. Compte</TD><TD>Créer un compte sur interactivebrokers.co.uk (KYC 1-3 jours)</TD></TR>
+          <TR><TD b>2. IB Gateway</TD><TD>Installer IB Gateway sur le Mac (plus léger que TWS)</TD></TR>
+          <TR><TD b>3. Permissions</TD><TD>Activer : US Stocks, EU Stocks, Forex, Crypto, Commodities</TD></TR>
+          <TR><TD b>4. .env</TD><TD>Ajouter IBKR_ACCOUNT_ID=xxx et IBKR_PORT=7496</TD></TR>
+          <TR><TD b>5. Redémarrer</TD><TD>Le système passe automatiquement en mode DUAL (IBKR réel + Alpaca paper)</TD></TR>
+        </Table>
+        <Callout>En mode DUAL, chaque trade est exécuté en réel sur IBKR et en paper sur Alpaca. Vous pouvez comparer les deux dans /admin (onglets séparés). Budget initial recommandé : 200€.</Callout>
+
+        <H3>Clés API supplémentaires</H3>
         <Table headers={["Variable", "Où l'obtenir", "Statut"]}>
-          <TR><TD b>ALPACA_API_KEY</TD><TD>app.alpaca.markets</TD><TD>Configuré — ordres live</TD></TR>
-          <TR><TD b>ALPACA_SECRET_KEY</TD><TD>Idem</TD><TD>Configuré</TD></TR>
           <TR><TD b>FRED_API_KEY</TD><TD>fred.stlouisfed.org (gratuit)</TD><TD>Optionnel — données macro réelles</TD></TR>
           <TR><TD b>REDDIT_CLIENT_ID</TD><TD>reddit.com/prefs/apps (gratuit)</TD><TD>Optionnel — sentiment réel</TD></TR>
           <TR><TD b>REDDIT_CLIENT_SECRET</TD><TD>Idem</TD><TD>Optionnel</TD></TR>
@@ -784,14 +928,54 @@ const SECTIONS = [
         </Table>
         <Callout>Les clés FRED et Reddit sont gratuites et enrichissent fortement le modèle. Sans elles, le système utilise des estimations.</Callout>
 
+        <H3>Hébergement</H3>
+        <Table headers={["Couche", "Service", "Détail"]}>
+          <TR><TD b>Frontend</TD><TD>Vercel (gratuit)</TD><TD>bilok-tradepilot.vercel.app — URL propre, HTTPS, CDN mondial</TD></TR>
+          <TR><TD b>Backend API</TD><TD>Mac local + Cloudflare Tunnel</TD><TD>FastAPI exposé via tunnel sécurisé (HTTPS)</TD></TR>
+          <TR><TD b>Base de données</TD><TD>PostgreSQL local</TD><TD>218 actifs, 1.6M barres, 412K barres 1H</TD></TR>
+          <TR><TD b>Cache</TD><TD>Redis local</TD><TD>Sessions, Celery broker</TD></TR>
+        </Table>
+        <Callout>Le Mac doit rester allumé pour que le backend fonctionne. Si le tunnel redémarre, il faut rebuilder le frontend avec la nouvelle URL API puis redéployer sur Vercel.</Callout>
+
+        <H3>Sources de données</H3>
+        <Table headers={["Source", "Usage", "Coût"]}>
+          <TR><TD b>Yahoo Finance</TD><TD>Données historiques OHLCV (2 ans daily)</TD><TD>Gratuit</TD></TR>
+          <TR><TD b>TradingView</TD><TD>Recherche de symboles (autocomplete) + fallback données historiques</TD><TD>Gratuit</TD></TR>
+          <TR><TD b>Alpaca</TD><TD>Prix live + exécution (paper trading)</TD><TD>Gratuit</TD></TR>
+          <TR><TD b>FRED</TD><TD>Données macro (taux, VIX, chômage, M2)</TD><TD>Gratuit</TD></TR>
+        </Table>
+
         <H3>Architecture du cache</H3>
         <P>Le système utilise un <B>cache disque persistant</B> pour afficher tous les résultats instantanément :</P>
         <Table headers={["Quand", "Ce qui se passe"]}>
-          <TR><TD b>La nuit (Celery Beat)</TD><TD>Recalcule tout : Scanner (218 actifs × 10 critères), Analyseur (régime + stratégies), Scoring (signaux GO), Performance, Portefeuille → sauvegarde sur disque</TD></TR>
+          <TR><TD b>21h30 UTC</TD><TD>MAJ données daily (218 actifs)</TD></TR>
+          <TR><TD b>22h UTC</TD><TD>Pipeline complet automatique : Scanner → Cache Corrélation → Analyseur → Scoring → Exécution → Portefeuille → Performance (~35 min)</TD></TR>
+          <TR><TD b>Toutes les 4h</TD><TD>MAJ données intraday 1H</TD></TR>
           <TR><TD b>La journée</TD><TD>Tous les modules affichent instantanément depuis le cache disque — aucun calcul lourd</TD></TR>
           <TR><TD b>En temps réel</TD><TD>Seuls les calculs légers sont live : Analyse rapide (1 actif), Corrélation, Exécution d'un trade</TD></TR>
         </Table>
+        <P>Le cache de corrélation (218×218 actifs) est calculé <B>une seule fois</B> après le scanner et partagé par tous les modules — ce qui réduit le pipeline de ~2h à ~35 min.</P>
         <P>Les fichiers cache sont dans <Code>data/*_cache.json</Code> et survivent aux redémarrages.</P>
+
+        <H3>Administration</H3>
+        <P>La page <B>/admin</B> donne accès au monitoring complet du système. Elle comprend trois onglets :</P>
+        <Table headers={["Onglet", "Contenu"]}>
+          <TR><TD b>IBKR Live</TD><TD>Argent réel — capital en €, P/L, Win Rate, Profit Factor, positions heatmap, best/worst trade. Badge "ARGENT RÉEL" vert</TD></TR>
+          <TR><TD b>Historique</TD><TD>Tous les trades (ouverts + fermés) avec date/heure, Entry, Exit, SL, TP, P/L, durée, raison de fermeture (TP/SL/Manuel). Filtres par statut (Tous/Ouvertes/Fermées/Gains/Pertes) et par broker (Alpaca/IBKR/Local)</TD></TR>
+          <TR><TD b>Alpaca Paper</TD><TD>Paper trading en $ — mêmes stats mais en simulation</TD></TR>
+          <TR><TD b>Système</TD><TD>Services, Caches, BDD, Positions, Utilisateurs avec gestion admin, Logs</TD></TR>
+        </Table>
+        <Callout>L'onglet IBKR affiche les instructions de configuration tant que le compte n'est pas connecté. L'onglet Historique montre un tableau professionnel avec badges colorés par broker (ALP vert, IBKR bleu, LOC gris).</Callout>
+
+        <H3>Gestion des utilisateurs</H3>
+        <P>La section Utilisateurs dans l'onglet Système permet de :</P>
+        <Table headers={["Action", "Comment"]}>
+          <TR><TD b>Voir les utilisateurs</TD><TD>Liste avec nom, email, date d'inscription et badge Admin</TD></TR>
+          <TR><TD b>Définir un admin</TD><TD>Cliquez sur l'icône bouclier à côté d'un utilisateur — le badge ADMIN doré apparaît</TD></TR>
+          <TR><TD b>Retirer admin</TD><TD>Recliquez sur le bouclier — le statut admin est retiré</TD></TR>
+          <TR><TD b>Supprimer</TD><TD>Icône poubelle (sauf le compte admin@tradepilot.local qui est protégé)</TD></TR>
+        </Table>
+        <Callout>Le compte <Code>admin@tradepilot.local</Code> est automatiquement admin et ne peut pas être supprimé. Les nouveaux comptes sont créés sans droit admin par défaut.</Callout>
 
         <H3>Commandes</H3>
         <div className="bg-surface rounded-xl p-4 font-mono text-xs space-y-2">
@@ -805,23 +989,29 @@ const SECTIONS = [
 
         <H3>Statistiques du système</H3>
         <Table headers={["Métrique", "Valeur"]}>
-          <TR><TD b>Actifs en base</TD><TD>218 (US, EU, Crypto, Forex, Commodities)</TD></TR>
-          <TR><TD b>Barres daily</TD><TD>1 593 395 (depuis 1962 — 64 ans)</TD></TR>
-          <TR><TD b>Barres intraday 1H</TD><TD>412 490</TD></TR>
-          <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques) — Pro gagne 110 vs 68</TD></TR>
-          <TR><TD b>Critères scanner</TD><TD>10 (dont analyse fondamentale + Piotroski)</TD></TR>
+          <TR><TD b>Actifs en base</TD><TD>308 (US, EU, Crypto, Forex, Commodities, ETF thématiques, Moonshots, Défense, Biotech, Quantum)</TD></TR>
+          <TR><TD b>Barres daily</TD><TD>1.8M+ (depuis 1962 — 64 ans)</TD></TR>
+          <TR><TD b>Barres intraday 1H</TD><TD>420K+</TD></TR>
+          <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques)</TD></TR>
+          <TR><TD b>Critères scanner</TD><TD>11 (dont Narrative Momentum — critère unique qui détecte les narratives en propagation)</TD></TR>
           <TR><TD b>Indicateurs AT</TD><TD>20 (7 familles : tendance, momentum, volatilité, volume, structure, divergences, force)</TD></TR>
-          <TR><TD b>Scoring</TD><TD>V2 — 8 sources d'information</TD></TR>
-          <TR><TD b>Exécution</TD><TD>Bracket Orders Alpaca (entry + SL + TP automatiques)</TD></TR>
-          <TR><TD b>Portefeuille</TD><TD>VaR, Risk Budget, DD Control, Rebalancing, Beta</TD></TR>
-          <TR><TD b>Performance</TD><TD>Benchmarks SPY/60-40, Ratios live, Rapport hebdo</TD></TR>
+          <TR><TD b>Scoring</TD><TD>V2 — seuil GO à 65, poids auto-calibrés (Conv 35% + Bay 30% + SQC 20% + Scan 15%), sizing 5-15%</TD></TR>
+          <TR><TD b>Exécution</TD><TD>Multi-Broker : IBKR (réel) + Alpaca (paper) en parallèle, tous marchés</TD></TR>
+          <TR><TD b>Trailing Stop</TD><TD>Dynamique 2×ATR, resserré à 1×ATR si position faible + en profit</TD></TR>
+          <TR><TD b>Essoufflement</TD><TD>5 signaux (Momentum, Volume, Narrative, RSI, P/L) — fermeture auto si épuisé</TD></TR>
+          <TR><TD b>Retournement</TD><TD>Fermeture + réouverture automatique si signal GO inverse</TD></TR>
+          <TR><TD b>Reversal Guard</TD><TD>5 signaux macro (régime, VIX, drawdown, SMA200, sell-off) — protection automatique</TD></TR>
+          <TR><TD b>Portefeuille</TD><TD>VaR, Risk Budget, DD Control, Rebalancing, Beta, Equity Curve vs SPY</TD></TR>
+          <TR><TD b>Performance</TD><TD>Equity curve live, Alpha vs SPY, Benchmarks, Ratios, Rapport hebdo</TD></TR>
+          <TR><TD b>Apprentissage</TD><TD>3 niveaux : poids des 11 critères (accuracy par trade), calibrage scoring V2 (top movers), XGBoost retrain hebdo</TD></TR>
+          <TR><TD b>Top Movers</TD><TD>Dashboard : top 10 hausse/baisse du jour + taux de détection marché global + actifs manqués</TD></TR>
           <TR><TD b>Analyseur</TD><TD>Régime global, Catalyseurs, Sector Rotation, Lead-Lag, Anti-corrélation</TD></TR>
-          <TR><TD b>Tests unitaires</TD><TD>123 (100% pass)</TD></TR>
-          <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP 94%) + XGBoost (15K samples)</TD></TR>
-          <TR><TD b>Pages frontend</TD><TD>16 (Pipeline + Outils + Guide)</TD></TR>
-          <TR><TD b>Cache</TD><TD>Persistant sur disque — affichage instantané, recalculé la nuit</TD></TR>
-          <TR><TD b>Keep-alive</TD><TD>Vérifie et relance les services toutes les 30 secondes</TD></TR>
-          <TR><TD b>Max positions</TD><TD>10 simultanées + file d'attente + remplacement auto</TD></TR>
+          <TR><TD b>Modèles IA</TD><TD>FinBERT (NLP 94%) + XGBoost (auto-retrain) + Narrative Momentum</TD></TR>
+          <TR><TD b>Admin</TD><TD>4 onglets : IBKR Live, Historique des trades, Alpaca Paper, Système</TD></TR>
+          <TR><TD b>Cache</TD><TD>Persistant sur disque + cache corrélation centralisé (304×304 en 2.3s)</TD></TR>
+          <TR><TD b>Keep-alive</TD><TD>Backend + Frontend + Celery Worker + Celery Beat + Tunnel</TD></TR>
+          <TR><TD b>Max positions</TD><TD>15 simultanées + file d'attente + remplacement auto + positions SHORT</TD></TR>
+          <TR><TD b>TP/SL Monitor</TD><TD>Toutes les 5 min : trailing stop, TP, SL, essoufflement, signal inverse, queue</TD></TR>
         </Table>
 
         <Callout>Bilok-TradePilot est un outil d'aide à la décision, pas un conseil financier. Ne tradez jamais avec de l'argent que vous ne pouvez pas perdre. Commencez toujours par le paper trading.</Callout>

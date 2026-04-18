@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, TrendingUp, TrendingDown, Shield, Zap } from "lucide-react";
-import axios from "axios";
+import api from "../services/api";
 import InfoCard from "../components/ui/InfoCard";
 
 const SUGGESTIONS = [
@@ -33,8 +33,8 @@ export default function Correlation() {
     setImpactData(null);
 
     Promise.all([
-      axios.get(`/api/scanner/correlation-map?q=${encodeURIComponent(s)}&lookback=120`),
-      axios.get(`/api/scanner/impact-simulation?q=${encodeURIComponent(s)}&move_pct=${movePct}`),
+      api.get(`/scanner/correlation-map?q=${encodeURIComponent(s)}&lookback=120`),
+      api.get(`/scanner/impact-simulation?q=${encodeURIComponent(s)}&move_pct=${movePct}`),
     ])
       .then(([corrRes, impactRes]) => {
         if (corrRes.data.error) setError(corrRes.data.error);
@@ -48,8 +48,8 @@ export default function Correlation() {
   return (
     <div className="max-w-5xl mx-auto">
       <h2 className="text-2xl font-bold mb-2">Corrélation rapide</h2>
-      <p className="text-text-secondary text-sm mb-6">
-        Tapez un actif pour voir tous les actifs qui bougent avec ou contre lui. Simulez l'impact d'un choc.
+      <p className="text-text-secondary text-sm mb-6 max-w-3xl">
+        Matrice de corrélation multi-temporelle — analyse les co-mouvements entre actifs sur 5 horizons (jour, semaine, mois, trimestre, année). Détecte les ruptures de corrélation et les décrochages sectoriels qui signalent des opportunités de trading.
       </p>
 
       {/* Recherche */}

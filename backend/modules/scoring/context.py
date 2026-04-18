@@ -83,14 +83,16 @@ def compute_volatility_context(high: pd.Series, low: pd.Series,
         return 50.0
 
     # Range intraday normalisé (high-low) / close
-    intraday_range = ((high - low) / close).iloc[-20:]
+    # Guard: replace close==0 with NaN to avoid division by zero, then drop NaN
+    safe_close = close.replace(0, np.nan)
+    intraday_range = ((high - low) / safe_close).iloc[-20:]
     avg_range = intraday_range.mean()
     current_range = intraday_range.iloc[-1]
 
-    if avg_range == 0:
+    if np.isnan(avg_range) or avg_range == 0 or np.isnan(current_range):
         return 50.0
 
-    ratio = current_range / avg_range
+    ratio = np.clip(current_range / avg_range, 0, 10)
 
     if ratio > 2.5:
         return 20.0  # Volatilité extrême — danger
@@ -153,6 +155,7 @@ def estimate_shelf_life(strategy: str, regime: str,
         "RANGE": 1.0,
         "CRISIS": 0.5,       # Tout va vite en crise
         "TRANSITION": 0.7,   # Instable
+        "UNKNOWN": 0.7,      # Conservateur en régime inconnu
     }
 
     hours = base_hours.get(strategy, 24)

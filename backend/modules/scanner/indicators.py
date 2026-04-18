@@ -498,3 +498,161 @@ def compute_technical_score(close: pd.Series, high: pd.Series,
     )
 
     return round(max(0, min(100, score)), 2)
+
+
+def compute_technical_breakdown(close: pd.Series, high: pd.Series,
+                                 low: pd.Series, volume: pd.Series) -> dict:
+    """Retourne le détail complet de l'analyse technique avec tous les sous-scores."""
+    last = close.iloc[-1]
+
+    # Tendance
+    sma_20 = sma(close, 20).iloc[-1]
+    sma_50 = sma(close, 50).iloc[-1]
+    sma_200 = sma(close, 200).iloc[-1] if len(close) >= 200 else float("nan")
+    trend_score = 50.0
+    trend_signal = "Neutre"
+    if not np.isnan(sma_200):
+        if last > sma_20 > sma_50 > sma_200:
+            trend_score, trend_signal = 90.0, "Haussier fort (prix > SMA20 > SMA50 > SMA200)"
+        elif last > sma_50 > sma_200:
+            trend_score, trend_signal = 70.0, "Haussier (prix > SMA50 > SMA200)"
+        elif last < sma_20 < sma_50 < sma_200:
+            trend_score, trend_signal = 10.0, "Baissier fort (prix < SMA20 < SMA50 < SMA200)"
+        elif last < sma_50 < sma_200:
+            trend_score, trend_signal = 30.0, "Baissier (prix < SMA50 < SMA200)"
+
+    # Momentum
+    rsi_val = rsi(close).iloc[-1]
+    macd_data_val = macd(close)
+    macd_hist = macd_data_val["histogram"].iloc[-1]
+    williams_val = williams_r(high, low, close).iloc[-1] if len(close) >= 14 else -50
+    cci_val_r = cci(high, low, close).iloc[-1] if len(close) >= 20 else 0
+    roc_val = roc(close).iloc[-1] if len(close) >= 12 else 0
+
+    momentum_signals = 0
+    if not np.isnan(rsi_val):
+        momentum_signals += 1 if rsi_val > 60 else (-1 if rsi_val < 40 else 0)
+    if not np.isnan(macd_hist):
+        momentum_signals += 1 if macd_hist > 0 else -1
+    if not np.isnan(williams_val):
+        momentum_signals += 1 if williams_val > -20 else (-1 if williams_val < -80 else 0)
+    if not np.isnan(cci_val_r):
+        momentum_signals += 1 if cci_val_r > 100 else (-1 if cci_val_r < -100 else 0)
+    if not np.isnan(roc_val):
+        momentum_signals += 1 if roc_val > 5 else (-1 if roc_val < -5 else 0)
+    momentum_score = max(0, min(100, 50 + momentum_signals * 10))
+
+    # Volatilité
+    bb = bollinger_bands(close)
+    bb_upper = bb["upper"].iloc[-1]
+    bb_lower = bb["lower"].iloc[-1]
+    bb_position = 0.5
+    vol_score = 50.0
+    if not np.isnan(bb_upper) and not np.isnan(bb_lower) and bb_upper != bb_lower:
+        bb_position = (last - bb_lower) / (bb_upper - bb_lower)
+        vol_score = max(0, min(100, bb_position * 100))
+    atr_val = atr(high, low, close).iloc[-1] if len(close) >= 14 else 0
+    atr_pct = (atr_val / last * 100) if last > 0 else 0
+
+    # Volume
+    obv_series = obv(close, volume)
+    cmf_val = chaikin_money_flow(high, low, close, volume).iloc[-1] if len(close) >= 20 else 0
+    vwap_val = vwap(high, low, close, volume).iloc[-1] if len(close) >= 20 else last
+    vol_sma_val = volume_sma(volume).iloc[-1] if len(volume) >= 20 else volume.iloc[-1]
+    vol_ratio = float(volume.iloc[-1] / vol_sma_val) if vol_sma_val > 0 else 1
+
+    vol_signals = 0
+    if len(obv_series) >= 20:
+        vol_signals += 1 if obv_series.iloc[-1] > obv_series.iloc[-20] else -1
+    if not np.isnan(cmf_val):
+        vol_signals += 1 if cmf_val > 0.1 else (-1 if cmf_val < -0.1 else 0)
+    if not np.isnan(vwap_val) and vwap_val > 0:
+        vol_signals += 1 if last > vwap_val else -1
+    if vol_ratio > 1.5:
+        vol_signals += 1
+    volume_score = max(0, min(100, 50 + vol_signals * 12))
+
+    # Structure
+    structure_score = 50.0
+    pivot_data = {}
+    if len(close) >= 2:
+        pivots = pivot_points(high, low, close)
+        pivot_data = {k: round(float(v), 2) for k, v in pivots.items()}
+        if last > pivots["r1"]:
+            structure_score = 80
+        elif last > pivots["pp"]:
+            structure_score = 65
+        elif last > pivots["s1"]:
+            structure_score = 45
+        elif last > pivots["s2"]:
+            structure_score = 30
+        else:
+            structure_score = 15
+
+    # Divergences
+    div_result = detect_divergences(close)
+    div_score = max(0, min(100, 50 + div_result["score"]))
+
+    # ADX
+    adx_score = 50.0
+    adx_val = 0
+    if len(close) >= 30:
+        adx_val = float(adx(high, low, close).iloc[-1])
+        if not np.isnan(adx_val):
+            adx_score = 90 if adx_val > 40 else 70 if adx_val > 25 else 50 if adx_val > 20 else 30
+
+    final = round(max(0, min(100,
+        trend_score * 0.20 + momentum_score * 0.25 + vol_score * 0.10 +
+        volume_score * 0.20 + structure_score * 0.10 + div_score * 0.10 + adx_score * 0.05
+    )), 2)
+
+    def _safe(v):
+        if isinstance(v, (float, np.floating)):
+            return None if np.isnan(v) else round(float(v), 2)
+        return v
+
+    return {
+        "score": final,
+        "families": [
+            {"name": "Tendance", "score": round(trend_score, 1), "weight": 20, "signal": trend_signal,
+             "indicators": [
+                 {"name": "SMA 20", "value": _safe(sma_20), "signal": "Haussier" if last > sma_20 else "Baissier"},
+                 {"name": "SMA 50", "value": _safe(sma_50), "signal": "Haussier" if last > sma_50 else "Baissier"},
+                 {"name": "SMA 200", "value": _safe(sma_200), "signal": "Haussier" if not np.isnan(sma_200) and last > sma_200 else "Baissier" if not np.isnan(sma_200) else "N/A"},
+             ]},
+            {"name": "Momentum", "score": round(momentum_score, 1), "weight": 25, "signal": f"{momentum_signals} signaux sur 5",
+             "indicators": [
+                 {"name": "RSI (14)", "value": _safe(rsi_val), "signal": "Suracheté" if rsi_val > 70 else "Survendu" if rsi_val < 30 else "Haussier" if rsi_val > 60 else "Baissier" if rsi_val < 40 else "Neutre"},
+                 {"name": "MACD Hist", "value": _safe(macd_hist), "signal": "Haussier" if macd_hist > 0 else "Baissier"},
+                 {"name": "Williams %R", "value": _safe(williams_val), "signal": "Suracheté" if williams_val > -20 else "Survendu" if williams_val < -80 else "Neutre"},
+                 {"name": "CCI", "value": _safe(cci_val_r), "signal": "Fort" if cci_val_r > 100 else "Faible" if cci_val_r < -100 else "Neutre"},
+                 {"name": "ROC (12)", "value": _safe(roc_val), "signal": "Haussier" if roc_val > 5 else "Baissier" if roc_val < -5 else "Neutre"},
+             ]},
+            {"name": "Volatilité", "score": round(vol_score, 1), "weight": 10,
+             "signal": f"BB position {bb_position:.0%}",
+             "indicators": [
+                 {"name": "Bollinger Haut", "value": _safe(bb_upper)},
+                 {"name": "Bollinger Bas", "value": _safe(bb_lower)},
+                 {"name": "ATR (14)", "value": _safe(atr_val), "signal": f"{atr_pct:.1f}% du prix"},
+             ]},
+            {"name": "Volume", "score": round(volume_score, 1), "weight": 20, "signal": f"{vol_signals} signaux sur 4",
+             "indicators": [
+                 {"name": "Volume Ratio", "value": round(vol_ratio, 2), "signal": "Fort" if vol_ratio > 1.5 else "Normal"},
+                 {"name": "CMF", "value": _safe(cmf_val), "signal": "Acheteurs" if cmf_val > 0.1 else "Vendeurs" if cmf_val < -0.1 else "Neutre"},
+                 {"name": "Prix vs VWAP", "value": _safe(vwap_val), "signal": "Au-dessus" if last > vwap_val else "En dessous"},
+                 {"name": "OBV Trend", "signal": "Hausse" if len(obv_series) >= 20 and obv_series.iloc[-1] > obv_series.iloc[-20] else "Baisse"},
+             ]},
+            {"name": "Structure", "score": round(structure_score, 1), "weight": 10,
+             "signal": "Au-dessus R1" if structure_score >= 80 else "Au-dessus Pivot" if structure_score >= 65 else "Sous Pivot",
+             "indicators": [{"name": k.upper(), "value": v} for k, v in pivot_data.items()]},
+            {"name": "Divergences", "score": round(div_score, 1), "weight": 10,
+             "signal": div_result.get("type", "Aucune"),
+             "indicators": [
+                 {"name": "RSI Divergence", "signal": div_result.get("rsi_div", "Aucune")},
+                 {"name": "MACD Divergence", "signal": div_result.get("macd_div", "Aucune")},
+             ]},
+            {"name": "Force Tendance", "score": round(adx_score, 1), "weight": 5,
+             "signal": f"ADX={adx_val:.0f}" + (" Très fort" if adx_val > 40 else " Fort" if adx_val > 25 else " Faible" if adx_val > 20 else " Range"),
+             "indicators": [{"name": "ADX (14)", "value": _safe(adx_val)}]},
+        ],
+    }

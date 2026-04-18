@@ -1,5 +1,12 @@
 """Bilok-TradePilot — FastAPI Entry Point"""
 
+# Fix SSL certificates pour macOS (tvDatafeed, requests, etc.)
+import ssl
+import certifi
+import os
+os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,8 +20,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -36,6 +43,8 @@ from backend.modules.analyser.backtest_router import router as backtest_router
 from backend.tasks.router import router as pipeline_router
 from backend.modules.execution.broker_router import router as broker_router
 from backend.auth_router import router as auth_router
+from backend.admin_router import router as admin_router
+from backend.admin_stats import router as admin_stats_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentification"])
 app.include_router(scanner_router, prefix="/api/scanner", tags=["Scanner"])
@@ -47,3 +56,5 @@ app.include_router(performance_router, prefix="/api/performance", tags=["Perform
 app.include_router(backtest_router, prefix="/api/backtest", tags=["Backtesting"])
 app.include_router(pipeline_router, prefix="/api/pipeline", tags=["Pipeline"])
 app.include_router(broker_router, prefix="/api/broker", tags=["Broker Alpaca"])
+app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+app.include_router(admin_stats_router, prefix="/api/admin", tags=["Admin Stats"])

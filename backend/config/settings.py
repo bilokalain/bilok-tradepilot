@@ -22,10 +22,18 @@ class Settings(BaseSettings):
     BINANCE_SECRET_KEY: str = ""
     POLYGON_API_KEY: str = ""
 
-    # --- Broker ---
+    # --- Broker Alpaca (paper trading) ---
     ALPACA_API_KEY: str = ""
     ALPACA_SECRET_KEY: str = ""
     ALPACA_BASE_URL: str = "https://paper-api.alpaca.markets"
+
+    # --- Broker IBKR (live trading) ---
+    IBKR_HOST: str = "127.0.0.1"
+    IBKR_PORT: int = 7497  # 7497 = paper, 7496 = live
+    IBKR_CLIENT_ID: int = 1
+    IBKR_ACCOUNT_ID: str = ""
+    IBKR_DEFAULT_EQUITY: float = 300.0     # Fallback si lecture compte IBKR échoue
+    IBKR_INITIAL_CAPITAL: float = 300.0   # Capital initial déposé (pour calcul rendement)
 
     # --- Sentiment ---
     REDDIT_CLIENT_ID: str = ""
@@ -37,7 +45,12 @@ class Settings(BaseSettings):
     FRED_API_KEY: str = ""
 
     # --- App ---
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "https://*.vercel.app",
+        "https://bilok-tradepilot.be",
+        "https://*.bilok-tradepilot.be",
+    ]
     LOG_LEVEL: str = "INFO"
     ENVIRONMENT: str = "development"
 

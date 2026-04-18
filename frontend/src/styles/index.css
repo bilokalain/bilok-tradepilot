@@ -5,10 +5,22 @@
 @layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    touch-action: manipulation;
   }
 
   body {
     @apply bg-background text-text-primary;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+
+  button, a, input, select, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Scrollbar personnalisée */

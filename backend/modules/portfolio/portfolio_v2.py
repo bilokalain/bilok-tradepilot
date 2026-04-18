@@ -107,7 +107,10 @@ def _compute_equal_risk_weights(db: Session, positions: list[dict]) -> dict:
 
 def check_drawdown_control(db: Session, max_dd_threshold: float = -15.0,
                             initial_capital: float = 100_000) -> dict:
-    """Vérifie si le drawdown dépasse le seuil et recommande des actions.
+    """Vérifie si le drawdown depuis le pic dépasse le seuil et recommande des actions.
+
+    Le drawdown est calculé par rapport au pic d'equity (high-water mark),
+    PAS par rapport au capital initial.
 
     Niveaux :
     - DD > -5% : NORMAL
@@ -120,7 +123,13 @@ def check_drawdown_control(db: Session, max_dd_threshold: float = -15.0,
     total_pnl = sum(p["pnl"] for p in positions)
 
     equity = initial_capital + total_pnl
-    dd_pct = (equity / initial_capital - 1) * 100 if initial_capital > 0 else 0
+
+    # Peak equity = high-water mark depuis l'historique des positions clôturées
+    peak_equity = _compute_peak_equity(db, initial_capital)
+    # Le pic ne peut pas être inférieur à l'equity actuelle si on vient de le dépasser
+    peak_equity = max(peak_equity, equity)
+
+    dd_pct = (equity - peak_equity) / peak_equity * 100 if peak_equity > 0 else 0
 
     if dd_pct > -5:
         level = "NORMAL"
@@ -145,6 +154,7 @@ def check_drawdown_control(db: Session, max_dd_threshold: float = -15.0,
 
     return {
         "equity": round(equity, 2),
+        "peak_equity": round(peak_equity, 2),
         "drawdown_pct": round(dd_pct, 2),
         "level": level,
         "action": action,
@@ -243,11 +253,14 @@ def compute_var(db: Session, confidence: float = 0.95,
 
     # VaR = percentile des pertes
     var_pct = float(np.percentile(port_ret, (1 - confidence) * 100))
+    # NOTE: sqrt(horizon) scaling = approximation paramétrique VaR (hypothèse gaussienne,
+    # rendements i.i.d.). Sous-estime le risque en queues épaisses / autocorrélation.
     var_usd = var_pct * total_value * np.sqrt(horizon_days)
 
     # Expected Shortfall (CVaR) = moyenne des pertes au-delà du VaR
     losses_beyond = port_ret[port_ret <= var_pct]
     cvar_pct = float(np.mean(losses_beyond)) if len(losses_beyond) > 0 else var_pct
+    # Même approximation paramétrique sqrt(horizon) — voir note ci-dessus
     cvar_usd = cvar_pct * total_value * np.sqrt(horizon_days)
 
     return {
@@ -435,6 +448,33 @@ def compute_portfolio_beta(db: Session) -> dict:
 # ============================================================
 # HELPER
 # ============================================================
+
+def _compute_peak_equity(db: Session, initial_capital: float) -> float:
+    """Calcule le pic d'equity (high-water mark) à partir de l'historique des positions clôturées.
+
+    Parcourt les positions fermées chronologiquement et reconstitue la courbe d'equity
+    pour trouver le point le plus haut atteint.
+    """
+    closed = (
+        db.query(Position)
+        .filter_by(status=PositionStatus.CLOSED)
+        .order_by(Position.closed_at.asc())
+        .all()
+    )
+
+    if not closed:
+        return initial_capital
+
+    # Reconstituer l'equity cumulée après chaque trade clôturé
+    equity = initial_capital
+    peak = initial_capital
+    for p in closed:
+        if p.pnl is not None:
+            equity += float(p.pnl)
+        peak = max(peak, equity)
+
+    return peak
+
 
 def _load_positions(db: Session) -> list[dict]:
     """Charge les positions ouvertes avec données de marché."""

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 
 interface Props {
   onLogin: (token: string, user: { email: string; name: string }) => void;
@@ -19,12 +19,12 @@ export default function Login({ onLogin }: Props) {
     setLoading(true);
 
     try {
-      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+      const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
       const payload = mode === "login"
         ? { email, password }
         : { email, password, name };
 
-      const res = await axios.post(endpoint, payload);
+      const res = await api.post(endpoint, payload);
       const { access_token, user } = res.data;
       localStorage.setItem("tradepilot_token", access_token);
       onLogin(access_token, user);

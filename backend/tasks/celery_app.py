@@ -22,4 +22,4 @@ celery_app.conf.update(
 )
 
 # Auto-découverte des tasks
-celery_app.autodiscover_tasks(["backend.tasks"])
+celery_app.autodiscover_tasks(["backend.tasks"], related_name="pipeline")

@@ -16,6 +16,8 @@ import Analyse from "./pages/Analyse";
 import Correlation from "./pages/Correlation";
 import Theses from "./pages/Theses";
 import Guide from "./pages/Guide";
+import Livres from "./pages/Livres";
+import Admin from "./pages/Admin";
 
 function App() {
   const [token, setToken] = useState<string | null>(
@@ -55,6 +57,8 @@ function App() {
         <Route path="/performance" element={<Performance />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/guide" element={<Guide />} />
+        <Route path="/livres" element={<Livres />} />
+        <Route path="/admin" element={<Admin />} />
       </Route>
     </Routes>
   );

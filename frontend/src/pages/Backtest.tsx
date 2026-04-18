@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { FlaskConical, TrendingUp, GitBranch, Lightbulb, BarChart3 } from "lucide-react";
-import axios from "axios";
+import api, { scannerApi } from "../services/api";
 import EquityCurve from "../components/EquityCurve";
 import InfoCard from "../components/ui/InfoCard";
-import { scannerApi } from "../services/api";
 
 const ALL_STRATEGIES: Record<string, string> = {
   trend_following: "Trend Following",
@@ -33,8 +32,8 @@ export default function Backtest() {
   return (
     <div className="max-w-6xl mx-auto">
       <h2 className="text-2xl font-bold mb-2">Backtesting</h2>
-      <p className="text-text-secondary text-sm mb-6">
-        5 modules de backtest pour valider chaque dimension du modèle sur l'historique
+      <p className="text-text-secondary text-sm mb-6 max-w-3xl">
+        Validation historique des stratégies — walk-forward testing sur 10 ans avec fenêtre glissante, simulation Monte Carlo (10 000 runs), et métriques professionnelles (Sharpe, Sortino, Calmar, Profit Factor). Intègre les frais de transaction et le slippage pour des résultats réalistes.
       </p>
 
       {/* Onglets */}
@@ -85,7 +84,7 @@ function StrategiesBacktest() {
 
   const runBacktest = () => {
     setLoading(true);
-    axios.get(`/api/backtest/compare/${selectedSymbol}`)
+    api.get(`/backtest/compare/${selectedSymbol}`)
       .then((res) => {
         setResults(res.data.strategies || []);
         if (res.data.strategies?.length > 0) setSelected(res.data.strategies[0]);
@@ -166,7 +165,7 @@ function CorrelationBacktest() {
 
   const runBacktest = (a?: string, b?: string) => {
     setLoading(true);
-    axios.get(`/api/scanner/correlation-backtest?a=${encodeURIComponent(a || symbolA)}&b=${encodeURIComponent(b || symbolB)}`)
+    api.get(`/scanner/correlation-backtest?a=${encodeURIComponent(a || symbolA)}&b=${encodeURIComponent(b || symbolB)}`)
       .then((res) => setResult(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -252,7 +251,7 @@ function WalkForwardBacktest() {
 
   const run = () => {
     setLoading(true);
-    axios.get(`/api/backtest/walk-forward/${symbol}?strategy=${strategy}`)
+    api.get(`/backtest/walk-forward/${symbol}?strategy=${strategy}`)
       .then((res) => setResult(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -322,7 +321,7 @@ function ThesisBacktest() {
 
   const run = () => {
     setLoading(true);
-    axios.get(`/api/scanner/impact-simulation?q=${encodeURIComponent(theme)}&move_pct=${movePct}`)
+    api.get(`/scanner/impact-simulation?q=${encodeURIComponent(theme)}&move_pct=${movePct}`)
       .then((res) => setResult(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -395,7 +394,7 @@ function DeepAnalysis() {
 
   useEffect(() => {
     // Charger le fichier d'analyse profonde s'il existe
-    axios.get("/api/performance/report-v2")
+    api.get("/performance/report-v2")
       .then((res) => setResult(res.data))
       .catch(() => {});
   }, []);

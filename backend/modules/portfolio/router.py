@@ -119,3 +119,17 @@ def get_portfolio_dashboard(db: Session = Depends(get_sync_db)):
             "rebalancing": rebal,
         },
     }
+
+
+@router.get("/reversal")
+def check_reversal(db: Session = Depends(get_sync_db)):
+    """Vérifie les signaux de retournement de marché."""
+    from backend.modules.portfolio.reversal_guard import check_reversal_signals
+    return check_reversal_signals(db)
+
+
+@router.post("/reversal/protect")
+def execute_protection(db: Session = Depends(get_sync_db)):
+    """Exécute les actions de protection (réduction ou clôture des positions)."""
+    from backend.modules.portfolio.reversal_guard import auto_protect
+    return auto_protect(db)
