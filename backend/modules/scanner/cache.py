@@ -54,6 +54,11 @@ _load_from_disk()
 def get_cached_results() -> list[dict]:
     if not _cache["scan_results"]:
         _load_from_disk()
+    # Recharger si le fichier disque est plus récent que le cache mémoire
+    elif CACHE_FILE.exists():
+        disk_mtime = CACHE_FILE.stat().st_mtime
+        if disk_mtime > _cache["last_updated"]:
+            _load_from_disk()
     return _cache["scan_results"]
 
 
