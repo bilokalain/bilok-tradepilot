@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import ProfileModal from "./components/ProfileModal";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Scanner from "./pages/Scanner";
@@ -24,6 +25,14 @@ function App() {
     localStorage.getItem("tradepilot_token")
   );
   const [user, setUser] = useState<{ email: string; name: string } | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+
+  // Écouter l'événement "open-profile" du Layout
+  useEffect(() => {
+    const handler = () => setShowProfile(true);
+    window.addEventListener("open-profile", handler);
+    return () => window.removeEventListener("open-profile", handler);
+  }, []);
 
   const handleLogin = (t: string, u: { email: string; name: string }) => {
     setToken(t);
@@ -41,6 +50,14 @@ function App() {
   }
 
   return (
+    <>
+    {showProfile && (
+      <ProfileModal
+        user={user}
+        onClose={() => setShowProfile(false)}
+        onProfileUpdate={(u) => setUser(u)}
+      />
+    )}
     <Routes>
       <Route element={<Layout onLogout={handleLogout} user={user} />}>
         <Route path="/" element={<Dashboard />} />
@@ -61,6 +78,7 @@ function App() {
         <Route path="/admin" element={<Admin />} />
       </Route>
     </Routes>
+    </>
   );
 }
 

@@ -100,8 +100,25 @@ export default function Layout({ onLogout, user }: LayoutProps) {
           ))}
         </nav>
 
-        {/* Footer */}
+        {/* Footer — Profil + Déconnexion */}
         <div className="p-4 border-t border-border space-y-2">
+          {user && (
+            <button
+              onClick={() => {
+                const event = new CustomEvent("open-profile");
+                window.dispatchEvent(event);
+              }}
+              className="flex items-center gap-2 w-full px-1 py-1 rounded hover:bg-surface transition-colors"
+            >
+              <div className="w-7 h-7 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold">
+                {(user.name || user.email)[0].toUpperCase()}
+              </div>
+              <div className="text-left flex-1 min-w-0">
+                <p className="text-[11px] font-medium text-text-primary truncate">{user.name || "Utilisateur"}</p>
+                <p className="text-[9px] text-text-secondary truncate">{user.email}</p>
+              </div>
+            </button>
+          )}
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
             <span className="text-[10px] text-text-secondary">Pipeline actif</span>

@@ -32,6 +32,24 @@ class RegisterRequest(BaseModel):
     name: str = ""
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordConfirm(BaseModel):
+    token: str
+    new_password: str
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str = ""
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -128,6 +146,75 @@ def get_all_users() -> list[dict]:
         {"email": u["email"], "name": u.get("name", ""), "is_admin": u.get("is_admin", False), "created_at": u.get("created_at", "")}
         for u in users.values()
     ]
+
+
+def change_password(email: str, current_password: str, new_password: str) -> dict:
+    """Change le mot de passe d'un utilisateur authentifié."""
+    users = _load_users()
+    user = users.get(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    if not verify_password(current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit faire au moins 6 caractères")
+    users[email]["password_hash"] = hash_password(new_password)
+    users[email]["password_changed_at"] = datetime.utcnow().isoformat()
+    _save_users(users)
+    return {"message": "Mot de passe modifié avec succès"}
+
+
+# Stockage temporaire des tokens de reset (en mémoire — suffisant pour un usage local)
+_reset_tokens: dict[str, dict] = {}
+
+RESET_TOKEN_EXPIRE_MINUTES = 30
+
+
+def create_reset_token(email: str) -> Optional[str]:
+    """Crée un token de réinitialisation pour un email existant."""
+    users = _load_users()
+    if email not in users:
+        return None  # Ne pas révéler si l'email existe
+    import secrets
+    token = secrets.token_urlsafe(32)
+    _reset_tokens[token] = {
+        "email": email,
+        "expires": (datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)).isoformat(),
+    }
+    return token
+
+
+def reset_password_with_token(token: str, new_password: str) -> dict:
+    """Réinitialise le mot de passe avec un token valide."""
+    reset_data = _reset_tokens.get(token)
+    if not reset_data:
+        raise HTTPException(status_code=400, detail="Token invalide ou expiré")
+    if datetime.utcnow() > datetime.fromisoformat(reset_data["expires"]):
+        del _reset_tokens[token]
+        raise HTTPException(status_code=400, detail="Token expiré")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit faire au moins 6 caractères")
+
+    email = reset_data["email"]
+    users = _load_users()
+    if email not in users:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+    users[email]["password_hash"] = hash_password(new_password)
+    users[email]["password_changed_at"] = datetime.utcnow().isoformat()
+    _save_users(users)
+    del _reset_tokens[token]
+    return {"message": "Mot de passe réinitialisé avec succès"}
+
+
+def update_profile(email: str, name: str) -> dict:
+    """Met à jour le profil d'un utilisateur."""
+    users = _load_users()
+    if email not in users:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    users[email]["name"] = name
+    _save_users(users)
+    return {"email": email, "name": name, "is_admin": users[email].get("is_admin", False)}
 
 
 def set_user_admin(email: str, is_admin: bool) -> dict:
