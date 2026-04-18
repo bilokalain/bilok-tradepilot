@@ -649,3 +649,116 @@ def ibkr_live_stats(db: Session = Depends(get_sync_db)):
         },
         "positions": sorted(positions_data, key=lambda x: x["pnl"], reverse=True),
     }
+
+
+@router.get("/export/trades-csv")
+def export_trades_csv(db: Session = Depends(get_sync_db)):
+    """Export CSV de l'historique des trades."""
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
+    all_positions = db.query(Position).order_by(Position.opened_at.desc()).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Symbol", "Direction", "Status", "Entry", "Exit", "Qty", "P&L ($)", "P&L (%)", "Opened", "Closed", "Duration", "SL", "TP"])
+
+    for p in all_positions:
+        asset = db.query(Asset).filter_by(id=p.asset_id).first()
+        if not asset:
+            continue
+        entry = float(p.entry_price) if p.entry_price else 0
+        exit_p = float(p.exit_price) if p.exit_price else None
+        qty = float(p.quantity) if p.quantity else 0
+        sl = float(p.stop_loss) if p.stop_loss else None
+        tp = float(p.take_profit) if p.take_profit else None
+        if p.direction.value == "LONG":
+            pnl = ((exit_p or entry) - entry) * qty
+            pnl_pct = (((exit_p or entry) / entry) - 1) * 100 if entry else 0
+        else:
+            pnl = (entry - (exit_p or entry)) * qty
+            pnl_pct = ((entry / (exit_p or entry)) - 1) * 100 if exit_p else 0
+        duration = ""
+        if p.opened_at and p.closed_at:
+            delta = p.closed_at - p.opened_at
+            hours = delta.total_seconds() / 3600
+            duration = f"{delta.days}j {int(hours % 24)}h" if hours >= 24 else f"{hours:.0f}h"
+        writer.writerow([
+            asset.symbol, p.direction.value, p.status.value,
+            round(entry, 2), round(exit_p, 2) if exit_p else "",
+            round(qty, 4), round(pnl, 2), round(pnl_pct, 2),
+            p.opened_at.isoformat() if p.opened_at else "",
+            p.closed_at.isoformat() if p.closed_at else "",
+            duration,
+            round(sl, 2) if sl else "", round(tp, 2) if tp else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=tradepilot_trades.csv"},
+    )
+
+
+@router.get("/export/signals-csv")
+def export_signals_csv():
+    """Export CSV des signaux GO actuels."""
+    import csv
+    import io
+    import json
+    from pathlib import Path
+    from fastapi.responses import StreamingResponse
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Symbol", "Action", "Direction", "Score V2", "Strategy", "Entry", "SL", "TP1", "TP2", "Conviction", "Regime"])
+
+    cache = Path("data/signals_cache.json")
+    if cache.exists():
+        data = json.loads(cache.read_text())
+        for s in data if isinstance(data, list) else data.get("signals", []):
+            writer.writerow([
+                s.get("symbol", ""), s.get("action", ""), s.get("direction", ""),
+                s.get("score_v2", ""), s.get("strategy", ""),
+                s.get("entry", ""), s.get("stop_loss", ""),
+                s.get("take_profit_1", ""), s.get("take_profit_2", ""),
+                s.get("conviction", ""), s.get("regime", ""),
+            ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=tradepilot_signals.csv"},
+    )
+
+
+@router.get("/export/backtest-csv")
+def export_backtest_csv():
+    """Export CSV des résultats du full backtest."""
+    import csv
+    import io
+    import json
+    from pathlib import Path
+    from fastapi.responses import StreamingResponse
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Symbol", "Asset Class", "Best Strategy", "Best Sharpe", "Data Points"])
+
+    bt_file = Path("data/backtest_full_500.json")
+    if bt_file.exists():
+        data = json.loads(bt_file.read_text())
+        for sym, r in sorted(data.get("results", {}).items(), key=lambda x: x[1].get("best_sharpe", 0), reverse=True):
+            writer.writerow([
+                sym, r.get("asset_class", ""), r.get("best_strategy", ""),
+                r.get("best_sharpe", 0), r.get("data_points", 0),
+            ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=tradepilot_backtest.csv"},
+    )

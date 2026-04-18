@@ -58,6 +58,23 @@ def send_notification(subject: str, body: str, html: bool = False):
     except Exception as e:
         logger.warning(f"[EMAIL] Échec envoi : {e}")
 
+    # Essayer Telegram
+    try:
+        from backend.config.settings import settings
+        tg_token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
+        tg_chat = getattr(settings, "TELEGRAM_CHAT_ID", "")
+        if tg_token and tg_chat:
+            import requests
+            text = f"*{subject}*\n\n{body[:3000]}"
+            requests.post(
+                f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                json={"chat_id": tg_chat, "text": text, "parse_mode": "Markdown"},
+                timeout=10,
+            )
+            logger.info(f"[TELEGRAM] Envoyé : {subject}")
+    except Exception as e:
+        logger.warning(f"[TELEGRAM] Échec : {e}")
+
     # Fallback : sauvegarder dans un fichier
     try:
         from pathlib import Path

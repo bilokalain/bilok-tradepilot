@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     # --- FRED ---
     FRED_API_KEY: str = ""
 
+    # --- Telegram ---
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_CHAT_ID: str = ""
+
     # --- App ---
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",

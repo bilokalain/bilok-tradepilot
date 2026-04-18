@@ -14,6 +14,9 @@ const ALL_STRATEGIES: Record<string, string> = {
   keltner_breakout: "Keltner Breakout",
   vwap_reversion: "VWAP Reversion",
   momentum_rotation: "Momentum Rotation",
+  mean_reversion_v2: "Mean Reversion V2",
+  fibonacci: "Fibonacci",
+  ichimoku: "Ichimoku",
 };
 
 type Tab = "strategies" | "correlation" | "walkforward" | "thesis" | "deepanalysis";
@@ -453,6 +456,9 @@ function WalkForwardBacktest() {
 
       {result && !result.error && (
         <div className="space-y-4">
+          {/* Interprétation Walk-Forward */}
+          <WalkForwardInterpretation result={result} symbol={symbol} strategy={strategy} />
+
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <StatBox label="Consistance" value={`${result.summary?.consistency}%`} highlight={result.summary?.consistency > 60} />
             <StatBox label="Rendement moyen" value={`${result.summary?.avg_return}%`} />
@@ -465,15 +471,20 @@ function WalkForwardBacktest() {
             <div>
               <h4 className="text-xs text-text-secondary font-semibold mb-2 uppercase tracking-wider">Résultats par fenêtre</h4>
               <div className="space-y-1">
-                {result.folds.map((f: any) => (
-                  <div key={f.fold} className="flex items-center justify-between bg-surface rounded-lg p-2 text-xs">
-                    <span className="text-text-secondary">Fold {f.fold}</span>
-                    <span className="text-text-secondary w-40 truncate">{f.test_period}</span>
-                    <span className={`font-mono w-16 text-right ${f.total_return >= 0 ? "text-gold" : "text-red-400"}`}>{f.total_return >= 0 ? "+" : ""}{f.total_return}%</span>
-                    <span className="font-mono w-14 text-right">{f.sharpe_ratio}</span>
-                    <span className="font-mono w-14 text-right">{f.win_rate}%</span>
-                  </div>
-                ))}
+                {result.folds.map((f: any) => {
+                  const ret = Number(f.total_return) || 0;
+                  const sh = Number(f.sharpe_ratio) || 0;
+                  return (
+                    <div key={f.fold} className={`flex items-center justify-between rounded-lg p-2 text-xs border ${ret >= 0 ? "bg-emerald-400/5 border-emerald-400/10" : "bg-red-400/5 border-red-400/10"}`}>
+                      <span className="text-text-secondary font-semibold">Fold {f.fold}</span>
+                      <span className="text-text-secondary w-40 truncate">{f.test_period}</span>
+                      <span className={`font-mono w-16 text-right font-bold ${ret >= 0 ? "text-emerald-400" : "text-red-400"}`}>{ret >= 0 ? "+" : ""}{f.total_return}%</span>
+                      <span className={`font-mono w-14 text-right ${sh >= 0.5 ? "text-gold" : ""}`}>{f.sharpe_ratio}</span>
+                      <span className="font-mono w-14 text-right">{f.win_rate}%</span>
+                      <span className="font-mono w-14 text-right text-text-secondary">{f.num_trades}t</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -646,6 +657,83 @@ function StatBox({ label, value, highlight }: { label: string; value: any; highl
     <div className="bg-surface rounded-xl p-3 text-center">
       <p className={`text-xl font-mono font-bold ${highlight ? "text-gold" : ""}`}>{value}</p>
       <p className="text-[10px] text-text-secondary mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+
+// ============================================================
+// Walk-Forward Interpretation
+// ============================================================
+
+function WalkForwardInterpretation({ result, symbol, strategy }: { result: any; symbol: string; strategy: string }) {
+  const consistency = Number(result.summary?.consistency) || 0;
+  const avgSharpe = Number(result.summary?.avg_sharpe) || 0;
+  const avgReturn = Number(result.summary?.avg_return) || 0;
+  const avgWR = Number(result.summary?.avg_win_rate) || 0;
+  const folds = result.folds || [];
+  const nFolds = folds.length;
+  const stratName = ALL_STRATEGIES[strategy] || strategy;
+
+  const profitableFolds = folds.filter((f: any) => Number(f.total_return) > 0).length;
+  const bestFold = folds.length > 0 ? folds.reduce((best: any, f: any) => Number(f.sharpe_ratio) > Number(best.sharpe_ratio) ? f : best, folds[0]) : null;
+  const worstFold = folds.length > 0 ? folds.reduce((worst: any, f: any) => Number(f.sharpe_ratio) < Number(worst.sharpe_ratio) ? f : worst, folds[0]) : null;
+
+  let verdict = "";
+  let verdictColor = "";
+  if (consistency >= 70 && avgSharpe >= 0.5) {
+    verdict = "ROBUSTE";
+    verdictColor = "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+  } else if (consistency >= 50 && avgSharpe >= 0) {
+    verdict = "ACCEPTABLE";
+    verdictColor = "text-gold bg-gold/10 border-gold/20";
+  } else if (consistency >= 30) {
+    verdict = "FRAGILE";
+    verdictColor = "text-yellow-400 bg-yellow-400/10 border-yellow-400/20";
+  } else {
+    verdict = "NON FIABLE";
+    verdictColor = "text-red-400 bg-red-400/10 border-red-400/20";
+  }
+
+  const parts: string[] = [];
+
+  parts.push(`La stratégie ${stratName} a été testée sur ${nFolds} sous-périodes indépendantes de ${symbol}.`);
+  parts.push(`${profitableFolds} sur ${nFolds} fenêtres sont profitables (consistance de ${consistency}%).`);
+
+  if (consistency >= 70) {
+    parts.push(`C'est un excellent résultat — la stratégie fonctionne dans la majorité des conditions de marché, pas seulement sur une période favorable.`);
+  } else if (consistency >= 50) {
+    parts.push(`La stratégie fonctionne dans la moitié des conditions, ce qui est acceptable mais pas exceptionnel. Elle dépend du régime de marché.`);
+  } else if (consistency >= 30) {
+    parts.push(`La stratégie ne fonctionne que dans certaines conditions spécifiques. Le risque d'overfitting est élevé — les bons résultats sur la période complète pourraient ne pas se reproduire.`);
+  } else {
+    parts.push(`La stratégie échoue dans la majorité des sous-périodes. Les résultats du backtest complet sont probablement du sur-ajustement (overfitting) et ne se reproduiront pas en live.`);
+  }
+
+  if (avgSharpe >= 0.5) {
+    parts.push(`Le Sharpe moyen de ${avgSharpe.toFixed(2)} sur les fenêtres out-of-sample confirme un avantage réel.`);
+  } else if (avgSharpe >= 0) {
+    parts.push(`Le Sharpe moyen de ${avgSharpe.toFixed(2)} est faible — l'avantage existe mais il est mince.`);
+  } else {
+    parts.push(`Le Sharpe moyen négatif (${avgSharpe.toFixed(2)}) signifie que la stratégie perd de l'argent en moyenne sur les périodes de test.`);
+  }
+
+  if (bestFold && worstFold) {
+    parts.push(`Meilleure fenêtre : Fold ${bestFold.fold} (${bestFold.test_period}) avec un Sharpe de ${bestFold.sharpe_ratio}. Pire : Fold ${worstFold.fold} avec ${worstFold.sharpe_ratio}.`);
+  }
+
+  return (
+    <div className={`p-4 rounded-xl border ${verdictColor} mb-4`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-semibold">Diagnostic Walk-Forward</span>
+        <span className={`text-xs px-2 py-1 rounded-lg font-bold border ${verdictColor}`}>{verdict}</span>
+      </div>
+      <p className="text-sm text-text-secondary leading-relaxed">{parts.join(" ")}</p>
+      {consistency < 50 && (
+        <p className="text-xs text-yellow-400 mt-2 italic">
+          Recommandation : testez d'autres stratégies sur cet actif, ou réduisez le sizing si vous utilisez celle-ci en production.
+        </p>
+      )}
     </div>
   );
 }

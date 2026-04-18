@@ -41,6 +41,9 @@ STRATEGIES = [
     "keltner_breakout",
     "vwap_reversion",
     "momentum_rotation",
+    "mean_reversion_v2",
+    "fibonacci",
+    "ichimoku",
 ]
 
 STRATEGY_LABELS = {
@@ -99,9 +102,9 @@ def main():
                 logger.info(f"  [{idx+1}/{total}] {asset.symbol:12s} — SKIP ({len(df)} jours, min 250)")
                 continue
 
-            # Limiter à 5 ans (1260 jours) pour un temps de calcul raisonnable
-            if len(df) > 1260:
-                df = df.iloc[-1260:]
+            # Limiter à 10 ans (2520 jours de trading)
+            if len(df) > 2520:
+                df = df.iloc[-2520:]
 
             asset_results = []
             best_sharpe = -999

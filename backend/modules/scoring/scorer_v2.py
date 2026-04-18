@@ -48,7 +48,7 @@ def compute_score_v2(
     scanner_component = min(100, max(0, scanner_score))
     components["scanner"] = {
         "score": round(scanner_component, 1),
-        "weight": 0.25,
+        "weight": 0.22,
         "description": "Qualité intrinsèque (10 critères : AT, sentiment, génome, IPI, fondamentaux...)",
     }
 
@@ -178,7 +178,7 @@ def compute_score_v2(
 
     components["sector_rotation"] = {
         "score": round(sector_component, 1),
-        "weight": 0.08,
+        "weight": 0.06,
         "description": "Vent sectoriel favorable/défavorable selon le cycle économique",
     }
 
@@ -207,7 +207,31 @@ def compute_score_v2(
         }
 
     # ============================================================
-    # 9. Thèses Manuelles (boost/malus)
+    # 9. Multi-Timeframe Analysis (5%)
+    # ============================================================
+    mta_component = 50.0
+    try:
+        from backend.modules.scanner.multi_timeframe import compute_mta_score
+        mta = compute_mta_score(symbol)
+        if mta and isinstance(mta, dict):
+            mta_raw = mta.get("score", 50)
+            alignment = mta.get("alignment", "NEUTRAL")
+            mta_component = min(100, max(0, mta_raw))
+            components["mta"] = {
+                "score": round(mta_component, 1),
+                "weight": 0.05,
+                "alignment": alignment,
+                "daily": mta.get("daily", "NEUTRAL"),
+                "hourly": mta.get("hourly", "NEUTRAL"),
+                "description": f"Timeframes {'alignés' if alignment == 'ALIGNED' else 'divergents'} — daily {mta.get('daily', '?')}, hourly {mta.get('hourly', '?')}",
+            }
+        else:
+            components["mta"] = {"score": 50.0, "weight": 0.05, "description": "Données MTA indisponibles"}
+    except Exception:
+        components["mta"] = {"score": 50.0, "weight": 0.05, "description": "Données MTA indisponibles"}
+
+    # ============================================================
+    # 10. Thèses Manuelles (boost/malus)
     # ============================================================
     try:
         from backend.modules.analyser.manual_thesis import compute_thesis_boost

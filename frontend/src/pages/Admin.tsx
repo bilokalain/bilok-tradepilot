@@ -143,6 +143,22 @@ export default function Admin() {
       {tab === "stats" && stats && <TradingStats stats={stats} />}
       {tab === "system" && <>
 
+      {/* Export CSV */}
+      <div className="bg-card border border-border rounded-xl p-4 mb-6">
+        <h3 className="text-sm font-semibold mb-3">Export de données</h3>
+        <div className="flex flex-wrap gap-2">
+          <a href="/api/admin/export/trades-csv" className="px-3 py-1.5 bg-gold/10 text-gold border border-gold/20 rounded-lg text-xs font-semibold hover:bg-gold/20 transition-colors">
+            Trades CSV
+          </a>
+          <a href="/api/admin/export/signals-csv" className="px-3 py-1.5 bg-gold/10 text-gold border border-gold/20 rounded-lg text-xs font-semibold hover:bg-gold/20 transition-colors">
+            Signaux GO CSV
+          </a>
+          <a href="/api/admin/export/backtest-csv" className="px-3 py-1.5 bg-gold/10 text-gold border border-gold/20 rounded-lg text-xs font-semibold hover:bg-gold/20 transition-colors">
+            Backtest CSV
+          </a>
+        </div>
+      </div>
+
       {/* Services */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         {Object.entries(services).map(([name, svc]) => {
