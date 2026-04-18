@@ -271,15 +271,74 @@ BACKTEST_MATRIX = {
 }
 
 
+# ─── Chargement dynamique depuis le fichier backtest_full_500.json ───
+# Fusionne avec la BACKTEST_MATRIX hardcodée (le fichier prend priorité)
+
+import json
+import logging
+from pathlib import Path
+
+_logger = logging.getLogger("tradepilot.performance_matrix")
+_BACKTEST_FILE = Path("data/backtest_full_500.json")
+_dynamic_matrix: dict = {}
+_dynamic_loaded = False
+
+
+def _load_dynamic_matrix():
+    """Charge les résultats du full backtest depuis le disque."""
+    global _dynamic_matrix, _dynamic_loaded
+    if not _BACKTEST_FILE.exists():
+        _dynamic_loaded = True
+        return
+    try:
+        data = json.loads(_BACKTEST_FILE.read_text())
+        results = data.get("results", {})
+        for symbol, r in results.items():
+            strats = r.get("strategies", [])
+            if not strats:
+                continue
+            all_sharpes = {s["strategy"]: s["sharpe_ratio"] for s in strats}
+            best = r.get("best_strategy")
+            best_sharpe = r.get("best_sharpe", 0)
+            if best:
+                _dynamic_matrix[symbol] = {
+                    "best": best,
+                    "sharpe": best_sharpe,
+                    "all": all_sharpes,
+                }
+        _dynamic_loaded = True
+        _logger.info(f"Matrice backtest chargée : {len(_dynamic_matrix)} actifs depuis {_BACKTEST_FILE}")
+    except Exception as e:
+        _logger.warning(f"Erreur chargement matrice backtest : {e}")
+        _dynamic_loaded = True
+
+
+def _get_entry(symbol: str) -> dict | None:
+    """Récupère l'entrée backtest pour un actif (dynamique > hardcodé)."""
+    global _dynamic_loaded
+    if not _dynamic_loaded:
+        _load_dynamic_matrix()
+    # Priorité au fichier backtest, fallback sur la matrice hardcodée
+    return _dynamic_matrix.get(symbol) or BACKTEST_MATRIX.get(symbol)
+
+
+def reload_matrix():
+    """Force le rechargement de la matrice depuis le disque."""
+    global _dynamic_loaded
+    _dynamic_loaded = False
+    _dynamic_matrix.clear()
+    _load_dynamic_matrix()
+
+
 def get_best_strategy(symbol: str) -> str | None:
     """Retourne la meilleure stratégie backtest pour un actif."""
-    entry = BACKTEST_MATRIX.get(symbol)
+    entry = _get_entry(symbol)
     return entry["best"] if entry else None
 
 
 def get_strategy_sharpe(symbol: str, strategy: str) -> float:
     """Retourne le Sharpe du backtest pour un actif+stratégie."""
-    entry = BACKTEST_MATRIX.get(symbol)
+    entry = _get_entry(symbol)
     if not entry:
         return 0.0
     return entry["all"].get(strategy, 0.0)
@@ -287,7 +346,7 @@ def get_strategy_sharpe(symbol: str, strategy: str) -> float:
 
 def get_profitable_strategies(symbol: str) -> list[str]:
     """Retourne les stratégies avec un Sharpe > 0 pour cet actif."""
-    entry = BACKTEST_MATRIX.get(symbol)
+    entry = _get_entry(symbol)
     if not entry:
         return []
     return [s for s, sharpe in entry["all"].items() if sharpe > 0]
@@ -295,8 +354,20 @@ def get_profitable_strategies(symbol: str) -> list[str]:
 
 def get_strategy_ranking(symbol: str) -> list[dict]:
     """Classement des stratégies pour un actif."""
-    entry = BACKTEST_MATRIX.get(symbol)
+    entry = _get_entry(symbol)
     if not entry:
         return []
     ranking = sorted(entry["all"].items(), key=lambda x: x[1], reverse=True)
     return [{"strategy": s, "sharpe": round(sh, 3)} for s, sh in ranking]
+
+
+def get_matrix_stats() -> dict:
+    """Stats sur la matrice de backtest."""
+    if not _dynamic_loaded:
+        _load_dynamic_matrix()
+    return {
+        "hardcoded_assets": len(BACKTEST_MATRIX),
+        "dynamic_assets": len(_dynamic_matrix),
+        "total_assets": len(set(list(BACKTEST_MATRIX.keys()) + list(_dynamic_matrix.keys()))),
+        "source": str(_BACKTEST_FILE) if _dynamic_matrix else "hardcoded only",
+    }
