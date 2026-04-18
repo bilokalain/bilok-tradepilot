@@ -1113,13 +1113,33 @@ Avec 14 stratégies disponibles, le système doit choisir la meilleure pour chaq
 
 **La matrice de sélection**
 
-Chaque stratégie est évaluée pour chaque actif via un backtest historique. Le résultat est un Sharpe ratio par combinaison stratégie × actif. Par exemple :
+Chaque stratégie est évaluée pour chaque actif via un backtest historique massif. Le système exécute un **full backtest sur les 500 actifs × 12 stratégies = 6 000 backtests**, couvrant jusqu'à 10 ans de données. Le résultat est un Sharpe ratio par combinaison stratégie × actif. Par exemple :
 
-| Actif | Trend | Mean Rev | Breakout | Momentum | Fibonacci | Ichimoku |
-|-------|-------|----------|----------|----------|-----------|----------|
-| AAPL | 1.85 | 0.42 | 1.12 | 1.95 | 1.30 | 0.89 |
-| BTC-USD | 0.92 | 1.45 | 1.78 | 0.88 | 0.65 | 0.72 |
-| EURUSD | 0.45 | 1.65 | 0.55 | 0.38 | 1.20 | 1.10 |
+| Actif | Trend | Mean Rev | Breakout | Momentum | Adaptive | Multi-Sig | Keltner | VWAP | Mom.Rot | Fibonacci | Ichimoku | MR V2 |
+|-------|-------|----------|----------|----------|----------|-----------|---------|------|---------|-----------|----------|-------|
+| AAPL | 0.58 | -0.17 | 0.41 | -0.83 | 0.39 | 0.56 | 0.34 | 0.12 | 0.28 | 0.89 | 0.45 | -0.21 |
+| APP | **1.41** | 0.32 | 0.78 | 0.65 | 1.12 | 0.98 | 0.87 | 0.45 | 0.78 | 1.05 | 0.92 | 0.28 |
+| RNDR-USD | 0.85 | 0.42 | 1.12 | **1.68** | 0.95 | **1.68** | 1.12 | 0.78 | 0.92 | 0.65 | 0.72 | 0.38 |
+
+**La matrice multi-horizon**
+
+Pour valider la robustesse, le système exécute le backtest sur **4 horizons** :
+- **V2 (5 ans)** — régime récent, 447 actifs éligibles
+- **V3 (10 ans)** — 2 cycles complets, 289 actifs
+- **V4 (15 ans)** — inclut la crise de 2008, 218 actifs
+- **V5 (20 ans)** — validation long terme, 188 actifs
+
+Le Sharpe final est une **moyenne pondérée** : 40% V2 + 30% V3 + 20% V4 + 10% V5. Les données récentes comptent davantage (le marché de 2024 ne ressemble pas à celui de 2010), mais la survie aux crises historiques valide la robustesse. Une stratégie avec un Sharpe de 1.2 sur 5 ans ET 0.9 sur 10 ans est **robuste**. Une stratégie avec 1.2 sur 5 ans mais 0.1 sur 10 ans est **fragile** — elle ne fonctionne que dans le régime récent.
+
+Les résultats réels du full backtest V2 (500 actifs × 12 stratégies) montrent que les **stratégies pro surperforment les classiques sur 68% des actifs**. Les plus grands gagnants :
+- **Fibonacci** — la révélation, améliore le Sharpe de +0.7 à +1.4 sur de nombreux actifs (GEV, AXON, INTC, SAP)
+- **Momentum Rotation** — domine sur le forex (USDTRY Sharpe 2.83) et les actions européennes (RR.L Sharpe 1.65)
+- **Ichimoku** — excelle sur les crypto (BNB-USD) et la tech (VRT, SPOT)
+- **Multi-Signal** — le plus fiable (RNDR-USD Sharpe 1.68), réduit les faux signaux de ~60%
+
+**Le chargement dynamique**
+
+La matrice n'est pas hardcodée. Le fichier `backtest_full_500.json` est généré par le script de backtest et chargé automatiquement par le pipeline au démarrage. Quand un nouveau backtest est exécuté, les résultats alimentent immédiatement le Module 2 (sélection de stratégie), le Module 3 (conviction dans le Score V2 = 50 + Sharpe × 20), et le Module 4 (sizing basé sur la confiance backtest).
 
 Le Sharpe de backtest est ensuite ajusté par un **boost de régime**. Si le régime actuel est BULL, les stratégies de tendance reçoivent un bonus (+0.15 pour Trend Following, +0.10 pour Momentum). Si c'est un RANGE, Mean Reversion reçoit +0.20.
 
@@ -1214,22 +1234,31 @@ Dans ce cas, le système passe en mode défensif : fermeture de toutes les posit
 
 Le Module 1 a filtré les actifs. Le Module 2 a identifié le régime et la stratégie. Le Module 3 doit maintenant répondre à la question la plus importante : **faut-il y aller, et avec combien ?**
 
-Le Score V2 est le coeur décisionnel du pipeline. Il fusionne 4 sources d'information en un score unique entre 0 et 100, assorti d'une recommandation : **GO**, **WAIT** ou **NO_TRADE**.
+Le Score V2 est le coeur décisionnel du pipeline. Il fusionne **9 sources d'information** en un score unique entre 0 et 100, assorti d'une recommandation : **GO**, **WAIT** ou **NO_TRADE**.
 
-**Les 4 sources du Score V2 :**
+**Les 9 composantes du Score V2 :**
 
-| Source | Poids par défaut | Ce qu'elle mesure |
-|--------|-----------------|-------------------|
-| **Conviction stratégie** | 35% | La confiance du Module 2 dans sa stratégie sélectionnée |
-| **Score Bayésien** | 30% | La combinaison prior historique + observations actuelles |
-| **Qualité du Contexte (SQC)** | 20% | Les conditions de marché sont-elles favorables à un trade ? |
-| **Score Scanner** | 15% | Le score composite du Module 1 (convergence des 10 critères) |
+| Source | Poids | Ce qu'elle mesure |
+|--------|-------|-------------------|
+| **Score Scanner** | 22% | Convergence des 10 critères du Module 1 |
+| **Conviction stratégie** | 20% | Confiance du Module 2 + Sharpe backtest |
+| **Régime Global** | 10% | Contexte macro (RISK-ON/OFF) ajusté par classe d'actif |
+| **Fondamentaux** | 10% | Santé financière (P/E, ROE, Piotroski) — neutre pour crypto/forex |
+| **Catalyseurs** | 10% | Proximité d'événements (earnings, FOMC, CPI) |
+| **Corrélation Portefeuille** | 10% | Diversification vs concentration du risque |
+| **Rotation Sectorielle** | 6% | Vent sectoriel favorable/défavorable |
+| **Lead-Lag** | 7% | Signal inter-marchés (un leader a bougé, le suiveur va suivre) |
+| **Multi-Timeframe (MTA)** | 5% | Alignement des timeframes daily + hourly |
 
-**Les poids ne sont pas fixes.** Le Scoring Calibrator (Module d'apprentissage) ajuste ces poids quotidiennement en se basant sur le taux de détection des top movers. Si le système rate trop de grands mouvements (taux de détection < 30%), les poids sont modifiés : la conviction et le scanner gagnent du poids, le bayésien en perd. Si le taux est bon (> 50%), les poids sont maintenus. Les ajustements sont progressifs (max ±5% par itération) et les poids sont renormalisés pour totaliser 100%.
+**Les poids ne sont pas fixes.** Le Scoring Calibrator (Module d'apprentissage) ajuste ces poids quotidiennement en se basant sur le taux de détection des top movers. Si le système rate trop de grands mouvements (taux de détection < 30%), les poids sont modifiés. Les ajustements sont progressifs (max ±5% par itération) et les poids sont renormalisés pour totaliser 100%.
+
+L'ajout du **MTA (Multi-Timeframe Analysis)** comme 9ème composante permet au Score V2 de pénaliser les signaux où le daily et le hourly divergent — un signal LONG sur le daily mais BEARISH sur le hourly a un MTA faible, ce qui réduit le score final et augmente la probabilité de WAIT au lieu de GO.
 
 **La formule :**
 
-$$S_{V2} = w_1 \cdot C_{\text{strat}} + w_2 \cdot B_{\text{post}} + w_3 \cdot Q_{\text{ctx}} + w_4 \cdot S_{\text{scan}} \quad \text{avec} \quad \sum_{k=1}^{4} w_k = 1$$
+$$S_{V2} = \sum_{k=1}^{9} w_k \cdot C_k + \Delta_{\text{thèse}} \quad \text{avec} \quad \sum_{k=1}^{9} w_k = 1$$
+
+où $C_k$ est le score de chaque composante (0-100), $w_k$ son poids, et $\Delta_{\text{thèse}}$ le boost/malus des thèses manuelles (additif, non pondéré).
 
 **Les seuils de décision :**
 
