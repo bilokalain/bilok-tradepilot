@@ -423,6 +423,10 @@ const SECTIONS = [
           <TR><TD b>Bear 2022</TD><TD>Baisse prolongée + hausse taux</TD><TD>Actions -25%, Crypto -65%</TD></TR>
           <TR><TD b>Black Swan Crypto</TD><TD>Effondrement type Luna/FTX</TD><TD>Crypto -80%</TD></TR>
           <TR><TD b>Flash Crash</TD><TD>Chute brutale intraday</TD><TD>Actions -10%</TD></TR>
+          <TR><TD b>Choc Pétrolier Iran</TD><TD>Fermeture Ormuz, pétrole +60%</TD><TD>EU -25%, Commodities +45%, Défense +20%</TD></TR>
+          <TR><TD b>Choc de Taux +200bps</TD><TD>Hausse brutale des taux</TD><TD>Tech -25%, Obligations -25%, Banques +10%</TD></TR>
+          <TR><TD b>Effondrement Dollar</TD><TD>DXY -15%, fuite vers actifs réels</TD><TD>Or +35%, Crypto +40%, EU +8%</TD></TR>
+          <TR><TD b>Stagflation</TD><TD>Croissance 0% + inflation 8%</TD><TD>Actions -22%, Or +20%, Uranium +12%</TD></TR>
         </Table>
 
         <H3>Régime du portefeuille</H3>
