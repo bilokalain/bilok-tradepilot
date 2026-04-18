@@ -353,10 +353,11 @@ function AnalyseResult({ data }: { data: any }) {
             <p className="font-semibold text-lg">{STRATEGY_LABELS[best.name] || best.name}</p>
             <p className="text-sm text-text-secondary mt-1">Conviction : {best.conviction}/100</p>
             {best.stop_loss > 0 && (
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div><span className="text-text-secondary">Entry</span><p className="font-mono">${best.entry}</p></div>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
+                <div><span className="text-text-secondary">Entrée</span><p className="font-mono">${best.entry}</p></div>
                 <div><span className="text-text-secondary">SL</span><p className="font-mono text-red-400">${best.stop_loss}</p></div>
-                <div><span className="text-text-secondary">TP</span><p className="font-mono text-gold">${best.take_profit}</p></div>
+                <div><span className="text-text-secondary">TP1</span><p className="font-mono text-gold">${best.take_profit_1 || best.take_profit}</p></div>
+                <div><span className="text-text-secondary">TP2</span><p className="font-mono text-emerald-400">${best.take_profit_2 || "—"}</p></div>
               </div>
             )}
           </div>
@@ -371,6 +372,43 @@ function AnalyseResult({ data }: { data: any }) {
           </div>
         </div>
       </div>
+
+      {/* Sizing Kelly + MTA */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {data.sizing && (
+          <div className="bg-card border border-border rounded-xl p-5">
+            <p className="text-xs text-text-secondary mb-3">Position Sizing (Kelly)</p>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div><span className="text-[10px] text-text-secondary block">R:R</span><p className="font-mono font-semibold">{data.sizing.risk_reward}x</p></div>
+              <div><span className="text-[10px] text-text-secondary block">Win Rate est.</span><p className="font-mono font-semibold">{data.sizing.win_rate_est}%</p></div>
+              <div><span className="text-[10px] text-text-secondary block">E[R]</span><p className={`font-mono font-semibold ${data.sizing.expected_value > 0 ? "text-emerald-400" : "text-red-400"}`}>{data.sizing.expected_value > 0 ? "+" : ""}{data.sizing.expected_value}</p></div>
+              <div><span className="text-[10px] text-text-secondary block">Kelly complet</span><p className="font-mono">{data.sizing.kelly_full}%</p></div>
+              <div><span className="text-[10px] text-text-secondary block">Kelly ¼</span><p className="font-mono text-gold">{data.sizing.kelly_fraction}%</p></div>
+              <div><span className="text-[10px] text-text-secondary block">Position</span><p className="font-mono text-gold">{data.sizing.position_pct}%</p></div>
+            </div>
+          </div>
+        )}
+
+        {data.mta && (
+          <div className="bg-card border border-border rounded-xl p-5">
+            <p className="text-xs text-text-secondary mb-3">Multi-Timeframe Analysis</p>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div><span className="text-[10px] text-text-secondary block">Score MTA</span><p className="font-mono font-semibold">{typeof data.mta.score === "number" ? data.mta.score.toFixed(0) : data.mta.score}/100</p></div>
+              <div><span className="text-[10px] text-text-secondary block">Daily</span><p className={`font-mono font-semibold ${data.mta.daily === "BULLISH" ? "text-emerald-400" : data.mta.daily === "BEARISH" ? "text-red-400" : ""}`}>{data.mta.daily || "—"}</p></div>
+              <div><span className="text-[10px] text-text-secondary block">Hourly</span><p className={`font-mono font-semibold ${data.mta.hourly === "BULLISH" ? "text-emerald-400" : data.mta.hourly === "BEARISH" ? "text-red-400" : ""}`}>{data.mta.hourly || "—"}</p></div>
+            </div>
+            <p className={`mt-2 text-xs font-medium ${data.mta.alignment === "ALIGNED" ? "text-emerald-400" : "text-amber-400"}`}>
+              {data.mta.alignment === "ALIGNED" ? "✓ Timeframes alignés" : "⚠ Divergence entre timeframes"}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Lien vers analyse complète */}
+      <a href={`/asset/${data.symbol}`} className="block bg-card border border-gold/30 rounded-xl p-4 text-center hover:bg-gold/5 transition-colors">
+        <p className="text-gold font-semibold text-sm">Voir l'analyse complète →</p>
+        <p className="text-[10px] text-text-secondary mt-1">Radar 9 critères, breakdowns détaillés, backtest, fondamentaux</p>
+      </a>
 
       {/* Graphique */}
       {data.ohlcv?.length > 0 && (

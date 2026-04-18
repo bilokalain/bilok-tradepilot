@@ -32,7 +32,9 @@ from backend.modules.analyser.strategies_advanced import (
 from backend.modules.scanner.genome import compute_genome_score
 from backend.modules.scanner.institutional import compute_ipi_score
 from backend.modules.scanner.fundamental_velocity import compute_ivf_score
-from backend.modules.scanner.uniqueness import compute_novelty_score, compute_timeframe_neglect, compute_complexity_premium
+from backend.modules.scanner.uniqueness import compute_novelty_score, compute_timeframe_neglect, compute_complexity_premium, compute_sus_score
+from backend.modules.scanner.macro import compute_mts_score
+from backend.modules.scanner.social import compute_sgi_score
 
 
 # Symboles courants et leurs équivalents Yahoo Finance
@@ -323,17 +325,57 @@ def quick_analyse(query: str) -> dict:
         except Exception as e:
             logger.warning(f"[QUICK_ANALYSE] Strategy '{name}' failed for {symbol}: {e}")
 
-    # 6. Scores détaillés
+    # 6. Scores détaillés — les 9 critères complets
     novelty = compute_novelty_score(close) if len(close) >= 252 else 50
     complexity = compute_complexity_premium(close, high, low) if len(close) >= 50 else 50
+    sus_score = compute_sus_score(close, high, low, volume) if len(close) >= 50 else 50
+
+    # MTS (Macro Tailwind)
+    if "-USD" in symbol:
+        asset_class_mts = "CRYPTO"
+    elif "=X" in symbol:
+        asset_class_mts = "FOREX"
+    elif "=F" in symbol:
+        asset_class_mts = "COMMODITY"
+    else:
+        asset_class_mts = "ACTION_US"
+    try:
+        mts_result = compute_mts_score(asset_class_mts)
+        mts_score = mts_result.get("score", 50)
+    except Exception:
+        mts_score = 50
+
+    # SGI (Topologie Sociale) — simplifié sans données Reddit
+    sgi_score = 50  # Neutre par défaut (pas de données sociales en temps réel)
+
+    # Fondamental
+    fundamental_score = 50
+    try:
+        from backend.modules.scanner.fundamental import compute_fundamental_score
+        fund_result = compute_fundamental_score(symbol)
+        fundamental_score = fund_result.get("score", 50)
+    except Exception:
+        pass
+
+    # MTA (Multi-Timeframe Analysis)
+    mta_result = {"score": 50, "alignment": "NEUTRAL", "daily": "NEUTRAL", "hourly": "NEUTRAL"}
+    try:
+        from backend.modules.scanner.multi_timeframe import compute_mta_score
+        mta_result = compute_mta_score(symbol)
+    except Exception:
+        pass
 
     scores = {
         "technical": round(tech_score, 1),
+        "correlation": 50,  # Pas de corrélation en analyse rapide (pas de portefeuille)
+        "sentiment": 50,  # Pas de sentiment en temps réel
         "genome": round(genome["score"], 1),
         "ipi": round(ipi["score"], 1),
         "ivf": round(ivf["score"], 1),
-        "novelty": round(novelty, 1),
-        "complexity": round(complexity, 1),
+        "mts": round(mts_score, 1),
+        "sgi": round(sgi_score, 1),
+        "sus": round(sus_score, 1),
+        "fundamental": round(fundamental_score, 1),
     }
 
     # 7. Score V2 (même méthode que le pipeline)
@@ -382,16 +424,36 @@ def quick_analyse(query: str) -> dict:
             action = "NO_TRADE"
         score_v2_result = {"score_v2": global_score, "action": action, "error": str(e)}
 
-    # SL/TP avec précision adaptée
+    # SL/TP1/TP2 avec précision adaptée
+    tp2_mult = tp_mult * 1.6  # TP2 = 1.6x TP1
     if best_strategy and best_strategy.get("direction") == "LONG":
         sl = round(last_price - sl_mult * atr_val, price_decimals)
         tp = round(last_price + tp_mult * atr_val, price_decimals)
+        tp2 = round(last_price + tp2_mult * atr_val, price_decimals)
     elif best_strategy and best_strategy.get("direction") == "SHORT":
         sl = round(last_price + sl_mult * atr_val, price_decimals)
         tp = round(last_price - tp_mult * atr_val, price_decimals)
+        tp2 = round(last_price - tp2_mult * atr_val, price_decimals)
     else:
         sl = 0
         tp = 0
+        tp2 = 0
+
+    # Sizing Kelly
+    risk_reward = abs(tp - last_price) / abs(last_price - sl) if sl != 0 and sl != last_price else 1.5
+    win_rate_est = min(0.35 + (global_score / 200), 0.70)  # 35%-70% basé sur le score
+    kelly_full = (win_rate_est * risk_reward - (1 - win_rate_est)) / risk_reward if risk_reward > 0 else 0
+    kelly_frac = max(0, kelly_full * 0.25)  # 25% du Kelly
+    expected_value = win_rate_est * risk_reward - (1 - win_rate_est)
+
+    sizing = {
+        "kelly_full": round(kelly_full * 100, 1),
+        "kelly_fraction": round(kelly_frac * 100, 1),
+        "risk_reward": round(risk_reward, 2),
+        "win_rate_est": round(win_rate_est * 100, 1),
+        "expected_value": round(expected_value, 3),
+        "position_pct": round(min(kelly_frac, 0.15) * 100, 1),
+    }
 
     # Performance récente
     perf_1m = round((close.iloc[-1] / close.iloc[-21] - 1) * 100, 2) if len(close) >= 21 else 0
@@ -432,10 +494,13 @@ def quick_analyse(query: str) -> dict:
             "name": best_strategy["strategy"] if best_strategy else None,
             "direction": best_strategy["direction"] if best_strategy else "NEUTRAL",
             "conviction": best_strategy["conviction"] if best_strategy else 0,
-            "entry": round(last_price, 2),
+            "entry": round(last_price, price_decimals),
             "stop_loss": sl,
-            "take_profit": tp,
+            "take_profit_1": tp,
+            "take_profit_2": tp2,
         },
+        "sizing": sizing,
+        "mta": mta_result,
         "all_strategies": strategies_results,
         "indicators": {
             "rsi": round(rsi_val, 1),
