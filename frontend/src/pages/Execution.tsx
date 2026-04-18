@@ -170,30 +170,78 @@ export default function Execution() {
         </div>
       )}
 
-      {/* Statut Broker */}
-      <div className={`mb-6 p-4 rounded-xl border flex items-center justify-between ${
-        brokerStatus?.connected
-          ? "bg-gold/5 border-gold/20"
-          : "bg-red-400/5 border-red-400/20"
-      }`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${brokerStatus?.connected ? "bg-gold animate-pulse" : "bg-red-400"}`} />
-          <div>
-            <p className="text-sm font-semibold">
-              {brokerStatus?.connected ? "Connecté à Alpaca" : "Non connecté"}
-            </p>
-            {brokerStatus?.account && (
-              <p className="text-xs text-text-secondary">
-                Paper Trading — Capital : ${brokerStatus.account.equity?.toLocaleString()} — Buying Power : ${brokerStatus.account.buying_power?.toLocaleString()}
+      {/* Statut Brokers — IBKR en premier (live), puis Alpaca (paper) */}
+      <div className="mb-6 space-y-3">
+        {/* IBKR — Live Trading */}
+        <div className={`p-4 rounded-xl border flex items-center justify-between ${
+          brokerStatus?.ibkr?.status === "connected"
+            ? "bg-blue-500/5 border-blue-500/20"
+            : "bg-surface border-border"
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${
+              brokerStatus?.ibkr?.status === "connected" ? "bg-blue-400 animate-pulse" :
+              brokerStatus?.ibkr?.status === "disconnected" ? "bg-yellow-400" : "bg-zinc-500"
+            }`} />
+            <div>
+              <p className="text-sm font-semibold">
+                {brokerStatus?.ibkr?.status === "connected" ? "Connecté à IBKR" :
+                 brokerStatus?.ibkr?.status === "disconnected" ? "IBKR déconnecté" :
+                 brokerStatus?.ibkr?.status === "error" ? "IBKR erreur" :
+                 "IBKR non configuré"}
               </p>
-            )}
+              {brokerStatus?.ibkr?.status === "connected" && brokerStatus.ibkr.equity && (
+                <p className="text-xs text-text-secondary">
+                  {brokerStatus.ibkr.paper ? "Paper" : "Live"} Trading — Capital : {brokerStatus.ibkr.equity?.toLocaleString()}€
+                </p>
+              )}
+              {brokerStatus?.ibkr?.status === "not_configured" && (
+                <p className="text-xs text-text-secondary">Configurez IBKR_ACCOUNT_ID dans .env pour activer le trading réel</p>
+              )}
+              {brokerStatus?.ibkr?.status === "disconnected" && (
+                <p className="text-xs text-text-secondary">Lancez IB Gateway ou TWS pour vous connecter</p>
+              )}
+            </div>
           </div>
+          <span className={`text-xs px-2 py-1 rounded-lg font-semibold ${
+            brokerStatus?.ibkr?.status === "connected"
+              ? brokerStatus.ibkr.paper ? "bg-blue-400/10 text-blue-400 border border-blue-400/20" : "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20"
+              : "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
+          }`}>
+            {brokerStatus?.ibkr?.status === "connected" ? (brokerStatus.ibkr.paper ? "PAPER" : "LIVE") : "OFF"}
+          </span>
         </div>
-        {brokerStatus?.connected && (
+
+        {/* Alpaca — Paper Trading */}
+        <div className={`p-4 rounded-xl border flex items-center justify-between ${
+          brokerStatus?.alpaca?.status === "connected"
+            ? "bg-gold/5 border-gold/20"
+            : brokerStatus?.connected ? "bg-gold/5 border-gold/20" : "bg-red-400/5 border-red-400/20"
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${
+              (brokerStatus?.alpaca?.status === "connected" || brokerStatus?.connected) ? "bg-gold animate-pulse" : "bg-red-400"
+            }`} />
+            <div>
+              <p className="text-sm font-semibold">
+                {(brokerStatus?.alpaca?.status === "connected" || brokerStatus?.connected) ? "Connecté à Alpaca" : "Alpaca non connecté"}
+              </p>
+              {brokerStatus?.alpaca?.status === "connected" && (
+                <p className="text-xs text-text-secondary">
+                  Paper Trading — Capital : ${Number(brokerStatus.alpaca.equity).toLocaleString()}
+                </p>
+              )}
+              {!brokerStatus?.alpaca && brokerStatus?.account && (
+                <p className="text-xs text-text-secondary">
+                  Paper Trading — Capital : ${brokerStatus.account.equity?.toLocaleString()} — Buying Power : ${brokerStatus.account.buying_power?.toLocaleString()}
+                </p>
+              )}
+            </div>
+          </div>
           <span className="text-xs px-2 py-1 bg-gold/10 text-gold border border-gold/20 rounded-lg font-semibold">
             PAPER
           </span>
-        )}
+        </div>
       </div>
 
       {/* Boutons d'action principaux */}
