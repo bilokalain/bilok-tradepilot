@@ -12,10 +12,8 @@ from pathlib import Path
 sys.path.insert(0, ".")
 
 FILES = {
-    "v2": ("data/backtest_v2_5ans.json", 0.40),
-    "v3": ("data/backtest_v3_10ans.json", 0.30),
-    "v4": ("data/backtest_v4_15ans.json", 0.20),
-    "v5": ("data/backtest_v5_20ans.json", 0.10),
+    "v2": ("data/backtest_v2_5ans.json", 0.60),
+    "v3": ("data/backtest_v3_10ans.json", 0.40),
 }
 
 OUTPUT = Path("data/backtest_full_500.json")

@@ -1123,13 +1123,15 @@ Chaque stratégie est évaluée pour chaque actif via un backtest historique mas
 
 **La matrice multi-horizon**
 
-Pour valider la robustesse, le système exécute le backtest sur **4 horizons** :
-- **V2 (5 ans)** — régime récent, 447 actifs éligibles
-- **V3 (10 ans)** — 2 cycles complets, 289 actifs
-- **V4 (15 ans)** — inclut la crise de 2008, 218 actifs
-- **V5 (20 ans)** — validation long terme, 188 actifs
+Pour valider la robustesse, le système exécute le backtest sur **2 horizons complémentaires** :
+- **V2 (5 ans)** — régime récent, 447 actifs éligibles. Capture le marché actuel : bull IA 2023-2026, bear tech 2022, recovery post-COVID.
+- **V3 (10 ans)** — 2 cycles complets, 289 actifs. Inclut le crash COVID mars 2020, le bear market 2022, et la totalité du bull 2016-2021.
 
-Le Sharpe final est une **moyenne pondérée** : 40% V2 + 30% V3 + 20% V4 + 10% V5. Les données récentes comptent davantage (le marché de 2024 ne ressemble pas à celui de 2010), mais la survie aux crises historiques valide la robustesse. Une stratégie avec un Sharpe de 1.2 sur 5 ans ET 0.9 sur 10 ans est **robuste**. Une stratégie avec 1.2 sur 5 ans mais 0.1 sur 10 ans est **fragile** — elle ne fonctionne que dans le régime récent.
+Le Sharpe final est une **moyenne pondérée** : **60% V2 + 40% V3**. Les données récentes sont majoritaires car le marché de 2025 ne ressemble pas à celui de 2015 — la structure a changé (algo trading, crypto, IA). Mais le V3 valide la survie aux crises : une stratégie qui performe en 5 ans mais s'effondre sur 10 ans est fragile.
+
+Pourquoi pas 15 ou 20 ans ? Parce que seuls 188 actifs sur 500 ont 20 ans d'historique (zéro crypto, peu d'ETF thématiques). Les données pré-2015 sont structurellement différentes — les appliquer aux actifs modernes introduirait plus de bruit que de signal. Le couple V2+V3 offre le meilleur compromis entre pertinence et robustesse.
+
+Une stratégie avec un Sharpe de 1.2 sur 5 ans ET 0.9 sur 10 ans est **robuste**. Une stratégie avec 1.2 sur 5 ans mais 0.1 sur 10 ans est **fragile** — elle ne fonctionne que dans le régime récent.
 
 Les résultats réels du full backtest V2 (500 actifs × 12 stratégies) montrent que les **stratégies pro surperforment les classiques sur 68% des actifs**. Les plus grands gagnants :
 - **Fibonacci** — la révélation, améliore le Sharpe de +0.7 à +1.4 sur de nombreux actifs (GEV, AXON, INTC, SAP)
