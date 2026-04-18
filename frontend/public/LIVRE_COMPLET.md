@@ -2,8 +2,6 @@
 
 ### Architecture d'un Pipeline de Trading Automatisé à 6 Modules avec Feedback Loop
 
----
-
 ## À PROPOS DE L'AUTEUR
 
 **BILOK EVANG Alain**
@@ -37,8 +35,6 @@ Ce livre est le fruit de plusieurs années de recherche, de développement et de
 *Première édition — 2026*
 
 *Bruxelles, Belgique*
-
----
 
 ## DÉDICACES
 
@@ -83,11 +79,7 @@ Ce livre est le fruit de plusieurs années de recherche, de développement et de
 
 *— Alain*
 
----
-
 > *"Les marchés ne récompensent pas l'intelligence. Ils récompensent la discipline."*
-
----
 
 # AVANT-PROPOS
 
@@ -116,27 +108,68 @@ Les marchés financiers sont intrinsèquement incertains. Aucun système, aussi 
 
 Les statistiques sont implacables : entre 70% et 90% des traders particuliers perdent de l'argent sur les marchés financiers. Ce chiffre n'a pratiquement pas changé depuis que les marchés existent. La technologie a évolué — des carnets d'ordres physiques aux algorithmes haute fréquence — mais le taux d'échec des traders retail reste remarquablement stable.
 
+L'étude de Brad Barber et Terrance Odean, *Trading Is Hazardous to Your Wealth* (Journal of Finance, 2000), a analysé 66 465 comptes de courtage entre 1991 et 1996. Leur conclusion : les traders les plus actifs sous-performaient le marché de 6,5% par an en moyenne. Non pas parce qu'ils choisissaient les mauvais actifs, mais parce que les coûts de transaction et les biais de timing érodaient systématiquement leurs rendements.
+
+Plus récemment, une étude de l'Autorité des Marchés Financiers (AMF, 2014) portant sur 14 799 traders français de CFD et forex a montré que **89,4%** des comptes étaient perdants sur quatre ans, avec une perte moyenne de 10 887€ par client. Ce chiffre est cohérent avec les données de l'ESMA (European Securities and Markets Authority), qui a conduit à l'imposition de restrictions sur le levier en Europe en 2018.
+
 Pourquoi ?
 
 La réponse ne se trouve pas dans un manque de connaissance technique. La plupart des traders connaissent les indicateurs, les patterns, les stratégies. Le problème est plus fondamental : le cerveau humain n'est pas câblé pour trader.
 
-La neuroscience a identifié les mécanismes précis :
+### Les fondements neuroscientifiques des biais de trading
 
-**Le Disposition Effect** — nous vendons trop tôt nos gagnants (pour "sécuriser le gain") et gardons trop longtemps nos perdants (en espérant qu'ils remontent). Le cortex préfrontal, siège de la rationalité, est court-circuité par l'amygdale, siège de la peur, dès que de l'argent réel est en jeu.
+La **Prospect Theory** de Daniel Kahneman et Amos Tversky (1979), qui a valu à Kahneman le prix Nobel d'économie en 2002, a démontré que les humains ne traitent pas les gains et les pertes de manière symétrique. La fonction de valeur de Kahneman-Tversky est définie par :
 
-**Le FOMO (Fear Of Missing Out)** — quand un actif monte de 20% sans nous, la douleur de l'opportunité manquée est neurologiquement identique à une perte réelle. Nous entrons alors au pire moment : quand le mouvement est presque terminé.
+$$v(x) = \begin{cases} x^\alpha & \text{si } x \geq 0 \\ -\lambda(-x)^\beta & \text{si } x < 0 \end{cases}$$
 
-**Le Revenge Trading** — après une perte, la tentation de "se refaire" pousse à prendre des positions plus grosses, moins réfléchies. La perte initiale se transforme en spirale.
+avec $\alpha \approx 0.88$, $\beta \approx 0.88$ et $\lambda \approx 2.25$. Ce coefficient $\lambda$ signifie que la douleur d'une perte est environ **2,5 fois plus intense** que le plaisir d'un gain équivalent. Cette asymétrie, appelée **aversion à la perte**, explique pourquoi un trader qui gagne 1 000€ ressent un plaisir modéré, mais un trader qui perd 1 000€ ressent une douleur intense — et prend des décisions irrationnelles pour l'éviter.
 
-**L'Over-Trading** — l'illusion que l'activité égale la productivité. Chaque trade a un coût (commission, spread, slippage). Trop de trades, même médiocrement profitables, mangent le capital par friction.
+Les travaux d'Antonio Damasio (*L'Erreur de Descartes*, 1994) ont montré que la prise de décision financière n'est jamais purement rationnelle. Le cortex préfrontal ventromédian, responsable du raisonnement froid, est systématiquement court-circuité par l'amygdale et le système limbique dès que des enjeux monétaires réels sont en jeu. L'imagerie cérébrale (fMRI) de Brian Knutson à Stanford (2005) a confirmé que les mêmes circuits neuronaux qui s'activent chez un joueur compulsif s'activent chez un trader face à un profit potentiel.
 
-Ces biais ne sont pas des faiblesses de caractère. Ce sont des réponses évolutives parfaitement adaptées à la survie dans la savane — et parfaitement inadaptées aux marchés financiers.
+**Le Disposition Effect** — identifié par Hersh Shefrin et Meir Statman (1985), ce biais conduit les investisseurs à vendre trop tôt leurs positions gagnantes (pour "sécuriser le gain") et à conserver trop longtemps leurs positions perdantes (en espérant un retournement). Odean (1998) a quantifié ce biais : les investisseurs sont 1,5 fois plus susceptibles de vendre un gagnant qu'un perdant. La conséquence est mathématique : on coupe les gains et on laisse courir les pertes — l'exact opposé de ce qu'il faut faire.
+
+**Le FOMO (Fear Of Missing Out)** — quand un actif monte de 20% sans nous, la douleur de l'opportunité manquée est neurologiquement identique à une perte réelle. Les recherches de Camelia Kuhnen et Brian Knutson (*The Neural Basis of Financial Risk-Taking*, Neuron, 2005) ont montré que l'activation du noyau accumbens (le centre de la récompense) précède les prises de risque excessives. Nous entrons alors au pire moment : quand le mouvement est presque terminé.
+
+**Le Revenge Trading** — après une perte, la tentation de "se refaire" pousse à prendre des positions plus grosses, moins réfléchies. Ce comportement est lié à l'**escalation of commitment** (Staw, 1976) et au **sunk cost fallacy**. La perte initiale se transforme en spirale. Les études de Coval et Shumway (2005) sur les traders du CBOT ont montré que les traders qui perdent le matin prennent 12% plus de risque l'après-midi.
+
+**L'Over-Trading** — l'illusion que l'activité égale la productivité. Chaque trade a un coût (commission, spread, slippage). Barber et Odean (2000) ont démontré que les traders les plus actifs (turnover de 258% annuel) sous-performaient les moins actifs de 7,1 points de pourcentage par an. Trop de trades, même médiocrement profitables, mangent le capital par friction.
+
+**L'Overconfidence** — identifiée par Werner De Bondt et Richard Thaler (1995), la surconfiance pousse les traders à surestimer leurs capacités prédictives. Les études montrent que lorsque les traders sont "certains à 90%" d'une direction, ils n'ont raison que 70% du temps. Cette calibration défectueuse conduit au sur-dimensionnement des positions et à l'ignorance des signaux contradictoires.
+
+Ces biais ne sont pas des faiblesses de caractère. Ce sont des réponses évolutives parfaitement adaptées à la survie dans la savane — et parfaitement inadaptées aux marchés financiers. Comme l'a écrit Kahneman : *"Le système 1 [pensée rapide, intuitive] a été conçu pour détecter un prédateur dans les herbes hautes, pas pour évaluer si un ratio P/E de 32 est justifié par une croissance de 28%."*
+
+### L'Hypothèse des Marchés Efficients et ses limites
+
+La théorie financière classique, formalisée par Eugene Fama dans sa **thèse d'efficience des marchés** (1970), postule que les prix reflètent à tout moment toute l'information disponible. Dans un marché parfaitement efficient, aucune stratégie ne peut battre le marché de manière consistante — tout avantage est instantanément arbitré.
+
+Fama distingue trois formes d'efficience :
+- **Faible** : les prix reflètent toute l'information historique (l'analyse technique est inutile)
+- **Semi-forte** : les prix reflètent aussi toute l'information publique (l'analyse fondamentale est inutile)
+- **Forte** : les prix reflètent même l'information privée (le délit d'initié est impossible)
+
+Mais les marchés ne sont pas parfaitement efficients. Robert Shiller (*Irrational Exuberance*, 2000) a documenté les bulles spéculatives récurrentes — des périodes prolongées où les prix s'écartent massivement de la valeur fondamentale. Andrew Lo (MIT) a proposé l'**Adaptive Markets Hypothesis** (2004), une synthèse élégante : les marchés sont *adaptatifs*, pas efficients. L'efficience varie dans le temps — les anomalies apparaissent, sont exploitées, puis disparaissent quand trop de participants les arbitrent.
+
+C'est précisément dans cet espace — entre l'efficience parfaite et l'inefficience exploitable — que Bilok-TradePilot opère. Le système ne prétend pas battre un marché efficient. Il cherche à exploiter les inefficiences temporaires créées par les biais comportementaux des participants humains.
 
 ## La Solution
+
+### Le trading systématique : une brève histoire
+
+L'idée d'automatiser les décisions de trading n'est pas nouvelle. Dès les années 1930, Richard Wyckoff proposait des méthodes mécaniques pour lire les marchés. Dans les années 1960, Edward Thorp — mathématicien du MIT qui avait déjà "battu le dealer" au blackjack — a appliqué la théorie de l'information de Claude Shannon aux marchés financiers, fondant le premier hedge fund quantitatif.
+
+Mais c'est Renaissance Technologies, fondé par le mathématicien James Simons en 1982, qui a démontré de manière spectaculaire la supériorité des systèmes sur les humains. Le Medallion Fund a généré un rendement annualisé de **66% brut** (39% net) entre 1988 et 2018 — une performance qu'aucun trader humain n'a jamais égalée sur une telle durée. Comme l'a documenté Gregory Zuckerman dans *The Man Who Solved the Market* (2019), le secret de Simons n'était pas un algorithme miracle, mais un **système** : collecte de données massive, modèles statistiques rigoureux, exécution disciplinée, et amélioration continue basée sur les erreurs passées.
+
+D'autres pionniers ont pavé la voie : **David Shaw** (D.E. Shaw, fondé en 1988), qui a appliqué le machine learning au trading avant que le terme ne soit populaire. **Cliff Asness** (AQR Capital, 1998), qui a systématisé les stratégies value et momentum. **Ray Dalio** (Bridgewater Associates), dont le "All Weather Portfolio" a formalisé les principes de risk parity dès les années 1990.
+
+Le point commun de ces systèmes performants : ils ne cherchent pas à prédire l'avenir. Ils cherchent à exploiter des **régularités statistiques** — des patterns qui se répètent plus souvent que le hasard ne le prédit — tout en gérant le risque de manière rigoureuse.
+
+### L'approche Bilok-TradePilot
 
 Bilok-TradePilot est né d'une conviction simple : si le problème est humain, la solution doit être systématique.
 
 Le système ne remplace pas l'intelligence du trader. Il remplace ses émotions. La vision, la thèse directionnelle, le choix des marchés — tout cela reste humain. Mais une fois la thèse formulée, le pipeline prend le relais : il filtre, analyse, score, exécute, gère et apprend sans jamais ressentir la peur, l'avidité ou l'impatience.
+
+Cette architecture s'inscrit dans la tradition des **systèmes de trading adaptatifs** décrits par Robert Pardo dans *The Evaluation and Optimization of Trading Strategies* (2008) et par Ernest Chan dans *Quantitative Trading* (2009). La différence fondamentale avec un simple algorithme de trading : le pipeline intègre une **boucle de feedback** qui lui permet d'apprendre de ses propres erreurs, en s'inspirant des principes du *reinforcement learning* et de l'amélioration continue (Kaizen).
 
 L'architecture repose sur 6 modules enchaînés en pipeline, avec une boucle de feedback qui permet au système d'apprendre de ses propres erreurs :
 
@@ -184,6 +217,95 @@ Les 59 chapitres qui suivent décortiquent chaque étape de ce processus.
 
 ---
 
+# REVUE DE LA LITTÉRATURE
+
+Ce livre s'appuie sur un socle de travaux académiques et professionnels accumulés sur plus d'un siècle. Avant d'entrer dans l'architecture du système, il est essentiel de situer Bilok-TradePilot dans le paysage intellectuel qui l'a rendu possible. Cette revue est organisée en six thèmes, chacun correspondant à un pilier du pipeline.
+
+## 1. Finance comportementale et biais cognitifs
+
+La finance comportementale est née de la confrontation entre la théorie des marchés efficients et la réalité des comportements humains. Trois ouvrages fondateurs structurent ce champ :
+
+**Daniel Kahneman** et **Amos Tversky** ont posé les bases avec la *Prospect Theory* (1979), démontrant que les décisions sous incertitude violent systématiquement les axiomes de la rationalité. Leur découverte de l'**aversion à la perte** — la douleur d'une perte est 2,5 fois plus intense que le plaisir d'un gain équivalent — explique le Disposition Effect, le FOMO et le Revenge Trading, trois biais que le Module 4 de Bilok-TradePilot cherche à neutraliser. Kahneman a synthétisé ces travaux dans *Thinking, Fast and Slow* (2011), opposant le Système 1 (intuitif, rapide, sujet aux biais) au Système 2 (analytique, lent, discipliné). Le pipeline est, en essence, un Système 2 artificiel.
+
+**Robert Shiller** (*Irrational Exuberance*, 2000) a documenté les bulles spéculatives comme phénomène récurrent et prévisible, montrant que le ratio CAPE (Cyclically Adjusted Price-to-Earnings) prédit les rendements à 10 ans avec une corrélation significative. Shiller a reçu le prix Nobel en 2013, la même année que Fama — un clin d'oeil du comité Nobel reconnaissant que les marchés sont *à la fois* efficients et irrationnels.
+
+**Richard Thaler** (*Misbehaving*, 2015 ; prix Nobel 2017) a montré comment les biais comportementaux persistent même chez les professionnels. Son concept d'**architecture de choix** — structurer les décisions pour que le choix par défaut soit le meilleur — est exactement ce que fait un système de trading automatisé : le choix par défaut est de suivre le signal, pas l'émotion.
+
+Les travaux empiriques de **Brad Barber et Terrance Odean** (*Trading Is Hazardous to Your Wealth*, 2000 ; *Boys Will Be Boys*, 2001) ont quantifié le coût des biais sur les comptes réels de 66 465 investisseurs, montrant que les traders les plus actifs sous-performent de 6,5% par an. **Hersh Shefrin et Meir Statman** (1985) ont identifié le Disposition Effect, et **Coval et Shumway** (2005) ont documenté le Revenge Trading chez les traders professionnels du CBOT.
+
+## 2. Théorie des marchés et efficience
+
+Le débat entre efficience et anomalies est central pour tout système de trading quantitatif.
+
+**Eugene Fama** (*Efficient Capital Markets*, 1970 ; prix Nobel 2013) a postulé que les prix reflètent toute l'information disponible, rendant toute surperformance systématique impossible. Ses travaux avec **Kenneth French** (*Common Risk Factors in the Returns on Stocks and Bonds*, 1993) ont montré que les rendements s'expliquent par des facteurs systématiques (taille, value, momentum), pas par la sélection de titres. Le modèle à 3 facteurs, étendu à 5 facteurs en 2015, reste le benchmark de l'analyse factorielle.
+
+**Andrew Lo** (*The Adaptive Markets Hypothesis*, 2004 ; *Adaptive Markets*, 2017) a proposé une synthèse élégante : les marchés sont adaptatifs, pas efficients. L'efficience varie dans le temps — les anomalies apparaissent, sont exploitées, puis disparaissent quand trop de participants les arbitrent. Cette vision darwinienne est cohérente avec le Strategy Decay détecté par le Module 2.
+
+**Benoit Mandelbrot** (*The (Mis)Behavior of Markets*, 2004) a remis en question l'hypothèse gaussienne qui sous-tend la plupart des modèles financiers, montrant que les marchés suivent des distributions à queues épaisses (fat tails). Les mouvements extrêmes sont beaucoup plus fréquents que ce que prédit la courbe de Gauss — un constat qui justifie les stress tests du Module 5 et l'approche de gestion du risque de Bilok-TradePilot.
+
+**Nassim Nicholas Taleb** (*Fooled by Randomness*, 2001 ; *The Black Swan*, 2007 ; *Antifragile*, 2012) a popularisé l'idée que les modèles financiers sous-estiment les risques extrêmes. Son concept d'**antifragilité** — un système qui se renforce face au stress plutôt que de se briser — inspire le Meta-Score et le feedback loop du Module 6.
+
+## 3. Trading systématique et quantitatif
+
+L'histoire du trading systématique est celle d'une transition progressive de l'intuition vers les algorithmes.
+
+**Edward Thorp** (*Beat the Dealer*, 1962 ; *Beat the Market*, 1967 ; *A Man for All Markets*, 2017) est le père fondateur. Mathématicien du MIT, il a appliqué la théorie de l'information de Shannon au blackjack puis aux marchés, fondant Princeton/Newport Partners (15,1% annuel, 1969-1988). Thorp a aussi été le premier à utiliser le critère de Kelly pour le dimensionnement des positions en finance.
+
+**James Simons** et **Renaissance Technologies** (documenté par Gregory Zuckerman dans *The Man Who Solved the Market*, 2019) ont démontré que les systèmes quantitatifs peuvent générer des rendements extraordinaires : 66% brut annualisé pour le Medallion Fund (1988-2018). Le secret de Simons : des données massives, des modèles statistiques, une exécution disciplinée, et une amélioration continue basée sur les erreurs — exactement la philosophie de Bilok-TradePilot.
+
+**Richard Dennis** et les **Turtle Traders** (documenté par Michael Covel, *The Complete TurtleTrader*, 2007) ont prouvé en 1983 qu'un système mécanique simple peut être enseigné à des novices et produire des résultats exceptionnels (175 millions de dollars en 4 ans). La leçon : la discipline systématique bat l'intuition humaine.
+
+**Ernest Chan** (*Quantitative Trading*, 2009 ; *Algorithmic Trading*, 2013) et **Marcos López de Prado** (*Advances in Financial Machine Learning*, 2018) fournissent les guides pratiques modernes pour la construction de systèmes de trading quantitatif, couvrant le backtesting, le walk-forward, le machine learning et la détection du strategy decay.
+
+## 4. Gestion du risque et dimensionnement
+
+La gestion du risque est ce qui sépare les systèmes qui survivent de ceux qui explosent.
+
+**Harry Markowitz** (*Portfolio Selection*, Journal of Finance, 1952 ; prix Nobel 1990) a fondé la théorie moderne du portefeuille en montrant que la diversification réduit le risque sans réduire le rendement espéré. Sa **frontière efficiente** reste le cadre de référence, même si ses limites pratiques (sensibilité aux estimations de rendement) ont conduit à des alternatives.
+
+**John Larry Kelly Jr.** (*A New Interpretation of Information Rate*, 1956) a dérivé la fraction optimale du capital à risquer sur chaque pari. Thorp l'a appliquée à la finance, et Ralph Vince (*The Mathematics of Money Management*, 1992) en a exploré les variantes. Bilok-TradePilot utilise un Kelly fractionnaire à 25% — un compromis entre croissance optimale et confort psychologique.
+
+**Fischer Black et Robert Litterman** (*Global Portfolio Optimization*, 1992) ont combiné l'approche bayésienne avec l'équilibre de marché de Markowitz, créant un modèle qui intègre les vues de l'investisseur de manière mathématiquement cohérente. Le Score Bayésien du Module 3 s'inspire de cette logique prior/likelihood/posterior.
+
+**Edward Qian**, **Sébastien Maillard, Thierry Roncalli et Jérôme Teiletche** ont formalisé le **Risk Parity** (2005-2010), l'approche utilisée par Bridgewater Associates et implémentée dans le Module 5 : répartir le risque, pas le capital.
+
+**Philippe Jorion** (*Value at Risk*, 2006) et **Carol Alexander** (*Market Risk Analysis*, 2008) fournissent les cadres de référence pour la mesure et la gestion du risque quantitatif, incluant la VaR, le stress testing et la simulation Monte Carlo.
+
+## 5. Analyse technique et microstructure
+
+L'analyse technique, malgré le scepticisme académique, dispose d'un corpus de recherche solide.
+
+**Charles Dow** (éditoriaux du Wall Street Journal, 1900-1902) a posé les six principes fondamentaux : les moyennes actualisent tout, le marché a trois tendances, les tendances ont trois phases, les volumes confirment la tendance, les indices doivent se confirmer mutuellement, une tendance persiste jusqu'à preuve du contraire.
+
+**J. Welles Wilder Jr.** (*New Concepts in Technical Trading Systems*, 1978) a introduit le RSI, l'ATR, le Parabolic SAR et l'ADX — quatre des indicateurs les plus utilisés au monde et tous intégrés dans le Module 1.
+
+**John Bollinger** (*Bollinger on Bollinger Bands*, 2001) a développé les bandes qui portent son nom, mesurant la volatilité relative et identifiant les conditions de surachat/survente.
+
+**Richard D. Wyckoff** (*The Richard D. Wyckoff Method*, 1931) a identifié les 5 phases du cycle de marché (accumulation, markup, distribution, markdown, capitulation) utilisées dans le Génome Explosif du scanner.
+
+**Narasimhan Jegadeesh et Sheridan Titman** (*Returns to Buying Winners and Selling Losers*, 1993) ont documenté l'anomalie du momentum — l'une des rares anomalies à résister à l'examen académique pendant 30 ans et à travers 40 marchés.
+
+**Albert Kyle** (*Continuous Auctions and Insider Trading*, 1985) a modélisé la microstructure des marchés, montrant comment les traders informés dissimulent leur information dans le flux d'ordres — le fondement théorique du critère IPI (Capital Institutionnel).
+
+## 6. Intelligence artificielle et NLP financier
+
+L'application du machine learning et du NLP aux marchés financiers est le champ le plus récent et le plus dynamique.
+
+**Paul Tetlock** (*Giving Content to Investor Sentiment*, 2007) a été le premier à démontrer rigoureusement que le ton des articles financiers prédit les rendements boursiers. **Tim Loughran et Bill McDonald** (2011) ont développé un dictionnaire de sentiment spécifique à la finance, corrigeant les erreurs des dictionnaires généralistes.
+
+**Dogu Araci** (*FinBERT: Financial Sentiment Analysis with Pre-trained Language Models*, 2019) a fine-tuné le modèle BERT de Google sur un corpus financier, atteignant 97% de précision sur le benchmark Financial PhraseBank. C'est le modèle utilisé par Bilok-TradePilot pour l'analyse de sentiment.
+
+**James Hamilton** (*A New Approach to the Economic Analysis of Nonstationary Time Series*, 1989) a introduit les modèles à changement de régime markoviens, le fondement théorique de la détection probabiliste de régime du Module 2.
+
+**Richard Sutton et Andrew Barto** (*Reinforcement Learning: An Introduction*, 2018) ont formalisé l'apprentissage par renforcement, dont les principes inspirent la boucle de feedback du pipeline.
+
+---
+
+> *Les nains voient plus loin que les géants quand ils montent sur leurs épaules.*
+> — Bernard de Chartres (XIIe siècle), repris par Isaac Newton
+
+---
+
 # PARTIE I — LA VISION
 
 ---
@@ -197,6 +319,10 @@ Les 59 chapitres qui suivent décortiquent chaque étape de ce processus.
 Avant le premier scan, avant le premier indicateur, avant le premier ordre — il y a une idée. Un trader observe le monde et formule une conviction : "Je pense que X va se produire, et cela devrait faire bouger le prix de Y dans la direction Z."
 
 Cette conviction structurée, c'est une **thèse de trading**.
+
+Le concept trouve ses racines dans la philosophie des sciences. Karl Popper, dans *La Logique de la découverte scientifique* (1934), a posé le principe de **falsifiabilité** : une hypothèse n'a de valeur que si elle peut être réfutée par l'observation. Une thèse de trading est exactement cela — une hypothèse falsifiable sur le comportement futur d'un prix. Si les données la contredisent, elle doit être abandonnée, pas rationalisée.
+
+George Soros a formalisé cette approche dans sa **théorie de la réflexivité** (*The Alchemy of Finance*, 1987). Pour Soros, les marchés ne sont pas un miroir passif de la réalité — ils la transforment. Les participants forment des thèses (qu'il appelle "biais"), agissent en conséquence, et leurs actions modifient la réalité même qu'ils essayaient de prédire. Cette boucle de feedback entre perception et réalité est au coeur de sa philosophie d'investissement — et de l'architecture de Bilok-TradePilot.
 
 La distinction entre une thèse et une opinion est fondamentale. Une opinion est vague : "Je pense que la tech va monter." Une thèse est précise, testable et réfutable :
 
@@ -220,11 +346,15 @@ Mais — et c'est crucial — le système a le dernier mot. Si les données cont
 
 ### Chapitre 2 : Construire une thèse solide
 
-Une thèse solide ne naît pas dans le vide. Elle émerge d'une analyse structurée qui part du plus large (la macroéconomie) pour aller au plus précis (l'actif individuel). C'est l'approche **top-down**.
+Une thèse solide ne naît pas dans le vide. Elle émerge d'une analyse structurée qui part du plus large (la macroéconomie) pour aller au plus précis (l'actif individuel). C'est l'approche **top-down**, formalisée pour la première fois par les stratégistes de Wall Street et popularisée par Peter Lynch (*One Up on Wall Street*, 1989).
+
+L'approche opposée — le **bottom-up** — part de l'actif individuel pour remonter vers le macro. Warren Buffett est l'archétype du bottom-up : il cherche d'abord une entreprise exceptionnelle, puis vérifie que l'environnement ne la condamne pas. Les deux approches sont valides. Bilok-TradePilot les combine : le scanner est bottom-up (il évalue chaque actif individuellement), mais les poids du scoring sont ajustés top-down (le contexte macro influence les critères).
 
 **Niveau 1 : Le Macro**
 
 Où en sommes-nous dans le cycle économique ? L'économie est-elle en expansion (les entreprises embauchent, les consommateurs dépensent) ou en contraction (les licenciements augmentent, la confiance baisse) ? Les banques centrales accommodent-elles (taux bas, liquidité abondante) ou resserrent-elles (taux hauts, réduction du bilan) ?
+
+Le **modèle du cycle économique** le plus utilisé est celui du National Bureau of Economic Research (NBER), qui identifie quatre phases : expansion, pic, contraction, creux. Martin Pring (*The All-Season Investor*, 1992) a étendu ce modèle en montrant que chaque phase favorise des classes d'actifs spécifiques, dans un ordre prévisible : les obligations tournent en premier, puis les actions, puis les matières premières.
 
 Ces questions déterminent le terrain de jeu. En expansion avec politique accommodante, les actifs risqués (actions tech, crypto) tendent à surperformer. En contraction avec politique restrictive, les actifs défensifs (obligations, or, utilities) sont favorisés.
 
@@ -232,24 +362,24 @@ Le Module 7 du scanner (Macro Tailwind) quantifie exactement cela.
 
 **Niveau 2 : Le Secteur**
 
-Au sein du cycle macro, tous les secteurs ne réagissent pas de la même manière. Il existe une rotation sectorielle classique :
+Au sein du cycle macro, tous les secteurs ne réagissent pas de la même manière. La **rotation sectorielle**, documentée par Sam Stovall dans *Standard & Poor's Guide to Sector Investing* (1996) et confirmée par les recherches de Tobias Moskowitz et Mark Grinblatt (*Do Industries Explain Momentum?*, Journal of Finance, 1999), suit un pattern récurrent :
 
 - Début de cycle : finance, industrie, consommation cyclique
 - Milieu de cycle : technologie, communication
 - Fin de cycle : énergie, matériaux
 - Récession : santé, utilities, consommation défensive
 
-Identifier le secteur en momentum, c'est nager avec le courant plutôt que contre lui.
+Moskowitz et Grinblatt ont démontré que le momentum sectoriel explique une part significative du momentum individuel des actions. Identifier le secteur en momentum, c'est nager avec le courant plutôt que contre lui.
 
 **Niveau 3 : L'Actif**
 
 Une fois le macro et le secteur identifiés, on sélectionne les actifs spécifiques qui incarnent le mieux la thèse. Les critères varient selon la thèse : leader du secteur ? Meilleure valorisation ? Plus forte croissance ? Plus de momentum ?
 
-C'est ici que les 10 critères du scanner entrent en jeu.
+C'est ici que les 10 critères du scanner entrent en jeu. Cette approche multi-factorielle s'inscrit dans la tradition des **modèles factoriels** initiés par Fama et French (*Common Risk Factors in the Returns on Stocks and Bonds*, 1993), qui ont montré que les rendements des actions s'expliquent par des facteurs systématiques : taille (small vs large cap), value (P/B faible vs élevé), et momentum. Le modèle a été étendu à 5 facteurs en 2015 (ajout de la profitabilité et de l'investissement), confirmant que la multi-dimensionnalité est essentielle pour capturer les sources de rendement.
 
 **Les Catalyseurs**
 
-Une thèse sans catalyseur est une idée qui peut rester dormante indéfiniment. Le catalyseur est l'événement qui transforme la thèse en mouvement de prix :
+Une thèse sans catalyseur est une idée qui peut rester dormante indéfiniment. Le catalyseur est l'événement qui transforme la thèse en mouvement de prix. Aswath Damodaran (NYU Stern), surnommé le "Dean of Valuation", insiste sur cette distinction : *"La valeur sans catalyseur, c'est un piège à valeur. Le catalyseur est ce qui ferme l'écart entre le prix et la valeur."*
 
 - **Earnings** — les résultats trimestriels confirment ou infirment la trajectoire
 - **Annonces Fed** — un changement de politique monétaire reprend tout
@@ -326,6 +456,10 @@ La force du scanner est dans la **convergence**. Quand les 10 critères s'aligne
 
 Les 10 critères sont conçus pour être **orthogonaux** — c'est-à-dire indépendants les uns des autres. L'analyse technique ne dit rien du sentiment. Le capital institutionnel ne dit rien de l'unicité du signal. Chaque critère apporte une information que les autres ne capturent pas.
 
+Ce principe d'orthogonalité est emprunté à l'algèbre linéaire et à la théorie de l'information de Claude Shannon (1948). Dans un espace vectoriel, des vecteurs orthogonaux portent chacun une information unique — aucune redondance. Shannon a montré que la quantité d'information d'un système est maximisée quand ses composantes sont indépendantes. Appliqué au trading : 10 critères indépendants portent 10 fois plus d'information qu'un seul critère répété 10 fois sous des noms différents.
+
+En termes statistiques, c'est le problème de la **multicolinéarité** bien connu en économétrie. Si deux variables explicatives sont fortement corrélées dans un modèle de régression, les coefficients deviennent instables et les prédictions peu fiables. Trevor Hastie, Robert Tibshirani et Jerome Friedman (*The Elements of Statistical Learning*, 2009) recommandent l'analyse en composantes principales (PCA) ou la régularisation pour traiter ce problème. Bilok-TradePilot prend une approche différente : plutôt que de corriger la multicolinéarité a posteriori, il la prévient en choisissant des critères de nature fondamentalement différente.
+
 Cette orthogonalité est essentielle. Si deux critères mesuraient la même chose (par exemple, deux indicateurs de momentum), ils créeraient une fausse convergence. On penserait avoir deux signaux positifs alors qu'on n'en a qu'un, compté deux fois.
 
 En pratique, une orthogonalité parfaite est impossible — tous les critères sont corrélés à un certain degré par le prix sous-jacent. Mais la diversité des sources (technique, sentiment, fondamental, macro, social, institutionnel) minimise cette corrélation.
@@ -379,11 +513,17 @@ Un actif peut avoir un score technique de 95/100, mais si le macro est à 15, il
 
 L'analyse technique est la pierre angulaire du scanner. Elle étudie les mouvements de prix passés pour identifier des patterns reproductibles et des signaux de continuation ou de retournement.
 
+Les origines de l'analyse technique remontent au Japon du XVIIIe siècle, où le négociant en riz Munehisa Homma a développé les **chandeliers japonais** pour prédire les prix du riz à la bourse de Dojima. En Occident, Charles Dow — cofondateur du Wall Street Journal — a posé les bases de l'analyse technique moderne dans une série d'éditoriaux entre 1900 et 1902, qui ont été compilés en ce qu'on appelle aujourd'hui la **Théorie de Dow**.
+
+Le débat sur l'efficacité de l'analyse technique divise les académiciens depuis des décennies. Eugene Fama (1970) la considère inutile dans un marché efficient. Mais Andrew Lo et Jasmina Hasanhodzic (*The Evolution of Technical Analysis*, 2010) ont montré que certains patterns techniques — notamment les patterns de momentum et les moyennes mobiles — ont une valeur prédictive statistiquement significative, même après coûts de transaction. L'étude de Brock, Lakonishok et LeBaron (*Simple Technical Trading Rules and the Stochastic Properties of Stock Returns*, Journal of Finance, 1992) a été l'une des premières à démontrer rigoureusement que les règles basées sur les moyennes mobiles produisent des rendements excédentaires sur les données du Dow Jones (1897-1986).
+
+La position de Bilok-TradePilot est pragmatique : l'analyse technique ne prédit pas l'avenir, mais elle capture le **comportement collectif** des participants. Les niveaux de support et résistance fonctionnent parce que suffisamment de traders y croient et agissent en conséquence — c'est une **prophétie autoréalisatrice**.
+
 Bilok-TradePilot utilise **20 indicateurs** répartis en **7 familles**, chacune capturant un aspect différent du comportement du prix.
 
 #### Famille 1 : Tendance (Poids : 20%)
 
-La tendance est la force la plus puissante des marchés. Un actif en tendance haussière a statistiquement plus de chances de continuer à monter que de se retourner. L'inverse est vrai pour une tendance baissière.
+La tendance est la force la plus puissante des marchés. L'**anomalie du momentum**, documentée par Jegadeesh et Titman (*Returns to Buying Winners and Selling Losers*, Journal of Finance, 1993), montre que les actifs qui ont performé au cours des 3-12 derniers mois tendent à continuer dans la même direction. Cette anomalie a été confirmée sur plus de 200 ans de données et dans 40 marchés différents (Geczy et Samonov, 2016). Un actif en tendance haussière a statistiquement plus de chances de continuer à monter que de se retourner. L'inverse est vrai pour une tendance baissière.
 
 **Les Moyennes Mobiles** sont l'outil le plus simple et le plus robuste pour identifier une tendance :
 
@@ -404,7 +544,11 @@ L'**alignement** des moyennes donne la force du signal :
 
 Le momentum mesure la **vitesse** du mouvement de prix. Une tendance peut exister sans momentum (mouvement lent et régulier) ou avec un fort momentum (mouvement rapide et accéléré).
 
-**RSI (Relative Strength Index, période 14)** — l'oscillateur le plus utilisé au monde. Il mesure la force relative des hausses par rapport aux baisses sur les 14 dernières périodes.
+**RSI (Relative Strength Index, période 14)** — développé par J. Welles Wilder Jr. dans *New Concepts in Technical Trading Systems* (1978), le RSI est l'oscillateur le plus utilisé au monde. Il mesure la force relative des hausses par rapport aux baisses sur les 14 dernières périodes. La formule :
+
+$$RSI = 100 - \frac{100}{1 + RS} \quad \text{où} \quad RS = \frac{\overline{\Delta^+}}{\overline{\Delta^-}}$$
+
+avec $\overline{\Delta^+}$ la moyenne des variations positives et $\overline{\Delta^-}$ la moyenne des variations négatives sur 14 périodes.
 
 - RSI > 70 : **suracheté** — le mouvement haussier est peut-être excessif
 - RSI 60-70 : **haussier** — le momentum est positif
@@ -414,7 +558,7 @@ Le momentum mesure la **vitesse** du mouvement de prix. Une tendance peut existe
 
 Attention : suracheté ne signifie pas "va baisser". En tendance forte, le RSI peut rester suracheté pendant des semaines. Le RSI est un indicateur de **conditions**, pas de **timing**.
 
-**MACD (Moving Average Convergence Divergence)** — mesure la convergence/divergence entre deux moyennes mobiles exponentielles (12 et 26 périodes). L'histogramme MACD est positif quand le momentum court terme accélère par rapport au momentum long terme.
+**MACD (Moving Average Convergence Divergence)** — créé par Gerald Appel dans les années 1970 et popularisé dans *Technical Analysis: Power Tools for Active Investors* (2005). Il mesure la convergence/divergence entre deux moyennes mobiles exponentielles (12 et 26 périodes). L'histogramme MACD est positif quand le momentum court terme accélère par rapport au momentum long terme. Thomas Aspray a ajouté l'histogramme en 1986, rendant les divergences plus visibles.
 
 **Williams %R** — similaire au RSI mais inversé. Au-dessus de -20 : suracheté. En dessous de -80 : survendu.
 
@@ -428,7 +572,7 @@ Le score de momentum combine ces 5 indicateurs : chaque signal haussier ajoute +
 
 La volatilité mesure l'**amplitude** des mouvements. Un actif très volatil offre plus d'opportunités mais aussi plus de risque.
 
-**Bandes de Bollinger** — deux bandes placées à 2 écarts-types au-dessus et en dessous d'une SMA 20. La position du prix dans les bandes indique si l'actif est "cher" (proche de la bande haute) ou "bon marché" (proche de la bande basse) par rapport à sa propre histoire récente.
+**Bandes de Bollinger** — développées par John Bollinger dans les années 1980 et formalisées dans *Bollinger on Bollinger Bands* (2001). Deux bandes placées à 2 écarts-types au-dessus et en dessous d'une SMA 20. La position du prix dans les bandes indique si l'actif est "cher" (proche de la bande haute) ou "bon marché" (proche de la bande basse) par rapport à sa propre histoire récente.
 
 **ATR (Average True Range, 14 périodes)** — mesure la volatilité moyenne quotidienne. Un ATR de 5$ signifie que l'actif bouge en moyenne de 5$ par jour. L'ATR est utilisé pour le calcul du Stop-Loss (2 × ATR) et du Take-Profit (3 × ATR).
 
@@ -475,11 +619,9 @@ L'ADX (Average Directional Index) ne dit pas si la tendance est haussière ou ba
 
 Le score technique final est la somme pondérée des 7 familles :
 
-```
-Score = Tendance × 0.20 + Momentum × 0.25 + Volatilité × 0.10
-      + Volume × 0.20 + Structure × 0.10 + Divergences × 0.10
-      + ADX × 0.05
-```
+$$S_{\text{tech}} = \sum_{i=1}^{7} w_i \cdot F_i = 0.20 \cdot F_{\text{tend}} + 0.25 \cdot F_{\text{mom}} + 0.10 \cdot F_{\text{vol}} + 0.20 \cdot F_{\text{vol.}} + 0.10 \cdot F_{\text{struct}} + 0.10 \cdot F_{\text{div}} + 0.05 \cdot F_{\text{ADX}}$$
+
+où chaque $F_i \in [0, 100]$ est le score normalisé de la famille $i$.
 
 Un score de 80+ signifie que la grande majorité des indicateurs sont alignés dans la même direction. C'est rare et significatif.
 
@@ -513,6 +655,14 @@ Les barres 4H sont construites à partir des barres 1H (agrégation) et les barr
 
 La corrélation mesure comment deux actifs bougent l'un par rapport à l'autre. Si AAPL et MSFT montent et baissent toujours ensemble, leur corrélation est proche de +1. S'ils bougent en sens inverse, elle est proche de -1. S'il n'y a aucun lien, elle est proche de 0.
 
+Le coefficient de corrélation de Pearson, introduit par Karl Pearson en 1895, est la mesure la plus courante :
+
+$$\rho_{X,Y} = \frac{\text{Cov}(X, Y)}{\sigma_X \cdot \sigma_Y} = \frac{\sum_{t=1}^{n}(X_t - \bar{X})(Y_t - \bar{Y})}{\sqrt{\sum_{t=1}^{n}(X_t - \bar{X})^2 \cdot \sum_{t=1}^{n}(Y_t - \bar{Y})^2}}$$
+
+avec $\rho \in [-1, +1]$. Mais il a une limite importante : il ne capture que les **relations linéaires**. Deux actifs peuvent avoir une corrélation de Pearson nulle tout en étant fortement liés par une relation non linéaire. C'est pourquoi des mesures alternatives existent : la **corrélation de Spearman** (basée sur les rangs, robuste aux outliers), le **tau de Kendall** (basé sur les paires concordantes/discordantes), et les **copules** — un cadre mathématique introduit par Abe Sklar (1959) et popularisé en finance par Paul Embrechts, Alexander McNeil et Daniel Straumann (*Correlation and Dependence in Risk Management*, 2002).
+
+La crise financière de 2008 a brutalement rappelé les limites de la corrélation linéaire. Les CDOs (Collateralized Debt Obligations) avaient été construits sur l'hypothèse que les défauts de crédit immobilier étaient faiblement corrélés. La **copule gaussienne de David Li** (2000), utilisée par l'ensemble de l'industrie, sous-estimait massivement la corrélation en période de stress. Quand le marché a craqué, toutes les corrélations ont convergé vers 1 simultanément — un phénomène connu sous le nom de **correlation breakdown**.
+
 **Pourquoi la corrélation est un critère du scanner ?**
 
 Parce qu'une **rupture de corrélation** est l'un des signaux les plus fiables en trading. Quand un actif qui suit habituellement son secteur commence soudainement à se démarquer, c'est que quelque chose change. Soit l'actif a une information que le secteur n'a pas encore intégrée (opportunité), soit il est en train de corriger un excès (risque).
@@ -537,7 +687,11 @@ Le score de corrélation est d'autant plus élevé que l'actif se **démarque** 
 
 Le sentiment mesure l'humeur collective autour d'un actif. Ce que les gens disent, pensent et ressentent influence leurs actions — et donc le prix.
 
-Le système utilise **FinBERT**, un modèle d'intelligence artificielle spécialisé dans l'analyse de sentiment financier. Entraîné sur des milliers de documents financiers, FinBERT comprend les nuances du langage financier : "les résultats sont en ligne avec les attentes" n'est pas la même chose que "les résultats dépassent largement les attentes", même si les deux sont techniquement "positifs".
+L'analyse de sentiment en finance a une longue histoire. Dès 1841, Charles Mackay documentait les bulles spéculatives dans *Extraordinary Popular Delusions and the Madness of Crowds*. Plus récemment, **Robert Shiller** a montré dans *Irrational Exuberance* (2000, 2005, 2015) que le sentiment des investisseurs — mesuré par des enquêtes comme le **Michigan Consumer Sentiment Index** ou le **AAII Investor Sentiment Survey** — est un prédicteur contrarian fiable des rendements à long terme.
+
+L'avènement du NLP (Natural Language Processing) a révolutionné la mesure du sentiment. Les travaux pionniers de Paul Tetlock (*Giving Content to Investor Sentiment*, Journal of Finance, 2007) ont montré que le ton pessimiste des articles du Wall Street Journal prédit les rendements négatifs du lendemain. Tim Loughran et Bill McDonald (2011) ont développé un dictionnaire spécialisé pour la finance, montrant que les dictionnaires de sentiment généralistes (comme Harvard's General Inquirer) classent incorrectement de nombreux termes financiers — "liability" est négatif en langage courant mais neutre en comptabilité.
+
+Le système utilise **FinBERT**, un modèle de langage basé sur l'architecture Transformer de Vaswani et al. (2017), pré-entraîné sur le corpus financier par Araci (2019). Contrairement aux approches par dictionnaire, FinBERT comprend le **contexte** : "les résultats sont en ligne avec les attentes" n'est pas la même chose que "les résultats dépassent largement les attentes", même si les deux sont techniquement "positifs". FinBERT atteint une précision de 97% sur le benchmark Financial PhraseBank, contre 72% pour les approches par dictionnaire.
 
 **Les sources analysées :**
 
@@ -553,7 +707,9 @@ Le système utilise **FinBERT**, un modèle d'intelligence artificielle spécial
 
 **Les limites du sentiment :**
 
-Le sentiment est un indicateur **contrarian** aux extrêmes. Quand tout le monde est euphorique (sentiment très positif), c'est souvent le moment de vendre — pas d'acheter. À l'inverse, quand le pessimisme est maximal, les meilleures opportunités apparaissent.
+Le sentiment est un indicateur **contrarian** aux extrêmes — un principe formalisé par Humphrey Neill dans *The Art of Contrary Thinking* (1954). Quand tout le monde est euphorique (sentiment très positif), c'est souvent le moment de vendre — pas d'acheter. À l'inverse, quand le pessimisme est maximal, les meilleures opportunités apparaissent. Warren Buffett a résumé ce principe : *"Be fearful when others are greedy, and greedy when others are fearful."*
+
+Les données le confirment : l'enquête AAII montre que lorsque les bulls dépassent 60% (euphorie extrême), le S&P 500 sous-performe de 2% en moyenne sur les 6 mois suivants. Inversement, quand les bears dépassent 55% (pessimisme extrême), le S&P 500 surperforme de 8% en moyenne.
 
 Le système ne prend pas le sentiment au premier degré. Il le pondère avec les autres critères. Un sentiment très positif + RSI suracheté + volume en baisse = signal de prudence, pas d'achat.
 
@@ -563,11 +719,13 @@ Le système ne prend pas le sentiment au premier degré. Il le pondère avec les
 
 Le Génome Explosif est le critère le plus original du scanner. Il analyse l'**ADN comportemental** d'un actif — les patterns récurrents dans son histoire qui précèdent les mouvements explosifs.
 
-L'idée est que chaque actif a une "personnalité". Certains explosent après une longue période de compression. D'autres grimpent régulièrement sans explosion. D'autres encore alternent entre des phases de calme et des phases de chaos.
+L'idée est que chaque actif a une "personnalité" — ce que les praticiens appellent parfois le **caractère** ou la **signature** de l'actif. Benoit Mandelbrot, dans *The (Mis)Behavior of Markets* (2004), a montré que les marchés financiers ne suivent pas une distribution gaussienne mais une distribution à **queues épaisses** (fat tails) — les mouvements extrêmes sont beaucoup plus fréquents que ce que la théorie classique prédit. Certains actifs ont des queues plus épaisses que d'autres : ils explosent plus souvent et plus violemment. Le Génome Explosif cherche à identifier ces actifs *avant* l'explosion.
+
+Les travaux de Didier Sornette (*Why Stock Markets Crash*, 2003) sur les **log-periodic power laws** (LPPL) ont montré que les mouvements explosifs sont souvent précédés par des oscillations accélérées caractéristiques — le marché "vibre" de plus en plus vite avant de craquer. Le Sismographe du scanner s'inspire de cette idée.
 
 **Les 5 phases de Wyckoff**
 
-Le modèle de Wyckoff, développé dans les années 1930, identifie 5 phases dans le cycle d'un actif :
+Le modèle de Wyckoff, développé par Richard D. Wyckoff dans les années 1930 et formalisé dans *Studies in Tape Reading* (1910) puis *The Richard D. Wyckoff Method of Trading and Investing in Stocks* (1931), identifie 5 phases dans le cycle d'un actif. Wyckoff, qui a interviewé Jesse Livermore et J.P. Morgan, a observé que les marchés sont manipulés par les "Composite Operators" (aujourd'hui on dirait les institutionnels) qui accumulent, marquent, distribuent, puis font baisser les prix en cycle :
 
 1. **Accumulation** — les institutionnels achètent discrètement. Le prix est stable, le volume est faible. Le public ne s'intéresse pas encore.
 
@@ -603,15 +761,23 @@ Quand 3 ou plus de ces micro-signaux sont actifs simultanément, la probabilité
 
 Les marchés ont une mémoire. Les patterns qui ont précédé de grands mouvements dans le passé ont tendance à se reproduire — pas à l'identique, mais avec des similitudes structurelles.
 
-Le système utilise la **cosine similarity** (similitude cosinus) pour comparer le pattern actuel de l'actif avec ses patterns historiques qui ont précédé des mouvements de +10% ou plus. Si la similarité est élevée (> 0.7), le système considère que les conditions d'un mouvement explosif sont réunies.
+Le système utilise la **cosine similarity** (similitude cosinus) pour comparer le pattern actuel de l'actif avec ses patterns historiques qui ont précédé des mouvements de +10% ou plus. La similarité cosinus, empruntée au domaine du *information retrieval* et popularisée par les travaux de Salton et McGill (1983), mesure l'angle entre deux vecteurs dans un espace $n$-dimensionnel :
+
+$$\cos(\theta) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \cdot \|\mathbf{B}\|} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \cdot \sqrt{\sum_{i=1}^{n} B_i^2}}$$ Si la similarité est élevée (> 0.7), le système considère que les conditions d'un mouvement explosif sont réunies.
+
+Cette approche s'apparente au **template matching** en reconnaissance de formes et au **k-nearest neighbors** en machine learning. L'hypothèse sous-jacente — que les marchés ont une mémoire et que les patterns se répètent — est cohérente avec l'**hypothèse fractale** de Mandelbrot et la notion de **longue mémoire** dans les séries temporelles financières (Hurst, 1951 ; Lo, 1991).
 
 ---
 
 ### Chapitre 9 : Critère 5 — Capital Institutionnel (IPI)
 
-Les marchés sont dominés par les institutionnels — fonds de pension, hedge funds, banques d'investissement. Ils représentent plus de 80% des volumes. Quand ils bougent, les prix bougent.
+Les marchés sont dominés par les institutionnels — fonds de pension, hedge funds, banques d'investissement. Selon les données de la SEC, les investisseurs institutionnels détiennent environ **70-80% de la capitalisation totale** du marché américain et représentent la majorité des volumes quotidiens.
 
-Le problème : les institutionnels ne veulent pas que vous sachiez ce qu'ils font. Ils accumulent ou distribuent progressivement, sur des jours ou des semaines, pour ne pas faire bouger le prix.
+Les travaux de Kyle (*Continuous Auctions and Insider Trading*, Econometrica, 1985) ont modélisé mathématiquement comment les traders informés (insiders et institutionnels) interagissent avec les traders non informés (noise traders). Le modèle de Kyle montre que les traders informés dissimulent stratégiquement leur information en fragmentant leurs ordres dans le temps — exactement ce que l'IPI cherche à détecter.
+
+Plus récemment, les recherches de Ekkehart Boehmer, Charles Jones et Xiaoyan Zhang (*Which Shorts Are Informed?*, Journal of Finance, 2008) ont montré que les positions short des institutionnels sont significativement prédictives des rendements futurs — les institutionnels qui vendent à découvert ont raison plus souvent que le hasard.
+
+Le problème : les institutionnels ne veulent pas que vous sachiez ce qu'ils font. Ils accumulent ou distribuent progressivement, sur des jours ou des semaines, pour minimiser le **market impact** — le coût de leur propre trading sur le prix.
 
 Le scanner tente de détecter cette activité invisible à travers 3 indicateurs :
 
@@ -631,7 +797,11 @@ Un score IPI élevé (> 70) signifie : les gros acteurs se positionnent à l'ach
 
 Ce critère ne demande pas "les fondamentaux sont-ils bons ?" mais "les fondamentaux **s'améliorent-ils de plus en plus vite** ?"
 
-La distinction est cruciale. Un actif peut avoir d'excellents fondamentaux (ROE de 25%, croissance de 15%) et pourtant stagner en bourse — si tout le monde sait déjà que les fondamentaux sont bons, c'est dans le prix. Ce qui fait bouger le prix, c'est le **changement** : quand les fondamentaux passent de "bons" à "encore meilleurs", ou de "mauvais" à "moins mauvais".
+La distinction est cruciale et repose sur un concept central de la finance quantitative : l'**earnings momentum**. Les travaux fondateurs de Victor Bernard et Jacob Thomas (*Post-Earnings-Announcement Drift: Delayed Price Response or Risk Premium?*, Journal of Accounting Research, 1989) ont mis en évidence le **PEAD** (Post-Earnings Announcement Drift) — le phénomène selon lequel les actions qui surprennent positivement continuent de surperformer pendant 60 jours après l'annonce, et inversement pour les surprises négatives. Ce drift, l'une des anomalies les plus robustes et les plus persistantes de la finance, suggère que le marché sous-réagit systématiquement aux nouvelles fondamentales.
+
+William O'Neil, fondateur d'Investor's Business Daily, a bâti toute sa méthode CAN SLIM sur cette idée d'**accélération des bénéfices** (*How to Make Money in Stocks*, 1988). Le "C" de CAN SLIM signifie "Current quarterly earnings" : O'Neil cherchait des entreprises dont la croissance des bénéfices s'accélérait d'un trimestre à l'autre — exactement ce que l'IVF mesure.
+
+Un actif peut avoir d'excellents fondamentaux (ROE de 25%, croissance de 15%) et pourtant stagner en bourse — si tout le monde sait déjà que les fondamentaux sont bons, c'est dans le prix. Ce qui fait bouger le prix, c'est le **changement** : quand les fondamentaux passent de "bons" à "encore meilleurs", ou de "mauvais" à "moins mauvais".
 
 L'IVF mesure cette accélération à travers :
 
@@ -646,6 +816,10 @@ L'IVF mesure cette accélération à travers :
 ### Chapitre 11 : Critère 7 — Macro Tailwind (MTS)
 
 Un actif ne vit pas dans le vide. Il évolue dans un environnement macroéconomique qui peut le porter (tailwind) ou le freiner (headwind).
+
+L'importance du contexte macro a été formalisée par le **modèle d'évaluation par arbitrage** (APT) de Stephen Ross (1976), qui postule que les rendements des actifs sont déterminés par des **facteurs macroéconomiques** systématiques : inflation, production industrielle, spreads de crédit, courbe des taux. Chen, Roll et Ross (1986) ont identifié empiriquement ces facteurs et montré qu'ils expliquent une part significative des rendements boursiers.
+
+Ray Dalio (Bridgewater Associates) a popularisé une grille de lecture macro simple mais puissante dans *Principles for Navigating Big Debt Crises* (2018) : deux axes (croissance en hausse/baisse × inflation en hausse/baisse) définissent quatre quadrants, chacun favorisant des classes d'actifs spécifiques. Le **All Weather Portfolio** de Bridgewater est construit sur ce principe — chaque quadrant est couvert.
 
 Le MTS évalue cet environnement à travers 3 axes :
 
@@ -673,7 +847,11 @@ Le système évalue :
 
 **Le ratio Signal/Bruit** — quelle proportion des discussions est pertinente ? Le NLP (traitement du langage naturel) classe chaque mention comme "signal" (analyse, données, argumentation) ou "bruit" (émotion, mèmes, spam).
 
-**Le Network Effect** — spécifique aux crypto-monnaies. La Loi de Metcalfe stipule que la valeur d'un réseau est proportionnelle au carré du nombre de ses utilisateurs. Plus un réseau crypto a d'utilisateurs actifs, plus sa valeur fondamentale augmente.
+**Le Network Effect** — spécifique aux crypto-monnaies. La **Loi de Metcalfe**, formulée par Robert Metcalfe (co-inventeur d'Ethernet) dans les années 1980, stipule que la valeur d'un réseau est proportionnelle au carré du nombre de ses utilisateurs :
+
+$$V \propto n^2 \quad \Leftrightarrow \quad V = C \cdot n^2$$
+
+où $n$ est le nombre d'utilisateurs actifs et $C$ une constante de proportionnalité. Les travaux de Timothy Peterson (*Metcalfe's Law as a Model for Bitcoin's Value*, Alternative Investment Analyst Review, 2018) ont montré que la capitalisation de Bitcoin suit remarquablement bien la loi de Metcalfe sur 10 ans de données, avec un R² de 0.93. Plus un réseau crypto a d'utilisateurs actifs, plus sa valeur fondamentale augmente.
 
 **Le momentum d'intérêt** — la tendance de l'intérêt via Google Trends. Un intérêt en hausse régulière est plus sain qu'un pic soudain (qui précède souvent un crash).
 
@@ -682,6 +860,10 @@ Le système évalue :
 ### Chapitre 13 : Critère 9 — Unicité du Signal (SUS)
 
 C'est peut-être le critère le plus contre-intuitif : un signal que tout le monde voit est un mauvais signal.
+
+Ce principe est au coeur de la **théorie des jeux** appliquée aux marchés financiers. John Maynard Keynes a formulé sa célèbre **métaphore du concours de beauté** dans le chapitre 12 de la *Théorie Générale* (1936) : le marché n'est pas un concours où l'on vote pour le plus beau visage, mais un concours où l'on vote pour celui que la majorité jugera le plus beau. En d'autres termes : ce qui compte n'est pas ce que vous pensez, mais ce que vous pensez que les autres pensent.
+
+Andrew Lo et Archie Craig MacKinlay (*A Non-Random Walk Down Wall Street*, 1999) ont montré que les stratégies de momentum perdent leur edge quand elles deviennent trop populaires — un phénomène connu sous le nom de **strategy crowding**. Le *quant quake* d'août 2007, documenté par Khandani et Lo (2007), a illustré ce risque de manière spectaculaire : quand trop de hedge funds quantitatifs ont utilisé les mêmes signaux, le dénouement simultané de leurs positions a provoqué des pertes de plusieurs milliards en quelques jours.
 
 Si un actif a un score technique de 90, un sentiment positif, un momentum fort — et que tous les screeners du monde le détectent — alors des millions de traders ont déjà acheté. Le mouvement est dans le prix. Acheter maintenant, c'est acheter au sommet.
 
@@ -753,7 +935,7 @@ L'entreprise peut-elle survivre à un choc ?
 
 #### Dimension 6 : Score Piotroski (10%)
 
-Le score de Piotroski est un classique de l'analyse fondamentale. 9 critères binaires (oui/non) qui évaluent la qualité comptable :
+Le F-Score de Piotroski, introduit par Joseph Piotroski dans son article fondateur *Value Investing: The Use of Historical Financial Statement Information to Separate Winners from Losers* (Journal of Accounting Research, 2000), est devenu un classique de l'analyse fondamentale. Piotroski a montré que parmi les actions à faible P/B (value stocks), celles avec un F-Score élevé surperforment celles avec un F-Score faible de **7,5% par an** en moyenne. Le score utilise 9 critères binaires (oui/non) qui évaluent la qualité comptable :
 
 1. ROA positif
 2. Cash flow opérationnel positif
@@ -775,7 +957,7 @@ Score 7-9 : excellente qualité. Score 3-4 : moyenne. Score 0-2 : éviter.
 
 #### Dimension 8 : DCF simplifié (10%)
 
-Le DCF (Discounted Cash Flow) est la méthode de référence pour estimer la valeur intrinsèque d'une entreprise. Le principe : une entreprise vaut la somme de tous ses flux de trésorerie futurs, actualisés au présent.
+Le DCF (Discounted Cash Flow), formalisé par John Burr Williams dans *The Theory of Investment Value* (1938) et perfectionné par des praticiens comme Aswath Damodaran (*Investment Valuation*, 1996), est la méthode de référence pour estimer la valeur intrinsèque d'une entreprise. Le principe remonte à la valeur actualisée nette (VAN) : une entreprise vaut la somme de tous ses flux de trésorerie futurs, actualisés au présent.
 
 Le système calcule un DCF simplifié :
 1. Projette le FCF par action sur 5 ans (au taux de croissance actuel)
@@ -814,11 +996,9 @@ Les 10 critères sont calculés. Chacun a produit un score entre 0 et 100. Le mo
 
 **La formule :**
 
-```
-Score Final = Σ (Score_i × Poids_i)
-```
+$$S_{\text{final}} = \sum_{i=1}^{10} w_i(\mathcal{C}, \mathcal{R}, \mathcal{H}, \mathcal{M}, \mathcal{K}) \cdot S_i \quad \text{sous contrainte} \quad \sum_{i=1}^{10} w_i = 1$$
 
-Où les poids s'adaptent selon la matrice de pondération adaptative (classe d'actif × régime × horizon × macro × capitalisation).
+Où $S_i$ est le score du critère $i$, et les poids $w_i$ sont des fonctions de 5 variables contextuelles : classe d'actif $\mathcal{C}$, régime de marché $\mathcal{R}$, horizon $\mathcal{H}$, phase macro $\mathcal{M}$ et capitalisation $\mathcal{K}$.
 
 **Les vetos :**
 
@@ -859,9 +1039,13 @@ Le 10% manquant est souvent dû à des événements non prévisibles (annonces s
 
 Le Scanner a identifié une poignée d'actifs prometteurs. Avant de décider *comment* les trader, il faut comprendre *dans quel contexte* on trade. Un même actif, avec les mêmes indicateurs techniques, peut nécessiter une stratégie radicalement différente selon que le marché est en tendance haussière, en range ou en crise.
 
+La détection de régime est un problème central en finance quantitative. Les travaux fondateurs de James Hamilton (*A New Approach to the Economic Analysis of Nonstationary Time Series and the Business Cycle*, Econometrica, 1989) ont introduit les **modèles à changement de régime markoviens** (Markov Switching Models), qui modélisent les séries financières comme basculant entre différents "états" — chacun avec sa propre moyenne et sa propre volatilité. Le modèle de Hamilton, appliqué au PIB américain, a identifié avec précision les récessions du NBER.
+
+Andrew Ang et Geert Bekaert (*International Asset Allocation with Regime Shifts*, Review of Financial Studies, 2002) ont étendu cette approche à l'allocation d'actifs, montrant que les portefeuilles qui s'adaptent au régime surperforment significativement les allocations statiques. Plus récemment, les **Hidden Markov Models** (HMM), utilisés initialement pour la reconnaissance vocale, ont été appliqués à la détection de régimes par Ryden, Teräsvirta et Asbrink (1998).
+
 La plupart des systèmes de trading classifient le marché de manière binaire : haussier ou baissier. C'est une simplification dangereuse. En réalité, le marché est souvent dans un état intermédiaire — en transition entre deux régimes, ou dans un range qui pourrait basculer dans n'importe quelle direction.
 
-Bilok-TradePilot utilise une **détection probabiliste** : au lieu de dire "le marché est BULL", il dit "le marché est BULL à 65%, RANGE à 20%, TRANSITION à 10%, BEAR à 4%, CRISIS à 1%". Cette distribution de probabilités est infiniment plus utile qu'une étiquette binaire.
+Bilok-TradePilot utilise une **détection probabiliste** : au lieu de dire "le marché est BULL", il dit "le marché est BULL à 65%, RANGE à 20%, TRANSITION à 10%, BEAR à 4%, CRISIS à 1%". Cette distribution de probabilités est infiniment plus utile qu'une étiquette binaire. L'approche est cohérente avec la logique bayésienne — on ne cherche pas une réponse binaire, mais une distribution de croyances, mise à jour en continu par les nouvelles observations.
 
 **Les 5 régimes :**
 
@@ -895,9 +1079,9 @@ Une confiance de 80% signifie que les 4 signaux convergent — on peut être agr
 
 Bilok-TradePilot dispose de **14 stratégies** qui couvrent l'ensemble des conditions de marché. Chacune est conçue pour exploiter un type spécifique de mouvement de prix. Voici les principales.
 
-**1. Trend Following** — la plus ancienne et la plus éprouvée des stratégies. Le principe : "La tendance est ton amie." Le système utilise un croisement EMA 9/21 confirmé par la SMA 50. Quand l'EMA rapide (9) croise au-dessus de l'EMA lente (21) et que le prix est au-dessus de la SMA 50, un signal LONG est généré. La conviction augmente avec la distance entre le prix et la SMA 50 — plus le prix est au-dessus, plus la tendance est forte. Stop-Loss à 2 ATR sous l'entrée, Take-Profit à 3 ATR au-dessus.
+**1. Trend Following** — la plus ancienne et la plus éprouvée des stratégies. Documentée par Michael Covel dans *Trend Following* (2004) et pratiquée avec succès par les **Turtle Traders** de Richard Dennis et William Eckhardt (1983-1988), cette approche repose sur un principe simple : "La tendance est ton amie." Les Turtles, un groupe de novices formés en deux semaines, ont généré plus de 175 millions de dollars en 4 ans en suivant des règles mécaniques de trend following — prouvant que la discipline systématique bat l'intuition humaine. Le système utilise un croisement EMA 9/21 confirmé par la SMA 50. Quand l'EMA rapide (9) croise au-dessus de l'EMA lente (21) et que le prix est au-dessus de la SMA 50, un signal LONG est généré. La conviction augmente avec la distance entre le prix et la SMA 50 — plus le prix est au-dessus, plus la tendance est forte. Stop-Loss à 2 ATR sous l'entrée, Take-Profit à 3 ATR au-dessus.
 
-**2. Mean Reversion** — l'inverse du trend following. Quand un actif s'écarte trop de sa moyenne, il a tendance à y revenir. Le système utilise les bandes de Bollinger et le RSI : un prix qui touche la bande basse de Bollinger avec un RSI < 30 génère un signal LONG (survente extrême). Un prix sur la bande haute avec RSI > 70 → SHORT. L'entrée se fait sur la bande, le TP sur la moyenne mobile centrale.
+**2. Mean Reversion** — l'inverse du trend following. Ce concept, parfois appelé **retour à la moyenne**, a été formalisé statistiquement par Poterba et Summers (1988) et Fama et French (1988), qui ont montré que les rendements boursiers sont négativement autocorrélés sur des horizons de 3-5 ans — les actions qui montent trop finissent par baisser, et vice versa. Quand un actif s'écarte trop de sa moyenne, il a tendance à y revenir. Le système utilise les bandes de Bollinger et le RSI : un prix qui touche la bande basse de Bollinger avec un RSI < 30 génère un signal LONG (survente extrême). Un prix sur la bande haute avec RSI > 70 → SHORT. L'entrée se fait sur la bande, le TP sur la moyenne mobile centrale.
 
 **3. Mean Reversion V2** — version améliorée qui ajoute le stochastique comme confirmation et utilise un Z-Score pour mesurer l'écart à la moyenne. Un Z-Score < -2 (2 écarts-types sous la moyenne) est un signal de survente plus robuste que les bandes de Bollinger seules.
 
@@ -907,7 +1091,7 @@ Bilok-TradePilot dispose de **14 stratégies** qui couvrent l'ensemble des condi
 
 **6. Adaptive Trend** — une version sophistiquée du trend following qui ajuste dynamiquement les périodes des EMA selon la volatilité. En période de forte volatilité, les EMA sont allongées (plus lentes, moins de faux signaux). En période calme, elles sont raccourcies (plus réactives).
 
-**7. Fibonacci Retracement** — identifie les niveaux de support et résistance basés sur les ratios de Fibonacci (23.6%, 38.2%, 50%, 61.8%). Un pullback vers le niveau 61.8% dans une tendance haussière est un point d'entrée classique. La conviction est maximale quand le prix rebondit exactement sur un niveau Fibonacci avec confirmation RSI.
+**7. Fibonacci Retracement** — basé sur la suite de Fibonacci (1202), ces ratios (23.6%, 38.2%, 50%, 61.8%) se retrouvent dans de nombreux phénomènes naturels et ont été appliqués aux marchés par Ralph Nelson Elliott (*The Wave Principle*, 1938). Bien que leur fondement théorique soit contesté, leur efficacité pratique s'explique par la prophétie autoréalisatrice : suffisamment de traders les utilisent pour qu'ils deviennent des niveaux de support/résistance réels. Le ratio 61.8% (le "golden ratio" φ) est le plus respecté empiriquement. Un pullback vers le niveau 61.8% dans une tendance haussière est un point d'entrée classique. La conviction est maximale quand le prix rebondit exactement sur un niveau Fibonacci avec confirmation RSI.
 
 **8. Ichimoku Cloud** — le système Ichimoku produit des signaux LONG quand le prix est au-dessus du nuage (Kumo), que la Tenkan-sen croise la Kijun-sen à la hausse, et que le Chikou Span confirme. La force du signal dépend de l'épaisseur du nuage : un nuage épais = support/résistance fort.
 
@@ -943,7 +1127,9 @@ Le classement ajusté détermine quelle stratégie est sélectionnée.
 
 **Le Strategy Decay**
 
-Les marchés évoluent. Une stratégie qui fonctionnait parfaitement pendant 5 ans peut perdre son edge du jour au lendemain. Le système surveille 4 métriques de santé pour chaque stratégie :
+Les marchés évoluent. Andrew Lo l'a formalisé dans l'**Adaptive Markets Hypothesis** (2004) : les stratégies de trading suivent un cycle de vie darwinien — elles naissent (découverte d'une anomalie), prospèrent (exploitation), s'affaiblissent (crowding) et meurent (arbitrage complet). Marcos López de Prado, dans *Advances in Financial Machine Learning* (2018), consacre un chapitre entier au problème du "strategy decay" et propose des méthodes de détection basées sur le **CUSUM test** (Page, 1954) pour identifier le moment précis où une stratégie perd son edge.
+
+Une stratégie qui fonctionnait parfaitement pendant 5 ans peut perdre son edge du jour au lendemain. Le système surveille 4 métriques de santé pour chaque stratégie :
 
 - **Win Rate** — le taux de trades gagnants. En dessous de 35%, la stratégie est suspecte.
 - **Profit Factor** — les gains bruts divisés par les pertes brutes. En dessous de 0.8, la stratégie perd de l'argent.
@@ -1043,9 +1229,7 @@ Le Score V2 est le coeur décisionnel du pipeline. Il fusionne 4 sources d'infor
 
 **La formule :**
 
-```
-Score V2 = Conviction × w₁ + Bayésien × w₂ + SQC × w₃ + Scanner × w₄
-```
+$$S_{V2} = w_1 \cdot C_{\text{strat}} + w_2 \cdot B_{\text{post}} + w_3 \cdot Q_{\text{ctx}} + w_4 \cdot S_{\text{scan}} \quad \text{avec} \quad \sum_{k=1}^{4} w_k = 1$$
 
 **Les seuils de décision :**
 
@@ -1063,7 +1247,15 @@ Un **filtre supplémentaire** vérifie que le Kelly sizing est positif — c'est
 
 ### Chapitre 23 : Le Score Bayésien Adaptatif
 
-Le théorème de Bayes est l'un des outils les plus puissants de la statistique. Il permet de combiner une croyance préalable (le *prior*) avec de nouvelles observations (le *likelihood*) pour produire une croyance mise à jour (le *posterior*).
+Le théorème de Bayes, formulé par le Révérend Thomas Bayes dans un article posthume publié en 1763 (*An Essay towards solving a Problem in the Doctrine of Chances*), est l'un des outils les plus puissants de la statistique. Pierre-Simon Laplace l'a indépendamment redécouvert et formalisé dans *Théorie analytique des probabilités* (1812).
+
+La formule est d'une élégance mathématique remarquable :
+
+$$P(H \mid D) = \frac{P(D \mid H) \cdot P(H)}{P(D)}$$
+
+Où $P(H \mid D)$ est la probabilité de l'hypothèse $H$ sachant les données $D$ (posterior), $P(D \mid H)$ est la probabilité d'observer ces données si l'hypothèse est vraie (likelihood), $P(H)$ est la croyance initiale (prior), et $P(D)$ est un facteur de normalisation (evidence).
+
+En finance quantitative, l'approche bayésienne a été popularisée par les travaux de Fischer Black et Robert Litterman (*Global Portfolio Optimization*, Financial Analysts Journal, 1992) dans le modèle **Black-Litterman**, qui combine les rendements d'équilibre du marché (prior) avec les vues de l'investisseur (likelihood) pour produire une allocation optimale. Andrew Gelman (*Bayesian Data Analysis*, 1995, 3ème édition 2013) a rendu ces méthodes accessibles à un public plus large, tandis que Nate Silver (*The Signal and the Noise*, 2012) en a démontré la puissance pour la prédiction dans des domaines allant de la météo aux élections.
 
 Appliqué au trading :
 
@@ -1075,17 +1267,13 @@ Appliqué au trading :
 
 **Le calcul du prior historique :**
 
-```
-Prior = Performance 6 mois × 0.40 + Consistance mensuelle × 0.30 + Position dans range × 0.30
-```
+$$\pi_0 = 0.40 \cdot R_{126} + 0.30 \cdot \frac{n_{\text{mois}^+}}{6} + 0.30 \cdot \frac{P - L_{52}}{H_{52} - L_{52}}$$
 
-La performance 6 mois est le rendement de l'actif sur 126 jours, mappé sur une échelle 0-100. La consistance mesure le pourcentage de mois positifs sur les 6 derniers mois (6/6 mois positifs = score de 100). La position dans le range 52 semaines indique si l'actif est proche de ses plus hauts (momentum positif) ou de ses plus bas.
+où $R_{126}$ est le rendement sur 126 jours (normalisé 0-100), $n_{\text{mois}^+}$ est le nombre de mois positifs sur les 6 derniers, et $\frac{P - L_{52}}{H_{52} - L_{52}}$ est la position relative dans le range de 52 semaines.
 
 **Le calcul du likelihood :**
 
-```
-Likelihood = Scanner × 0.40 + Conviction stratégie × 0.40 + Confiance régime × 0.20
-```
+$$\mathcal{L} = 0.40 \cdot S_{\text{scan}} + 0.40 \cdot C_{\text{strat}} + 0.20 \cdot \gamma_{\text{régime}}$$
 
 Le likelihood est ensuite modulé par la confiance du régime. Si le régime est détecté avec une haute confiance (> 80%), on fait davantage confiance aux observations actuelles. Si la confiance est faible (< 30%), on s'appuie davantage sur l'historique.
 
@@ -1093,16 +1281,15 @@ Le likelihood est ensuite modulé par la confiance du régime. Si le régime est
 
 C'est la partie la plus élégante. Les poids entre prior et likelihood s'ajustent automatiquement :
 
-```
-Poids observations = 0.4 + confiance_régime × 0.4    (entre 0.4 et 0.8)
-Poids prior = 1.0 - poids_observations               (entre 0.2 et 0.6)
-```
+$$\alpha = 0.4 + 0.4 \cdot \gamma \quad \Rightarrow \quad \alpha \in [0.4, \; 0.8]$$
 
-En régime BULL avec 85% de confiance → les observations pèsent 74%, le prior 26%. Le système "écoute" davantage les signaux actuels car le contexte est clair.
+$$B_{\text{post}} = \alpha \cdot \mathcal{L} + (1 - \alpha) \cdot \pi_0 \quad \text{clippé à} \; [0, \; 100]$$
 
-En régime TRANSITION avec 35% de confiance → les observations pèsent 54%, le prior 46%. Le système "se souvient" de l'historique car le contexte est incertain.
+où $\gamma$ est la confiance dans le régime détecté. En régime BULL avec $\gamma = 0.85$ → $\alpha = 0.74$, les observations pèsent 74%, le prior 26%. Le système "écoute" davantage les signaux actuels car le contexte est clair.
 
-Le posterior final est clippé entre 0 et 100. Un posterior de 75+ combiné à une forte conviction est un signal robuste.
+En régime TRANSITION avec $\gamma = 0.35$ → $\alpha = 0.54$, les observations pèsent 54%, le prior 46%. Le système "se souvient" de l'historique car le contexte est incertain.
+
+Un posterior de 75+ combiné à une forte conviction est un signal robuste.
 
 ---
 
@@ -1120,9 +1307,9 @@ Un signal parfait à 2h du matin sur un actif illiquide est un piège. Le spread
 
 **3. Contexte de volatilité (40%)** — mesure le range intraday normalisé (high - low / close) par rapport à sa moyenne sur 20 jours. Un ratio entre 0.8 et 1.5 est normal → 80/100. Au-dessus de 2.5 → volatilité extrême, danger → 20/100. En dessous de 0.5 → marché mort → 45/100.
 
-```
-SQC = Liquidité × 0.40 + Heure × 0.20 + Volatilité × 0.40
-```
+$$Q_{\text{ctx}} = 0.40 \cdot \ell + 0.20 \cdot h + 0.40 \cdot v$$
+
+où $\ell = f\!\left(\frac{V_t}{\bar{V}_{20}}\right)$ est le score de liquidité, $h$ est le score horaire, et $v = g\!\left(\frac{H_t - L_t}{C_t \cdot \overline{ATR}_{20}}\right)$ est le score de volatilité contextuelle.
 
 **Le Signal Shelf Life :**
 
@@ -1194,21 +1381,24 @@ La thèse complète est envoyée au Module 4 (Exécution) qui se charge de la tr
 
 Combien risquer sur chaque trade ? C'est peut-être la question la plus importante — et la plus souvent mal gérée — du trading. Trop peu et les gains sont insignifiants. Trop et une série de pertes peut être fatale.
 
+L'histoire de cette question est fascinante. En 1738, Daniel Bernoulli a introduit le concept d'**utilité logarithmique** pour résoudre le paradoxe de Saint-Pétersbourg — un jeu dont l'espérance mathématique est infinie mais que personne ne jouerait. Bernoulli a montré que l'utilité marginale de la richesse est décroissante : le millième dollar vaut moins que le premier. Cette intuition est restée dormante pendant deux siècles.
+
+En 1956, John Larry Kelly Jr., un physicien des Bell Labs, a publié *A New Interpretation of Information Rate*, un article qui appliquait la théorie de l'information de Claude Shannon aux paris. Kelly a démontré mathématiquement que la fraction optimale du capital à risquer sur chaque pari — celle qui maximise le taux de croissance géométrique du capital — est donnée par une formule élégante.
+
+Edward Thorp, mathématicien du MIT, a compris le potentiel pratique de la formule de Kelly. Il l'a d'abord appliquée au blackjack (*Beat the Dealer*, 1962), puis aux marchés financiers (*Beat the Market*, 1967, avec Sheen Kassouf). Le fonds de Thorp, Princeton/Newport Partners, a généré 15,1% par an après frais entre 1969 et 1988 avec un seul mois de perte — en grande partie grâce à une gestion du sizing rigoureusement kellysienne.
+
 **Le critère de Kelly** fournit la réponse mathématiquement optimale :
 
-```
-f* = (p × b − q) / b
-```
+$$f^* = \frac{p \cdot b - q}{b} = \frac{p \cdot b - (1 - p)}{b}$$
 
 Où :
-- `p` = probabilité de gain (win rate estimé)
-- `q` = probabilité de perte (1 − p)
-- `b` = ratio gain/perte (R:R)
+- $p$ = probabilité de gain (win rate estimé)
+- $q = 1 - p$ = probabilité de perte
+- $b$ = ratio gain/perte (R:R)
 
-**Exemple :** avec un win rate de 55% et un R:R de 1.5 :
-```
-f* = (0.55 × 1.5 − 0.45) / 1.5 = (0.825 − 0.45) / 1.5 = 0.25 = 25%
-```
+**Exemple :** avec un win rate de $p = 0.55$ et un R:R de $b = 1.5$ :
+
+$$f^* = \frac{0.55 \times 1.5 - 0.45}{1.5} = \frac{0.825 - 0.45}{1.5} = \frac{0.375}{1.5} = 0.25 = 25\%$$
 
 Kelly recommande de risquer 25% du capital sur ce trade. C'est mathématiquement optimal pour maximiser la croissance du capital à long terme.
 
@@ -1220,9 +1410,7 @@ Kelly recommande de risquer 25% du capital sur ce trade. C'est mathématiquement
 
 Bilok-TradePilot utilise un **Kelly fractionnaire à 25%** — c'est-à-dire 1/4 du Kelly optimal. Dans notre exemple, au lieu de 25%, on risque 6.25%. C'est plus conservateur, la croissance est plus lente, mais le drawdown maximum est drastiquement réduit.
 
-```
-Fraction Kelly = f* × 0.25
-```
+$$f_{\text{frac}} = \lambda \cdot f^* \quad \text{avec} \quad \lambda = 0.25$$
 
 **Les gardes-fous supplémentaires :**
 
@@ -1243,11 +1431,9 @@ En Phase 2+ (historique de trades réels), le win rate est remplacé par le **wi
 
 Chaque signal GO est accompagné d'une valeur attendue (EV) :
 
-```
-EV = win_rate × R:R − (1 − win_rate)
-```
+$$\mathbb{E}[R] = p \cdot b - (1 - p) = p \cdot (1 + b) - 1$$
 
-Un EV positif signifie que le trade est mathématiquement profitable à long terme. Un EV de 0.3 signifie que pour chaque dollar risqué, on s'attend à gagner 0.30$ en moyenne. Les signaux sont triés par EV décroissante — les meilleurs trades en premier.
+Un $\mathbb{E}[R] > 0$ signifie que le trade est mathématiquement profitable à long terme. Un $\mathbb{E}[R] = 0.3$ signifie que pour chaque dollar risqué, on s'attend à gagner 0.30\$ en moyenne. Les signaux sont triés par EV décroissante — les meilleurs trades en premier.
 
 ---
 
@@ -1296,7 +1482,11 @@ IBKR ne supporte qu'une connexion par Client ID. Pour éviter les conflits entre
 
 ### Chapitre 28 : L'Entrée en 3 Tranches
 
-Entrer dans une position en une seule fois est risqué : si le prix se retourne immédiatement après l'entrée, la perte est maximale. Le scaling in — entrer progressivement — réduit ce risque en moyennant le prix d'entrée.
+Entrer dans une position en une seule fois est risqué : si le prix se retourne immédiatement après l'entrée, la perte est maximale. Le **scaling in** — entrer progressivement — réduit ce risque en moyennant le prix d'entrée.
+
+Cette technique est utilisée par les gestionnaires institutionnels depuis des décennies. Les Turtle Traders de Richard Dennis utilisaient déjà l'ajout de positions en 4 tranches (appelées "units") dans les années 1980. Robert Almgren et Neil Chriss (*Optimal Execution of Portfolio Transactions*, Journal of Risk, 2001) ont formalisé mathématiquement le problème de l'exécution optimale, montrant que le fractionnement des ordres réduit le **market impact** tout en gérant le **timing risk** — le risque que le prix bouge pendant qu'on essaie d'exécuter.
+
+Van Tharp, dans *Trade Your Way to Financial Freedom* (1999), a montré que le choix de la méthode d'entrée (full position vs scaling) a un impact significatif sur le drawdown maximum du système, même si le rendement espéré reste similaire.
 
 Bilok-TradePilot utilise un plan de 3 tranches avec des conditions de progression :
 
@@ -1482,7 +1672,21 @@ Si IBKR échoue (connexion perdue, marge insuffisante), le signal est quand mêm
 
 Le Module 4 gère les positions individuelles. Le Module 5 gère le **portefeuille** — l'ensemble des positions comme un tout. La question n'est plus "ce trade est-il bon ?" mais "l'ensemble de mes trades crée-t-il un risque que je ne vois pas ?"
 
-Le Risk Parity repose sur un principe simple mais puissant : répartir le **risque** de manière égale, pas le **capital**. Un actif très volatil (BTC, ATR quotidien de 5%) devrait avoir une plus petite position en dollars qu'un actif stable (JNJ, ATR quotidien de 0.8%) pour que les deux contribuent de manière égale au risque total du portefeuille.
+Le Risk Parity repose sur un principe simple mais puissant : répartir le **risque** de manière égale, pas le **capital**.
+
+L'idée a été formalisée par Edward Qian dans *Risk Parity Portfolios: Efficient Portfolios Through True Diversification* (2005), et popularisée par Ray Dalio chez Bridgewater Associates avec le fonds **All Weather**, lancé en 1996. Sébastien Maillard, Thierry Roncalli et Jérôme Teiletche ont fourni le cadre mathématique rigoureux dans *On the Properties of Equally-Weighted Risk Contributions Portfolios* (Journal of Portfolio Management, 2010), montrant que le portefeuille risk parity maximise la diversification et produit un ratio de Sharpe supérieur au portefeuille équipondéré.
+
+Le concept s'oppose directement à l'**optimisation mean-variance** de Harry Markowitz (*Portfolio Selection*, Journal of Finance, 1952 — prix Nobel 1990). Markowitz cherche le portefeuille optimal $\mathbf{w}^*$ qui résout :
+
+$$\min_{\mathbf{w}} \quad \mathbf{w}^T \Sigma \mathbf{w} \quad \text{sous contrainte} \quad \mathbf{w}^T \boldsymbol{\mu} = \mu_{\text{cible}}, \quad \mathbf{w}^T \mathbf{1} = 1$$
+
+où $\mathbf{w}$ est le vecteur des poids, $\Sigma$ la matrice de covariance, et $\boldsymbol{\mu}$ le vecteur des rendements espérés. Le problème en pratique : $\boldsymbol{\mu}$ est très difficile à estimer, et de petites erreurs d'estimation produisent des allocations instables. Le risk parity contourne ce problème en imposant que chaque actif contribue de manière égale au risque total :
+
+$$\text{RC}_i = w_i \cdot \frac{(\Sigma \mathbf{w})_i}{\sqrt{\mathbf{w}^T \Sigma \mathbf{w}}} = \frac{\sigma_p}{N} \quad \forall \, i$$
+
+où $\text{RC}_i$ est la contribution au risque de l'actif $i$ et $N$ le nombre d'actifs.
+
+Un actif très volatil (BTC, ATR quotidien de 5%) devrait avoir une plus petite position en dollars qu'un actif stable (JNJ, ATR quotidien de 0.8%) pour que les deux contribuent de manière égale au risque total du portefeuille.
 
 **Le filtre de corrélation :**
 
@@ -1510,7 +1714,11 @@ Les poids du portefeuille ne sont pas fixés une fois pour toutes. Chaque nuit, 
 
 Comment le portefeuille se comporterait-il si Mars 2020 se reproduisait ? Si les cryptos crashaient de 60% en une semaine ? Si la Fed montait les taux de 100 points de base d'un coup ?
 
-Le stress testing répond à ces questions en simulant des scénarios historiques et hypothétiques :
+Le stress testing est devenu une obligation réglementaire pour les banques après la crise de 2008 (Dodd-Frank Act aux USA, directive CRD IV en Europe). Le Comité de Bâle exige des scénarios de stress standardisés et des scénarios internes. Philippe Jorion, dans *Value at Risk* (3ème édition, 2006), distingue trois approches : les **stress tests historiques** (rejouer des crises passées), les **stress tests hypothétiques** (scénarios inventés mais plausibles), et les **reverse stress tests** (partir de la perte maximale acceptable et déterminer quel scénario la causerait).
+
+Nassim Nicholas Taleb (*The Black Swan*, 2007) a critiqué la VaR traditionnelle pour sa sous-estimation des risques extrêmes, plaidant pour une approche qui se concentre sur les queues de distribution plutôt que sur les scénarios "normaux". Le stress testing est la réponse partielle à cette critique — il force l'analyse des scénarios que la VaR ignore.
+
+Le stress testing dans Bilok-TradePilot répond à ces questions en simulant des scénarios historiques et hypothétiques :
 
 **Scénarios historiques :**
 
@@ -1558,9 +1766,9 @@ Le drawdown est la mesure de risque la plus intuitive : c'est la perte depuis le
 
 Bilok-TradePilot mesure le drawdown quotidiennement grâce à l'Equity Tracker, qui enregistre l'equity du compte chaque jour :
 
-```
-Drawdown = (Equity actuelle / Peak Equity − 1) × 100
-```
+$$DD_t = \frac{E_t - \max_{\tau \leq t} E_\tau}{\max_{\tau \leq t} E_\tau} \times 100 \quad \text{(en \%)}$$
+
+où $E_t$ est l'equity au temps $t$ et $\max_{\tau \leq t} E_\tau$ est le peak historique.
 
 **Les niveaux d'intervention :**
 
@@ -1645,25 +1853,33 @@ Si l'attribution montre que le Scanner est le facteur dominant positif (+40% du 
 
 ### Chapitre 39 : Métriques Professionnelles
 
-Au-delà du P&L brut, le système calcule les métriques utilisées par les gestionnaires de fonds professionnels :
+Au-delà du P&L brut, le système calcule les métriques utilisées par les gestionnaires de fonds professionnels. Ces métriques, développées au fil de décennies de recherche académique et de pratique institutionnelle, permettent de comparer des stratégies de manière objective et de détecter les signes de dégradation.
 
-**Sharpe Ratio** — le rendement excédentaire (au-dessus du taux sans risque) divisé par la volatilité des rendements :
+**Sharpe Ratio** — développé par William Sharpe (*Mutual Fund Performance*, Journal of Business, 1966 — prix Nobel 1990), le Sharpe ratio est devenu LA métrique standard de l'industrie. Il mesure le rendement excédentaire (au-dessus du taux sans risque) divisé par la volatilité des rendements :
 
-```
-Sharpe = (Rendement moyen − Taux sans risque) / Écart-type des rendements × √252
-```
+$$\text{Sharpe} = \frac{\bar{R}_p - R_f}{\sigma_p} \times \sqrt{252}$$
+
+où $\bar{R}_p$ est le rendement moyen quotidien du portefeuille, $R_f$ le taux sans risque quotidien, $\sigma_p$ l'écart-type des rendements, et $\sqrt{252}$ l'annualisation.
 
 Un Sharpe > 1.0 est bon, > 2.0 est excellent, > 3.0 est exceptionnel (et suspect — vérifier s'il n'y a pas de biais de survivant).
 
-**Sortino Ratio** — comme le Sharpe, mais ne pénalise que la volatilité *baissière*. Un fonds qui monte de 5% un jour et baisse de 1% le suivant a un Sharpe moyen mais un Sortino excellent — seule la baisse est un "problème". Le Sortino est plus pertinent que le Sharpe car les traders cherchent à maximiser les gains *et* à minimiser les pertes, pas à réduire toute volatilité.
+**Sortino Ratio** — développé par Frank Sortino et Robert van der Meer (1991), il améliore le Sharpe en ne pénalisant que la volatilité *baissière* :
 
-**Calmar Ratio** — le rendement annualisé divisé par le drawdown maximum. Mesure l'efficacité du capital par unité de risque extrême. Un Calmar de 2.0 signifie que pour chaque 1% de drawdown maximum, le système génère 2% de rendement annuel.
+$$\text{Sortino} = \frac{\bar{R}_p - R_f}{\sigma_{\text{down}}} \quad \text{où} \quad \sigma_{\text{down}} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}\min(R_t - R_f, \; 0)^2}$$
+
+Un fonds qui monte de 5% un jour et baisse de 1% le suivant a un Sharpe moyen mais un Sortino excellent — seule la baisse est un "problème". Le Sortino est plus pertinent que le Sharpe car les traders cherchent à maximiser les gains *et* à minimiser les pertes, pas à réduire toute volatilité.
+
+**Calmar Ratio** — mesure l'efficacité du capital par unité de risque extrême :
+
+$$\text{Calmar} = \frac{R_{\text{annualisé}}}{|DD_{\max}|}$$
+
+Un Calmar de 2.0 signifie que pour chaque 1% de drawdown maximum, le système génère 2% de rendement annuel.
 
 **Profit Factor** — la somme des gains bruts divisée par la somme des pertes brutes (en valeur absolue). Un PF de 1.5 signifie que pour chaque dollar perdu, le système gagne 1.50$.
 
-```
-Profit Factor = Σ Gains / |Σ Pertes|
-```
+$$PF = \frac{\sum_{i \in \mathcal{W}} G_i}{\left|\sum_{j \in \mathcal{L}} L_j\right|}$$
+
+où $\mathcal{W}$ est l'ensemble des trades gagnants et $\mathcal{L}$ l'ensemble des trades perdants.
 
 Un PF > 1.0 est profitable. Un PF > 2.0 est excellent. Un PF < 1.0 signifie que le système perd de l'argent.
 
@@ -1811,6 +2027,12 @@ La comparaison n'est significative qu'avec un historique suffisant (minimum 3 mo
 
 Le feedback loop est ce qui transforme Bilok-TradePilot d'un système statique en un système **adaptatif**. Chaque trade fermé produit des données qui remontent à travers le pipeline pour améliorer les décisions futures.
 
+Ce concept s'inspire directement de la **cybernétique** — la science des systèmes de contrôle, fondée par Norbert Wiener (*Cybernetics: Or Control and Communication in the Animal and the Machine*, 1948). Wiener a montré que tout système intelligent — biologique ou mécanique — repose sur des boucles de feedback : observer le résultat d'une action, comparer au résultat attendu, et ajuster le comportement futur.
+
+En finance quantitative, ce principe a été formalisé sous le nom de **walk-forward optimization** par Robert Pardo (*The Evaluation and Optimization of Trading Strategies*, 2008). Contrairement au backtest statique (optimiser sur le passé et espérer que ça marchera dans le futur), le walk-forward divise l'historique en fenêtres train/test successives : on optimise sur 5 ans, on teste sur 1 an, on avance la fenêtre, et on recommence. Les paramètres qui survivent à ce processus sont robustes — pas simplement sur-ajustés au passé.
+
+Plus récemment, les techniques de **reinforcement learning** (Sutton et Barto, *Reinforcement Learning: An Introduction*, 2018) ont formalisé ce problème : un agent interagit avec un environnement, observe des récompenses (P&L), et ajuste sa politique (poids, seuils) pour maximiser la récompense cumulative à long terme.
+
 Le chemin du feedback :
 
 ```
@@ -1957,7 +2179,7 @@ PostgreSQL stocke les données structurées : actifs, OHLCV quotidien, positions
 
 **Pipeline — Celery + Redis :**
 
-Celery orchestre les tâches asynchrones : scan nocturne, mise à jour des données, monitoring des positions. Redis sert de message broker et de stockage de résultats. Les tâches sont chaînées : `update_data → scan → analyse → scoring → execution`.
+Celery orchestre les tâches asynchrones : scan nocturne, mise à jour des données, monitoring des positions. Redis sert de message broker et de stockage de résultats. L'architecture est un **message queue pattern** classique, décrit par Gregor Hohpe et Bobby Woolf dans *Enterprise Integration Patterns* (2003). Les tâches sont chaînées : `update_data → scan → analyse → scoring → execution`. Ce pattern découple les producteurs (les modules qui génèrent des signaux) des consommateurs (les modules qui les exécutent), permettant une scalabilité horizontale et une résilience aux pannes.
 
 **Frontend — React + TailwindCSS + Recharts :**
 
@@ -2201,6 +2423,10 @@ Le trader peut **réduire** le risque (plus petit sizing, SL plus serré) mais n
 
 Les pertes sont inévitables. Même le meilleur système au monde a un win rate inférieur à 100%. La question n'est pas "vais-je perdre ?" mais "comment vais-je gérer la perte quand elle arrivera ?"
 
+Mark Douglas, dans *Trading in the Zone* (2000), a identifié la relation avec la perte comme le facteur le plus déterminant du succès en trading : *"Les meilleurs traders ne sont pas ceux qui ne perdent jamais. Ce sont ceux qui acceptent la perte comme un coût normal de faire des affaires."* Van Tharp (*Trade Your Way to Financial Freedom*, 1999) va plus loin : le sizing (combien risquer par trade) est plus important que le signal (quand entrer). Un système avec un win rate de 40% peut être très profitable si les gains moyens sont 3x les pertes moyennes.
+
+Les études de Larry Williams (*Long-Term Secrets to Short-Term Trading*, 1999) montrent qu'un drawdown de 30-40% est statistiquement inévitable pour tout système de trading sur une période suffisamment longue — même les meilleurs hedge funds l'ont expérimenté (Renaissance Technologies a subi un drawdown de 20% en 2020). La clé n'est pas d'éviter les drawdowns, mais de survivre à travers eux.
+
 **Les pertes individuelles :**
 
 Un trade qui touche son SL est un trade réussi — il a fait exactement ce qu'il devait faire. Le SL a limité la perte à un montant prédéfini (2 × ATR). Sans SL, cette perte pourrait être 5x ou 10x plus grande.
@@ -2340,42 +2566,56 @@ Le trading n'est pas un sprint. C'est un marathon. Et dans un marathon, celui qu
 ## Annexe B : Formules Clés
 
 **Score Scanner Final :**
-```
-Score = Σ (Score_i × Poids_i) × Vetos
-Veto si MTS < 20 OU SUS < 25 OU IPI < 20
-```
+
+$$S_{\text{final}} = \begin{cases} \displaystyle\sum_{i=1}^{10} w_i \cdot S_i & \text{si aucun veto} \\[6pt] 0 & \text{si } MTS < 20 \;\lor\; SUS < 25 \;\lor\; IPI < 20 \end{cases}$$
 
 **Score V2 :**
-```
-V2 = Conviction × 0.35 + Bayésien × 0.30 + SQC × 0.20 + Scanner × 0.15
-GO si V2 ≥ 65 ET Kelly > 0
-```
 
-**Score Bayésien :**
-```
-Prior = Perf_6m × 0.40 + Consistance × 0.30 + Position_range × 0.30
-Likelihood = Scanner × 0.40 + Conviction × 0.40 + Confiance_regime × 0.20
-Posterior = Prior × (1 − w) + Likelihood × w
-w = 0.4 + confiance_regime × 0.4
-```
+$$S_{V2} = 0.35 \cdot C_{\text{strat}} + 0.30 \cdot B_{\text{post}} + 0.20 \cdot Q_{\text{ctx}} + 0.15 \cdot S_{\text{scan}}$$
 
-**Kelly Fractionnaire :**
-```
-f* = (p × b − q) / b
-Fraction = f* × 0.25
-Position = Capital × min(Fraction, 0.15)
-```
+$$\text{Décision} = \begin{cases} \textbf{GO} & \text{si } S_{V2} \geq 65 \;\land\; f^* > 0 \\ \textbf{WAIT} & \text{si } 50 \leq S_{V2} < 65 \\ \textbf{NO\_TRADE} & \text{si } S_{V2} < 50 \end{cases}$$
 
-**Exhaustion Score :**
-```
-Santé = (Momentum + Volume + Narrative + RSI + P/L) / 5
-FORT ≥ 70 | MODÉRÉ ≥ 50 | FAIBLE ≥ 35 | ÉPUISÉ < 35
-```
+**Score Bayésien Adaptatif :**
+
+$$\pi_0 = 0.40 \cdot R_{126} + 0.30 \cdot \frac{n^+}{6} + 0.30 \cdot \frac{P - L_{52}}{H_{52} - L_{52}}$$
+
+$$\mathcal{L} = 0.40 \cdot S_{\text{scan}} + 0.40 \cdot C_{\text{strat}} + 0.20 \cdot \gamma$$
+
+$$\alpha = 0.4 + 0.4\gamma \qquad B_{\text{post}} = \alpha \cdot \mathcal{L} + (1 - \alpha) \cdot \pi_0$$
+
+**Critère de Kelly Fractionnaire :**
+
+$$f^* = \frac{p \cdot b - (1-p)}{b} \qquad f_{\text{frac}} = 0.25 \cdot f^* \qquad \text{Position} = K \cdot \min(f_{\text{frac}}, \; 0.15)$$
+
+**Sharpe, Sortino et Calmar :**
+
+$$\text{Sharpe} = \frac{\bar{R}_p - R_f}{\sigma_p}\sqrt{252} \qquad \text{Sortino} = \frac{\bar{R}_p - R_f}{\sigma_{\text{down}}} \qquad \text{Calmar} = \frac{R_{\text{ann}}}{|DD_{\max}|}$$
+
+**Profit Factor et Espérance :**
+
+$$PF = \frac{\sum_{i \in \mathcal{W}} G_i}{\left|\sum_{j \in \mathcal{L}} L_j\right|} \qquad \mathbb{E}[R] = p \cdot b - (1-p) = p(1+b) - 1$$
+
+**Corrélation de Pearson :**
+
+$$\rho_{X,Y} = \frac{\sum(X_t - \bar{X})(Y_t - \bar{Y})}{\sqrt{\sum(X_t - \bar{X})^2 \cdot \sum(Y_t - \bar{Y})^2}}$$
+
+**Risk Parity — Contribution au Risque :**
+
+$$\text{RC}_i = w_i \cdot \frac{(\Sigma \mathbf{w})_i}{\sqrt{\mathbf{w}^T \Sigma \mathbf{w}}} = \frac{\sigma_p}{N} \quad \forall \; i$$
+
+**Optimisation Mean-Variance (Markowitz) :**
+
+$$\min_{\mathbf{w}} \; \mathbf{w}^T \Sigma \mathbf{w} \quad \text{s.c.} \quad \mathbf{w}^T\boldsymbol{\mu} = \mu_c, \;\; \mathbf{w}^T\mathbf{1} = 1$$
+
+**Drawdown :**
+
+$$DD_t = \frac{E_t - \max_{\tau \leq t} E_\tau}{\max_{\tau \leq t} E_\tau} \times 100$$
 
 **Meta-Score :**
-```
-Meta = EWS × 0.30 + Régime_portf × 0.25 + Win_rate × 0.25 + Sharpe_norm × 0.20
-```
+
+$$M = 0.30 \cdot \text{EWS} + 0.25 \cdot \text{Reg}_p + 0.25 \cdot \text{WR} + 0.20 \cdot \hat{S}$$
+
+où $\hat{S} = \min\!\left(\frac{\text{Sharpe}}{2}, 1\right) \times 100$ est le Sharpe normalisé.
 
 ---
 

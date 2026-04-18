@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { BookOpen, Download, ChevronRight, Search } from "lucide-react";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 
 // Structure du livre
 const BOOK_STRUCTURE = [
@@ -156,11 +158,37 @@ export default function Livres() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Rendu LaTeX via KaTeX
+  const renderKatexBlock = (tex: string): string => {
+    try {
+      return `<div class="my-4 overflow-x-auto text-center">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`;
+    } catch { return `<pre class="text-red-400">${tex}</pre>`; }
+  };
+  const renderKatexInline = (tex: string): string => {
+    try {
+      return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false });
+    } catch { return `<code>${tex}</code>`; }
+  };
+
   // Convertir le markdown en HTML basique
   const renderMarkdown = (md: string) => {
+    // Pré-traiter les blocs $$ ... $$ (multi-ligne ou single-line)
+    md = md.replace(/\$\$([^$]+?)\$\$/g, (_match, tex) => {
+      return `%%KATEX_BLOCK%%${btoa(unescape(encodeURIComponent(tex)))}%%END%%`;
+    });
+
     return md
       .split("\n")
       .map((line, i) => {
+        // Bloc KaTeX (pré-traité)
+        if (line.includes("%%KATEX_BLOCK%%")) {
+          const match = line.match(/%%KATEX_BLOCK%%(.+?)%%END%%/);
+          if (match) {
+            try {
+              return renderKatexBlock(decodeURIComponent(escape(atob(match[1]))));
+            } catch { return line; }
+          }
+        }
         // Headers
         if (line.startsWith("# ") && !line.startsWith("## ") && line.includes("BILOK-TRADEPILOT"))
           return `<h1 class="text-4xl font-bold text-gold mt-16 mb-2 pb-4 border-b-2 border-gold/20 text-center" id="ch${i}">${line.slice(2)}</h1>
@@ -297,6 +325,8 @@ export default function Livres() {
 
   const formatInline = (text: string) => {
     return text
+      // LaTeX inline $...$ (avant les autres formatages pour ne pas interférer)
+      .replace(/\$([^$]+?)\$/g, (_match: string, tex: string) => renderKatexInline(tex))
       .replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-bold italic text-gold">$1</strong>')
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-text-primary">$1</strong>')
       .replace(/\*(.*?)\*/g, '<em class="italic text-text-secondary">$1</em>')
