@@ -407,7 +407,7 @@ function AnalyseResult({ data }: { data: any }) {
       {/* Lien vers analyse complète (seulement si l'actif est dans le pipeline) */}
       <a href={`/asset/${data.symbol}`} className="block bg-card border border-gold/30 rounded-xl p-4 text-center hover:bg-gold/5 transition-colors">
         <p className="text-gold font-semibold text-sm">Voir l'analyse complète →</p>
-        <p className="text-[10px] text-text-secondary mt-1">Radar 9 critères, breakdowns détaillés, backtest, fondamentaux — actifs du pipeline uniquement</p>
+        <p className="text-[10px] text-text-secondary mt-1">Radar 10 critères, breakdowns détaillés, backtest, fondamentaux — actifs du pipeline uniquement</p>
       </a>
 
       {/* Graphique */}

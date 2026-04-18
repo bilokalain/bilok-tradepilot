@@ -401,9 +401,9 @@ export default function AssetDetail() {
       {/* ============ RADAR 9 CRITÈRES ============ */}
       <div className="mt-6">
         <InfoCard
-          title="Radar des 9 critères"
+          title="Radar des 10 critères"
           icon={<Sparkles size={18} />}
-          description="Ce radar montre les 9 dimensions d'analyse de Bilok-TradePilot. Plus la forme dorée est large, plus l'actif est fort sur ce critère. Un radar bien rempli = un actif solide sur tous les plans. Un radar déséquilibré = des forces et des faiblesses à prendre en compte. Cliquez sur 'Comment lire cette section ?' sur chaque critère pour en savoir plus."
+          description="Ce radar montre les 10 dimensions d'analyse de Bilok-TradePilot. Plus la forme dorée est large, plus l'actif est fort sur ce critère. Un radar bien rempli = un actif solide sur tous les plans. Un radar déséquilibré = des forces et des faiblesses à prendre en compte. Cliquez sur 'Comment lire cette section ?' sur chaque critère pour en savoir plus."
         >
           <RadarChart data={radarData} size={320} />
         </InfoCard>

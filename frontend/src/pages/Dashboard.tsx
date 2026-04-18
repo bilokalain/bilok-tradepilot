@@ -147,8 +147,8 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <MetricCard icon={<Lightbulb size={16} />} label="Thèses M0" value={String(theses.length)} description={theses.length > 0 ? `Conviction moy. : ${theses.reduce((s: number, t: any) => s + (t.conviction === "CERTAINE" ? 90 : t.conviction === "FORTE" ? 75 : t.conviction === "MOYENNE" ? 50 : 25), 0) / theses.length}%` : "Aucune conviction active"} color={theses.length > 0 ? "text-gold" : ""} />
-        <MetricCard icon={<Activity size={16} />} label="Actifs scannés" value={loadingScan ? "..." : String(results.length)} description="Analysés sur 9 critères" />
-        <MetricCard icon={<Target size={16} />} label="Score moyen" value={loadingScan ? "..." : avgScore.toFixed(1)} unit="/100" description="Moyenne des 9 critères" color={avgScore >= 60 ? "text-gold" : ""} />
+        <MetricCard icon={<Activity size={16} />} label="Actifs scannés" value={loadingScan ? "..." : String(results.length)} description="Analysés sur 10 critères" />
+        <MetricCard icon={<Target size={16} />} label="Score moyen" value={loadingScan ? "..." : avgScore.toFixed(1)} unit="/100" description="Moyenne des 10 critères" color={avgScore >= 60 ? "text-gold" : ""} />
         <MetricCard icon={<Zap size={16} />} label="Signaux GO" value={String(signals.length)} description="Prêts pour l'exécution" color="text-gold" />
         <MetricCard icon={<Brain size={16} />} label="Régime" value={regime ? REGIME_FR[regime.dominant_regime] || regime.dominant_regime : "—"} description="Marché dominant" color={regime?.dominant_regime === "BULL" ? "text-gold" : regime?.dominant_regime === "BEAR" ? "text-red-400" : ""} />
         <MetricCard icon={<Shield size={16} />} label="Engagement" value={metaScore?.engagement || "—"} description={metaScore?.description || ""} color={metaScore?.engagement === "FULL" ? "text-gold" : metaScore?.engagement === "MINIMAL" ? "text-red-400" : ""} />
@@ -338,7 +338,7 @@ export default function Dashboard() {
 
       {results.length > 0 && (
         <div className="mt-6">
-          <InfoCard title="Classement des actifs" icon={<Target size={18} />} description="Score global = 9 critères pondérés. Cliquez pour l'analyse détaillée.">
+          <InfoCard title="Classement des actifs" icon={<Target size={18} />} description="Score global = 10 critères pondérés. Cliquez pour l'analyse détaillée.">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

@@ -1,5 +1,5 @@
 /**
- * Radar chart SVG pour visualiser les 9 critères du scanner.
+ * Radar chart SVG pour visualiser les 10 critères du scanner.
  * Pas de dépendance externe — SVG pur.
  */
 

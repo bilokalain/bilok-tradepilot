@@ -810,7 +810,7 @@ const SECTIONS = [
           <TR><TD b>Multi-Timeframe (MTA)</TD><TD>Oui</TD><TD>Score MTA, direction daily/hourly, alignement des timeframes</TD></TR>
           <TR><TD b>TP1 + TP2</TD><TD>Oui</TD><TD>Deux objectifs de prix (TP2 = 1.6× TP1) pour une sortie progressive</TD></TR>
           <TR><TD b>Score V2</TD><TD>Oui</TD><TD>Détail des 8 composantes avec poids et scores individuels</TD></TR>
-          <TR><TD b>Lien analyse complète</TD><TD>Oui</TD><TD>Accès direct à la vue Scanner détaillée avec radar 9 critères et breakdowns</TD></TR>
+          <TR><TD b>Lien analyse complète</TD><TD>Oui</TD><TD>Accès direct à la vue Scanner détaillée avec radar 10 critères et breakdowns</TD></TR>
         </Table>
 
         <H3>Historique</H3>
