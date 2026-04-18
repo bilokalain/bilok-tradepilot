@@ -783,11 +783,12 @@ const SECTIONS = [
         <H3>Comment ça marche</H3>
         <Table headers={["Étape", "Ce qui se passe"]}>
           <TR><TD b>1. Recherche</TD><TD>Autocomplete intelligent — tapez un nom ou symbole</TD></TR>
-          <TR><TD b>2. Téléchargement</TD><TD>Yahoo Finance (priorité) ou TradingView (fallback) fournit 2 ans de données daily</TD></TR>
+          <TR><TD b>2. Téléchargement</TD><TD>Yahoo Finance (priorité) ou TradingView (fallback) fournit jusqu'à 10 ans de données daily</TD></TR>
           <TR><TD b>3. Prix live</TD><TD>Si l'actif est sur Alpaca (US, ETF, crypto), le prix temps réel remplace la clôture</TD></TR>
-          <TR><TD b>4. Analyse</TD><TD>20 indicateurs AT + 6 scores + 12 stratégies calculés sur les données fraîches</TD></TR>
+          <TR><TD b>4. Analyse</TD><TD>20 indicateurs AT + 10 scores + 12 stratégies + MTA calculés sur les données fraîches</TD></TR>
           <TR><TD b>5. Score V2</TD><TD>Même scoring que le pipeline (8 sources pondérées) — cohérent avec les signaux GO</TD></TR>
-          <TR><TD b>6. Verdict</TD><TD>GO / ATTENTE / PAS DE TRADE avec prix d'entrée, SL, TP</TD></TR>
+          <TR><TD b>6. Sizing Kelly</TD><TD>R:R, win rate estimé, espérance, Kelly ¼, position recommandée en %</TD></TR>
+          <TR><TD b>7. Verdict</TD><TD>GO / ATTENTE / PAS DE TRADE avec prix d'entrée, SL, TP1, TP2</TD></TR>
         </Table>
 
         <H3>Double source de données</H3>
@@ -802,10 +803,14 @@ const SECTIONS = [
         <H3>Ce que vous voyez</H3>
         <P>Tout est <B>cliquable</B> pour voir les définitions et interprétations :</P>
         <Table headers={["Section", "Cliquable ?", "Ce qui s'affiche"]}>
-          <TR><TD b>6 scores (AT, Génome, IPI...)</TD><TD>Oui</TD><TD>Définition + interprétation dynamique du score pour cet actif</TD></TR>
+          <TR><TD b>10 scores (AT, Génome, IPI, IVF, MTS, SGI, SUS, Fondamental, Corrélation, Sentiment)</TD><TD>Oui</TD><TD>Définition + interprétation dynamique du score pour cet actif</TD></TR>
           <TR><TD b>8 indicateurs (RSI, MACD, SMA...)</TD><TD>Oui</TD><TD>Définition + "RSI à 65 = zone neutre, pas de signal extrême"</TD></TR>
           <TR><TD b>12 stratégies</TD><TD>Oui</TD><TD>Qu'est-ce que c'est ? Quand ça fonctionne ? Comment ça entre ? + Signal avec Entry/SL/TP</TD></TR>
+          <TR><TD b>Position Sizing Kelly</TD><TD>Oui</TD><TD>R:R, win rate estimé, espérance, Kelly ¼, taille de position recommandée</TD></TR>
+          <TR><TD b>Multi-Timeframe (MTA)</TD><TD>Oui</TD><TD>Score MTA, direction daily/hourly, alignement des timeframes</TD></TR>
+          <TR><TD b>TP1 + TP2</TD><TD>Oui</TD><TD>Deux objectifs de prix (TP2 = 1.6× TP1) pour une sortie progressive</TD></TR>
           <TR><TD b>Score V2</TD><TD>Oui</TD><TD>Détail des 8 composantes avec poids et scores individuels</TD></TR>
+          <TR><TD b>Lien analyse complète</TD><TD>Oui</TD><TD>Accès direct à la vue Scanner détaillée avec radar 9 critères et breakdowns</TD></TR>
         </Table>
 
         <H3>Historique</H3>
@@ -939,7 +944,7 @@ const SECTIONS = [
 
         <H3>Sources de données</H3>
         <Table headers={["Source", "Usage", "Coût"]}>
-          <TR><TD b>Yahoo Finance</TD><TD>Données historiques OHLCV (2 ans daily)</TD><TD>Gratuit</TD></TR>
+          <TR><TD b>Yahoo Finance</TD><TD>Données historiques OHLCV (jusqu'à 10 ans daily)</TD><TD>Gratuit</TD></TR>
           <TR><TD b>TradingView</TD><TD>Recherche de symboles (autocomplete) + fallback données historiques</TD><TD>Gratuit</TD></TR>
           <TR><TD b>Alpaca</TD><TD>Prix live + exécution (paper trading)</TD><TD>Gratuit</TD></TR>
           <TR><TD b>FRED</TD><TD>Données macro (taux, VIX, chômage, M2)</TD><TD>Gratuit</TD></TR>
@@ -977,6 +982,15 @@ const SECTIONS = [
         </Table>
         <Callout>Le compte <Code>admin@tradepilot.local</Code> est automatiquement admin et ne peut pas être supprimé. Les nouveaux comptes sont créés sans droit admin par défaut.</Callout>
 
+        <H3>Profil et sécurité</H3>
+        <P>Chaque utilisateur peut gérer son compte via la <B>modal Profil</B> (clic sur l'avatar en bas de la sidebar) :</P>
+        <Table headers={["Fonctionnalité", "Détail"]}>
+          <TR><TD b>Modifier le nom</TD><TD>Onglet Profil → modifier le nom affiché → Enregistrer</TD></TR>
+          <TR><TD b>Changer le mot de passe</TD><TD>Onglet Mot de passe → mot de passe actuel + nouveau (min. 6 car.) + confirmation</TD></TR>
+          <TR><TD b>Mot de passe oublié</TD><TD>Page de connexion → "Mot de passe oublié ?" → email → token de réinitialisation (30 min)</TD></TR>
+        </Table>
+        <Callout>Les mots de passe sont hashés (SHA-256) et ne sont jamais stockés en clair. Le token de réinitialisation expire après 30 minutes.</Callout>
+
         <H3>Commandes</H3>
         <div className="bg-surface rounded-xl p-4 font-mono text-xs space-y-2">
           <div><span className="text-gold">bash scripts/start_all.sh</span> <span className="text-text-secondary">— Démarrer tout (backend + frontend + Celery + tunnel)</span></div>
@@ -990,7 +1004,7 @@ const SECTIONS = [
         <H3>Statistiques du système</H3>
         <Table headers={["Métrique", "Valeur"]}>
           <TR><TD b>Actifs en base</TD><TD>500 (233 US, 76 EU, 53 Crypto, 89 ETF, 30 Forex, 19 Commodities)</TD></TR>
-          <TR><TD b>Barres daily</TD><TD>1.8M+ (depuis 1962 — 64 ans)</TD></TR>
+          <TR><TD b>Barres daily</TD><TD>2.4M+ (jusqu'à 10 ans d'historique par actif)</TD></TR>
           <TR><TD b>Barres intraday 1H</TD><TD>420K+</TD></TR>
           <TR><TD b>Stratégies</TD><TD>14 (5 pro + 5 avancées + 4 classiques)</TD></TR>
           <TR><TD b>Critères scanner</TD><TD>11 (dont Narrative Momentum — critère unique qui détecte les narratives en propagation)</TD></TR>
