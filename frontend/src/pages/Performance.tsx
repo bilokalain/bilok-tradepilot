@@ -102,18 +102,24 @@ function PerformanceContent() {
         Attribution causale de la performance — décomposition du P&L par source (scanner, timing, sizing, sortie, régime, friction), benchmarking vs SPY et portefeuille 60/40, Early Warning System à 4 niveaux et taux de détection des top movers du jour.
       </p>
 
+      {/* Interprétation globale */}
+      <PerformanceVerdict meta={meta} equity={equity} trades={trades} ews={ews} monteCarlo={monteCarlo} />
+
       {/* Meta-Score + Métriques */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs text-text-secondary mb-1">Meta-Score</p>
-          <p className="text-3xl font-mono font-bold text-gold">{meta.meta_score ?? "—"}</p>
+          <p className="text-3xl font-mono font-bold text-gold">{meta.meta_score ?? "—"}<span className="text-sm text-text-secondary">/100</span></p>
+          <div className="h-2 bg-surface rounded-full mt-2 overflow-hidden">
+            <div className="h-full bg-gold rounded-full" style={{ width: `${meta.meta_score ?? 0}%` }} />
+          </div>
           <span className={`text-xs px-2 py-0.5 border rounded mt-2 inline-block ${ENGAGEMENT_COLORS[meta.engagement] || ""}`}>
             {meta.engagement ?? "—"}
           </span>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs text-text-secondary mb-1">Equity</p>
-          <p className="text-2xl font-mono font-semibold">${(equity.current ?? 100000).toFixed(0)}</p>
+          <p className="text-2xl font-mono font-semibold">${(equity.current ?? 100000).toLocaleString()}</p>
           <p className={`text-xs mt-1 ${(equity.pnl ?? 0) >= 0 ? "text-gold" : "text-red-400"}`}>
             {(equity.pnl ?? 0) >= 0 ? "+" : ""}${(equity.pnl ?? 0).toFixed(2)} ({equity.pnl_pct ?? 0}%)
           </p>
@@ -121,17 +127,26 @@ function PerformanceContent() {
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs text-text-secondary mb-1">Win Rate</p>
           <p className="text-2xl font-mono font-semibold">{trades.win_rate ?? 0}%</p>
-          <p className="text-xs text-text-secondary mt-1">{trades.total ?? 0} trades</p>
+          <p className="text-xs text-text-secondary mt-1">{trades.wins ?? 0}W / {trades.losses ?? 0}L — {trades.total ?? 0} trades</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-xs text-text-secondary mb-1">EWS</p>
+          <p className="text-xs text-text-secondary mb-1">Early Warning</p>
           <p className={`text-2xl font-bold ${EWS_COLORS[ews.overall_level] || ""}`}>
             {ews.overall_level ?? "—"}
           </p>
           {ews.should_pause && (
-            <p className="text-xs text-red-400 mt-1">PAUSE RECOMMANDÉE</p>
+            <p className="text-xs text-red-400 mt-1 animate-pulse">PAUSE RECOMMANDÉE</p>
           )}
         </div>
+      </div>
+
+      {/* Ratios professionnels */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <RatioCard label="Sharpe" value={report.ratios?.sharpe} good={0.5} great={1.0} explain="Rendement / risque total. >1 = bon" />
+        <RatioCard label="Sortino" value={report.ratios?.sortino} good={0.7} great={1.5} explain="Rendement / risque baissier seulement" />
+        <RatioCard label="Calmar" value={report.ratios?.calmar} good={0.5} great={1.0} explain="Rendement / drawdown max" />
+        <RatioCard label="Profit Factor" value={report.ratios?.profit_factor ?? trades.profit_factor} good={1.2} great={1.5} explain="$ gagné par $ perdu" />
+        <RatioCard label="Max Drawdown" value={equity.max_drawdown} good={-15} great={-5} explain="Pire perte depuis le pic" suffix="%" invert />
       </div>
 
       {/* Equity Curve */}
@@ -565,6 +580,101 @@ function PerformanceContent() {
     </div>
   );
 }
+
+// ============================================================
+// Verdict narratif global
+// ============================================================
+
+function PerformanceVerdict({ meta, equity, trades, ews, monteCarlo }: { meta: any; equity: any; trades: any; ews: any; monteCarlo: any }) {
+  const ms = meta.meta_score ?? 0;
+  const wr = trades.win_rate ?? 0;
+  const pnl = equity.pnl ?? 0;
+  const dd = equity.max_drawdown ?? 0;
+  const ewsLevel = ews.overall_level ?? "NORMAL";
+
+  const parts: string[] = [];
+
+  // Santé globale
+  if (ms >= 80) parts.push(`Le système est en excellente santé (Meta-Score ${ms}/100). Tous les indicateurs convergent positivement.`);
+  else if (ms >= 60) parts.push(`Le système fonctionne normalement (Meta-Score ${ms}/100). La performance est dans les paramètres attendus.`);
+  else if (ms >= 40) parts.push(`Attention requise (Meta-Score ${ms}/100). La performance se dégrade — le système réduit automatiquement son exposition.`);
+  else parts.push(`Le système est en difficulté (Meta-Score ${ms}/100). L'engagement est réduit au minimum. Analysez les causes avant de continuer.`);
+
+  // P&L
+  if (pnl > 0) parts.push(`Le portefeuille est en profit de $${pnl.toFixed(2)} (${equity.pnl_pct ?? 0}%).`);
+  else if (pnl < 0) parts.push(`Le portefeuille est en perte de $${Math.abs(pnl).toFixed(2)} (${equity.pnl_pct ?? 0}%).`);
+
+  // Win rate
+  if (wr >= 55) parts.push(`Le win rate de ${wr}% est bon — plus de la moitié des trades sont gagnants.`);
+  else if (wr >= 45 && wr > 0) parts.push(`Le win rate de ${wr}% est dans la moyenne. Si le R:R est favorable, c'est suffisant.`);
+  else if (wr > 0) parts.push(`Le win rate de ${wr}% est faible — vérifiez que les gains moyens compensent les pertes.`);
+
+  // EWS
+  if (ewsLevel === "CRITIQUE") parts.push(`L'Early Warning System est en CRITIQUE — le pipeline devrait être mis en pause.`);
+  else if (ewsLevel === "ALERTE") parts.push(`L'EWS est en ALERTE — le sizing est automatiquement réduit de 30%.`);
+
+  // Drawdown
+  if (dd && Math.abs(dd) > 15) parts.push(`Le drawdown de ${dd}% est significatif. Le système de contrôle intervient automatiquement au-delà de -20%.`);
+
+  // Monte Carlo
+  if (monteCarlo.status === "ok" && monteCarlo.p_ruin != null) {
+    if (monteCarlo.p_ruin > 5) parts.push(`La probabilité de ruine est de ${monteCarlo.p_ruin}% — niveau de risque élevé.`);
+    else parts.push(`La probabilité de ruine est de ${monteCarlo.p_ruin}% — niveau acceptable.`);
+  }
+
+  const verdictColor = ms >= 80 ? "border-emerald-400/20 bg-emerald-400/5" :
+    ms >= 60 ? "border-gold/20 bg-gold/5" :
+    ms >= 40 ? "border-yellow-400/20 bg-yellow-400/5" :
+    "border-red-400/20 bg-red-400/5";
+
+  return (
+    <div className={`mb-6 p-5 rounded-xl border ${verdictColor}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`text-xs font-bold px-2 py-1 rounded border ${ENGAGEMENT_COLORS[meta.engagement] || ""}`}>
+          {meta.engagement ?? "—"}
+        </span>
+        <span className="text-sm font-semibold">Diagnostic du système</span>
+      </div>
+      <p className="text-sm text-text-secondary leading-relaxed">{parts.join(" ")}</p>
+    </div>
+  );
+}
+
+
+// ============================================================
+// Ratio Card avec code couleur et explication
+// ============================================================
+
+function RatioCard({ label, value, good, great, explain, suffix = "", invert = false }: {
+  label: string; value: any; good: number; great: number; explain: string; suffix?: string; invert?: boolean;
+}) {
+  const v = Number(value);
+  const hasValue = value != null && !isNaN(v);
+
+  let color = "text-text-secondary";
+  let sub = "";
+  if (hasValue) {
+    if (invert) {
+      color = v >= great ? "text-emerald-400" : v >= good ? "text-gold" : "text-red-400";
+      sub = v >= great ? "Excellent" : v >= good ? "Acceptable" : "Risque élevé";
+    } else {
+      color = v >= great ? "text-emerald-400" : v >= good ? "text-gold" : v >= 0 ? "text-yellow-400" : "text-red-400";
+      sub = v >= great ? "Excellent" : v >= good ? "Bon" : v >= 0 ? "Faible" : "Négatif";
+    }
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-3 text-center">
+      <p className="text-[9px] text-text-secondary uppercase tracking-wider">{label}</p>
+      <p className={`text-xl font-mono font-bold mt-1 ${color}`}>
+        {hasValue ? `${v.toFixed(2)}${suffix}` : "—"}
+      </p>
+      {hasValue && <p className={`text-[9px] mt-0.5 ${color}`}>{sub}</p>}
+      <p className="text-[8px] text-text-secondary mt-1 italic">{explain}</p>
+    </div>
+  );
+}
+
 
 export default function Performance() {
   return (
