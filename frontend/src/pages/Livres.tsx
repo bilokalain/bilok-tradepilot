@@ -16,6 +16,17 @@ const BOOK_STRUCTURE = [
     ],
   },
   {
+    part: "REVUE DE LA LITTÉRATURE",
+    chapters: [
+      { id: "lit1", title: "Finance comportementale et biais cognitifs" },
+      { id: "lit2", title: "Théorie des marchés et efficience" },
+      { id: "lit3", title: "Trading systématique et quantitatif" },
+      { id: "lit4", title: "Gestion du risque et dimensionnement" },
+      { id: "lit5", title: "Analyse technique et microstructure" },
+      { id: "lit6", title: "Intelligence artificielle et NLP financier" },
+    ],
+  },
+  {
     part: "PARTIE I — LA VISION",
     chapters: [
       { id: "ch1", title: "Chapitre 1 : Qu'est-ce qu'une thèse de trading" },
