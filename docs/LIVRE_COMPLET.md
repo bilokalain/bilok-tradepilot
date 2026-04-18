@@ -1729,6 +1729,8 @@ Le stress testing dans Bilok-TradePilot répond à ces questions en simulant des
 | **Volmageddon** | Février 2018 | VIX de 10 à 50 en 1 jour |
 | **Flash Crash** | Mai 2010 | SPY −9% en 36 minutes |
 | **Taper Tantrum** | Mai-juin 2013 | Obligations −4%, EM −15% |
+| **Choc Pétrolier Iran** | 2024-2026 | Pétrole +60%, EU −25%, Défense +20% |
+| **Stagflation** | Hypothétique | Actions −22%, Or +20%, Crypto −35% |
 
 Pour chaque scénario, le système recalcule les rendements de chaque position en appliquant les beta historiques de l'actif par rapport au benchmark pendant la période de stress. Un portefeuille diversifié (actions + or + obligations) résistera mieux qu'un portefeuille concentré en tech.
 
@@ -1737,6 +1739,8 @@ Pour chaque scénario, le système recalcule les rendements de chaque position e
 - **Black Swan** — toutes les corrélations passent à 1.0 (tout baisse en même temps), volatilité × 3. Perte estimée : drawdown maximum.
 - **Taux +200bps** — hausse brutale des taux d'intérêt. Les actions growth et les obligations chutent, les financières montent.
 - **Dollar collapse** — DXY −15%. Les actifs libellés en non-USD et l'or montent, les actifs US baissent en valeur réelle.
+- **Choc pétrolier Iran** — escalade militaire au Moyen-Orient, fermeture du détroit d'Ormuz. Le pétrole bondit de +60%, le gaz naturel de +40%. Les valeurs de défense (LMT, RTX, Rheinmetall) montent de 15-25%, tandis que les véhicules électriques (TSLA, NIO, RIVN) chutent de 20-25% et l'aviation (Boeing, Airbus) perd 12-15%. Ce scénario utilise des **chocs par actif** (pas seulement par classe), permettant une simulation granulaire de l'impact sur chaque position.
+- **Stagflation** — croissance nulle + inflation à 8%+, le pire des deux mondes. Les actions perdent 22%, les crypto 35%, mais l'or monte de 20% et l'uranium de 12% (demande énergétique). Les entreprises défensives (Coca-Cola, Procter & Gamble) sont quasi-neutres. Ce scénario est particulièrement pertinent dans le contexte post-2024 de politique monétaire incertaine.
 
 Le résultat du stress test est un **drawdown maximum estimé** pour le portefeuille actuel sous chaque scénario. Si ce drawdown dépasse un seuil configurable (par défaut −25%), le système réduit l'exposition.
 
@@ -2185,6 +2189,8 @@ Celery orchestre les tâches asynchrones : scan nocturne, mise à jour des donn�
 
 Le dashboard React affiche en temps réel l'état du système : positions ouvertes, signaux actifs, métriques de performance, equity curve. TailwindCSS pour le style, Recharts pour les graphiques. Le frontend est déployé sur Vercel.
 
+L'interface intègre **5 thèmes de couleur** configurables dans les paramètres : Dark Gold (signature), Ocean Blue (style Bloomberg), Matrix Green (trading desk), Crypto Purple (style DeFi) et Light Mode. Le thème est persisté en localStorage et appliqué via des variables CSS. La gestion des utilisateurs est professionnelle : création de compte, connexion JWT, modification du profil, changement de mot de passe, et réinitialisation par token en cas d'oubli.
+
 **Machine Learning — PyTorch (MPS) + FinBERT :**
 
 Le NLP de sentiment utilise FinBERT, un modèle BERT fine-tuné sur du texte financier. Le MacBook M3 utilise Metal Performance Shaders (MPS) comme accélérateur GPU pour l'inférence. La RAM unifiée CPU/GPU du M3 élimine les transferts de données qui ralentiraient un GPU discret.
@@ -2384,7 +2390,7 @@ Le dashboard est l'interface entre le trader et le système. Il est organisé en
 
 **La page Dashboard** — les métriques clés du jour : nombre d'actifs scannés, shortlist du jour, signaux GO générés, Meta-Score, EWS, positions ouvertes vs maximum, equity courante.
 
-**La page Analyse** — permet de lancer une analyse rapide sur un actif spécifique. Le trader entre un symbole et le système retourne en quelques secondes le score scanner, le régime, la stratégie recommandée, et la thèse de trade. Pratique pour vérifier rapidement une idée.
+**La page Analyse Rapide** — permet d'analyser **n'importe quel actif au monde** en quelques secondes, même s'il n'est pas dans les 500 actifs du pipeline. Le trader entre un nom ou un symbole (avec autocomplete intelligent via TradingView) et le système calcule en temps réel les **10 scores** (technique, corrélation, sentiment, génome, IPI, IVF, MTS, SGI, SUS, fondamental), le régime, les **12 stratégies** avec la meilleure recommandée, le **Multi-Timeframe Analysis** (daily + hourly), le **sizing Kelly** (R:R, win rate, espérance, position recommandée), et les niveaux d'entrée avec **TP1 et TP2** (sortie progressive). Un lien permet d'accéder à l'analyse complète avec radar 10 critères pour les actifs du pipeline.
 
 **La page Performance** — les métriques professionnelles (Sharpe, Sortino, Calmar, Profit Factor), la courbe d'equity, l'attribution P&L, le statut du calibrage, et les benchmarks.
 
