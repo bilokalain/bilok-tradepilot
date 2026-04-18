@@ -106,6 +106,9 @@ function StrategiesBacktest() {
 
       {results.length > 0 && (
         <>
+          {/* Interprétation intelligente */}
+          <BacktestInterpretation results={results} symbol={selectedSymbol} />
+
           <div className="overflow-x-auto mb-4">
             <table className="w-full text-xs">
               <thead>
@@ -134,12 +137,191 @@ function StrategiesBacktest() {
               </tbody>
             </table>
           </div>
+
+          {/* Détail par stratégie cliquée */}
+          {selected && <StrategyDetail strategy={selected} symbol={selectedSymbol} />}
+
           {selected?.equity_curve && (
             <EquityCurve data={selected.equity_curve} label={`${ALL_STRATEGIES[selected.strategy] || selected.strategy} — ${selectedSymbol}`} />
           )}
         </>
       )}
     </InfoCard>
+  );
+}
+
+
+// ============================================================
+// Interprétation intelligente du backtest
+// ============================================================
+
+function BacktestInterpretation({ results, symbol }: { results: any[]; symbol: string }) {
+  if (!results.length) return null;
+
+  const sorted = [...results].sort((a, b) => (b.sharpe_ratio || 0) - (a.sharpe_ratio || 0));
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  const profitable = results.filter((r) => (r.total_return || 0) > 0);
+  const avgSharpe = results.reduce((s, r) => s + (r.sharpe_ratio || 0), 0) / results.length;
+  const avgWinRate = results.reduce((s, r) => s + (r.win_rate || 0), 0) / results.length;
+  const bestName = ALL_STRATEGIES[best.strategy] || best.strategy;
+  const worstName = ALL_STRATEGIES[worst.strategy] || worst.strategy;
+
+  // Verdict global
+  let verdict = "";
+  let verdictColor = "";
+  if (avgSharpe >= 1.0 && profitable.length >= results.length * 0.7) {
+    verdict = "EXCELLENT";
+    verdictColor = "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+  } else if (avgSharpe >= 0.5 && profitable.length >= results.length * 0.5) {
+    verdict = "BON";
+    verdictColor = "text-gold bg-gold/10 border-gold/20";
+  } else if (avgSharpe >= 0 && profitable.length >= results.length * 0.3) {
+    verdict = "MOYEN";
+    verdictColor = "text-yellow-400 bg-yellow-400/10 border-yellow-400/20";
+  } else {
+    verdict = "FAIBLE";
+    verdictColor = "text-red-400 bg-red-400/10 border-red-400/20";
+  }
+
+  return (
+    <div className="mb-5 bg-surface border border-border rounded-xl p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold">Analyse du backtest — {symbol}</h4>
+        <span className={`text-xs px-2 py-1 rounded-lg font-bold border ${verdictColor}`}>{verdict}</span>
+      </div>
+
+      <div className="text-sm text-text-secondary leading-relaxed space-y-3">
+        {/* Résumé global */}
+        <p>
+          Sur les <b className="text-text-primary">{results.length} stratégies</b> testées,{" "}
+          <b className="text-text-primary">{profitable.length}</b> sont profitables ({Math.round(profitable.length / results.length * 100)}%).
+          Le Sharpe ratio moyen est de <b className={avgSharpe >= 0.5 ? "text-gold" : "text-red-400"}>{avgSharpe.toFixed(2)}</b>{" "}
+          {avgSharpe >= 1.0 ? "— excellent, le rendement ajusté au risque est très bon." :
+           avgSharpe >= 0.5 ? "— correct, le rendement compense le risque pris." :
+           avgSharpe >= 0 ? "— faible, le rendement ne compense pas suffisamment le risque." :
+           "— négatif, les stratégies perdent de l'argent en moyenne."}
+        </p>
+
+        {/* Meilleure stratégie */}
+        <div className="bg-card border border-border rounded-lg p-3">
+          <p className="text-xs text-gold font-semibold mb-1">Meilleure stratégie : {bestName}</p>
+          <p>
+            Avec un rendement de <b className={best.total_return >= 0 ? "text-gold" : "text-red-400"}>{best.total_return >= 0 ? "+" : ""}{best.total_return}%</b>,
+            un Sharpe de <b>{best.sharpe_ratio}</b>,
+            et un win rate de <b>{best.win_rate}%</b> sur <b>{best.num_trades} trades</b>.
+            {best.sharpe_ratio >= 1.0
+              ? " C'est un excellent résultat — cette stratégie a historiquement bien fonctionné sur cet actif."
+              : best.sharpe_ratio >= 0.5
+                ? " Un résultat honorable — cette stratégie a un avantage mesurable mais modéré."
+                : " Un résultat modeste — cette stratégie n'a pas d'avantage clair sur cet actif."}
+            {best.max_drawdown && ` Le drawdown maximum a été de ${best.max_drawdown}%`}
+            {best.max_drawdown && Number(best.max_drawdown) < -20
+              ? " — attention, c'est un drawdown sévère qui peut être psychologiquement difficile à supporter."
+              : best.max_drawdown ? " — un niveau de risque acceptable." : "."}
+          </p>
+        </div>
+
+        {/* Pire stratégie */}
+        {worst.strategy !== best.strategy && (
+          <div className="bg-card border border-border rounded-lg p-3">
+            <p className="text-xs text-red-400 font-semibold mb-1">Pire stratégie : {worstName}</p>
+            <p>
+              Rendement de <b className="text-red-400">{worst.total_return >= 0 ? "+" : ""}{worst.total_return}%</b>,
+              Sharpe de <b>{worst.sharpe_ratio}</b>.
+              {Number(worst.sharpe_ratio) < 0
+                ? " Cette stratégie perd de l'argent sur cet actif — à éviter absolument."
+                : ` Performance médiocre comparée à ${bestName}.`}
+            </p>
+          </div>
+        )}
+
+        {/* Recommandation */}
+        <div className="bg-card border border-gold/20 rounded-lg p-3">
+          <p className="text-xs text-gold font-semibold mb-1">Recommandation</p>
+          <p>
+            {avgSharpe >= 0.5 && profitable.length >= results.length * 0.5
+              ? `${symbol} est un actif qui répond bien aux stratégies systématiques. La stratégie ${bestName} est la plus adaptée. En production, le pipeline utilisera automatiquement la meilleure stratégie selon le régime de marché en cours.`
+              : avgSharpe >= 0
+                ? `${symbol} est un actif difficile pour les stratégies systématiques. Le rendement ajusté au risque est faible. Considérez : (1) réduire la taille de position, (2) utiliser uniquement en combinaison avec d'autres actifs plus prévisibles, (3) attendre un régime de marché plus favorable.`
+                : `${symbol} n'est pas adapté aux stratégies systématiques testées. Les résultats historiques sont négatifs. Il vaut mieux ne pas trader cet actif avec ces stratégies et chercher des opportunités ailleurs.`
+            }
+          </p>
+        </div>
+
+        {/* Mise en garde */}
+        <p className="text-[10px] text-text-secondary italic">
+          Les performances passées ne préjugent pas des résultats futurs. Ce backtest utilise des données historiques et ne prend pas en compte les coûts de transaction, le slippage, ni les conditions de marché futures. Utilisez ces résultats comme guide, pas comme garantie.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
+// ============================================================
+// Détail d'une stratégie sélectionnée
+// ============================================================
+
+function StrategyDetail({ strategy: s, symbol }: { strategy: any; symbol: string }) {
+  const name = ALL_STRATEGIES[s.strategy] || s.strategy;
+  const sharpe = Number(s.sharpe_ratio) || 0;
+  const wr = Number(s.win_rate) || 0;
+  const pf = Number(s.profit_factor) || 0;
+  const dd = Number(s.max_drawdown) || 0;
+  const ret = Number(s.total_return) || 0;
+  const trades = Number(s.num_trades) || 0;
+
+  // Calculs dérivés
+  const avgTradeReturn = trades > 0 ? ret / trades : 0;
+  const riskReward = pf > 0 && pf !== 1 ? pf : 0;
+  const calmar = dd !== 0 ? Math.abs(ret / dd) : 0;
+
+  return (
+    <div className="mb-4 bg-surface border border-gold/10 rounded-xl p-4 space-y-3">
+      <h4 className="text-sm font-semibold text-gold">{name} — Détail</h4>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricBox label="Rendement total" value={`${ret >= 0 ? "+" : ""}${ret}%`} color={ret >= 0 ? "text-gold" : "text-red-400"} />
+        <MetricBox label="Sharpe Ratio" value={sharpe.toFixed(2)} color={sharpe >= 1 ? "text-emerald-400" : sharpe >= 0.5 ? "text-gold" : sharpe >= 0 ? "text-yellow-400" : "text-red-400"}
+          sub={sharpe >= 1.5 ? "Excellent" : sharpe >= 1 ? "Bon" : sharpe >= 0.5 ? "Correct" : sharpe >= 0 ? "Faible" : "Négatif"} />
+        <MetricBox label="Win Rate" value={`${wr}%`} color={wr >= 55 ? "text-emerald-400" : wr >= 45 ? "text-gold" : "text-red-400"}
+          sub={`${trades} trades au total`} />
+        <MetricBox label="Profit Factor" value={pf.toFixed(2)} color={pf >= 1.5 ? "text-emerald-400" : pf >= 1 ? "text-gold" : "text-red-400"}
+          sub={pf >= 1 ? `${pf.toFixed(1)}$ gagné par $ perdu` : "Perd de l'argent"} />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricBox label="Max Drawdown" value={`${dd}%`} color="text-red-400"
+          sub={Math.abs(dd) <= 10 ? "Risque faible" : Math.abs(dd) <= 20 ? "Risque modéré" : Math.abs(dd) <= 30 ? "Risque élevé" : "Risque extrême"} />
+        <MetricBox label="Calmar Ratio" value={calmar.toFixed(2)} color={calmar >= 1 ? "text-emerald-400" : calmar >= 0.5 ? "text-gold" : "text-red-400"}
+          sub="Rendement / Drawdown" />
+        <MetricBox label="Gain moyen/trade" value={`${avgTradeReturn >= 0 ? "+" : ""}${avgTradeReturn.toFixed(2)}%`} color={avgTradeReturn >= 0 ? "text-gold" : "text-red-400"}
+          sub="Rendement par trade" />
+        <MetricBox label="Risque/Récompense" value={riskReward > 0 ? `1:${riskReward.toFixed(1)}` : "—"} color={riskReward >= 1.5 ? "text-emerald-400" : "text-text-secondary"}
+          sub={riskReward >= 2 ? "Excellent R:R" : riskReward >= 1.5 ? "Bon R:R" : riskReward >= 1 ? "R:R moyen" : ""} />
+      </div>
+
+      <p className="text-xs text-text-secondary leading-relaxed">
+        {sharpe >= 1.0 && wr >= 50 && pf >= 1.5
+          ? `${name} est la stratégie idéale pour ${symbol}. Avec un Sharpe de ${sharpe.toFixed(2)}, un win rate de ${wr}% et un profit factor de ${pf.toFixed(1)}, elle génère un rendement ajusté au risque excellent. Le drawdown de ${dd}% ${Math.abs(dd) <= 15 ? "est contenu" : "reste à surveiller"}.`
+          : sharpe >= 0.5 && pf >= 1.0
+            ? `${name} fonctionne sur ${symbol} avec un avantage modéré. Le Sharpe de ${sharpe.toFixed(2)} indique un rendement supérieur au risque, mais le ${wr < 50 ? `win rate de ${wr}% est faible (les trades gagnants sont plus gros que les perdants, ce qui compense)` : `win rate de ${wr}% est correct`}. ${Math.abs(dd) > 20 ? `Attention au drawdown de ${dd}% — utilisez un sizing prudent.` : ""}`
+            : `${name} n'a pas d'avantage clair sur ${symbol}. ${sharpe < 0 ? `Le Sharpe négatif (${sharpe.toFixed(2)}) signifie que cette stratégie perd de l'argent.` : `Le Sharpe de ${sharpe.toFixed(2)} est trop faible pour justifier le risque.`} ${pf < 1 ? `Le profit factor de ${pf.toFixed(2)} confirme que les pertes dépassent les gains.` : ""} Cherchez une autre stratégie ou un autre actif.`
+        }
+      </p>
+    </div>
+  );
+}
+
+
+function MetricBox({ label, value, color = "", sub = "" }: { label: string; value: string; color?: string; sub?: string }) {
+  return (
+    <div className="bg-card border border-border rounded-lg p-2.5 text-center">
+      <p className="text-[9px] text-text-secondary uppercase tracking-wider">{label}</p>
+      <p className={`text-lg font-mono font-bold mt-0.5 ${color}`}>{value}</p>
+      {sub && <p className="text-[9px] text-text-secondary mt-0.5">{sub}</p>}
+    </div>
   );
 }
 
