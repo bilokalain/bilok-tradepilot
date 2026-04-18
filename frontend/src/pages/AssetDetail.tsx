@@ -243,7 +243,22 @@ export default function AssetDetail() {
   };
 
   if (loading) return <div className="flex items-center justify-center h-64 text-text-secondary">Analyse en cours...</div>;
-  if (!scan || scan.error) return <div className="text-red-400 p-6">Actif non trouvé</div>;
+  if (!scan || scan.error) return (
+    <div className="p-6 space-y-4">
+      <div className="bg-card border border-border rounded-xl p-6 text-center">
+        <p className="text-text-secondary mb-2">L'actif <span className="text-gold font-mono font-bold">{symbol}</span> n'est pas dans les 500 actifs du pipeline.</p>
+        <p className="text-sm text-text-secondary mb-4">Utilisez l'<b>Analyse Rapide</b> pour analyser n'importe quel actif au monde.</p>
+        <div className="flex gap-3 justify-center">
+          <Link to={`/analyse?q=${symbol}`} className="px-4 py-2 bg-gold/10 text-gold border border-gold/20 rounded-lg text-sm font-semibold hover:bg-gold/20 transition-colors">
+            Analyser {symbol}
+          </Link>
+          <Link to="/" className="px-4 py-2 bg-surface border border-border rounded-lg text-sm text-text-secondary hover:text-text-primary transition-colors">
+            Retour au Dashboard
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 
   const scores = { ...(scan.scores || {}), fundamental: fundamentalData?.score ?? 0 };
   const details = scan.details || {};
