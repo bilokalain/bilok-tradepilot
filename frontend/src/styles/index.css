@@ -2,6 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════
+   THÈMES — Bilok-TradePilot
+   ═══════════════════════════════════════════ */
+
+:root, [data-theme="dark-gold"] {
+  --color-background: #000000;
+  --color-card: #0A0A0A;
+  --color-surface: #141414;
+  --color-border: #1F1F1F;
+  --color-accent: #D4AF37;
+  --color-accent-light: #F5D060;
+  --color-accent-dark: #B8960C;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #A0A0A0;
+  --scrollbar-track: #0a0a0a;
+  --scrollbar-thumb: #1f1f1f;
+}
+
+[data-theme="dark-blue"] {
+  --color-background: #0B1120;
+  --color-card: #111827;
+  --color-surface: #1E293B;
+  --color-border: #334155;
+  --color-accent: #3B82F6;
+  --color-accent-light: #60A5FA;
+  --color-accent-dark: #2563EB;
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+  --scrollbar-track: #0B1120;
+  --scrollbar-thumb: #334155;
+}
+
+[data-theme="dark-emerald"] {
+  --color-background: #021A0A;
+  --color-card: #062E16;
+  --color-surface: #14532D;
+  --color-border: #166534;
+  --color-accent: #10B981;
+  --color-accent-light: #34D399;
+  --color-accent-dark: #059669;
+  --color-text-primary: #ECFDF5;
+  --color-text-secondary: #6EE7B7;
+  --scrollbar-track: #021A0A;
+  --scrollbar-thumb: #166534;
+}
+
+[data-theme="dark-purple"] {
+  --color-background: #0C0014;
+  --color-card: #1A0033;
+  --color-surface: #2E1065;
+  --color-border: #3B0764;
+  --color-accent: #A855F7;
+  --color-accent-light: #C084FC;
+  --color-accent-dark: #7C3AED;
+  --color-text-primary: #FAF5FF;
+  --color-text-secondary: #C4B5FD;
+  --scrollbar-track: #0C0014;
+  --scrollbar-thumb: #3B0764;
+}
+
+[data-theme="light"] {
+  --color-background: #F8F9FA;
+  --color-card: #FFFFFF;
+  --color-surface: #F1F3F5;
+  --color-border: #DEE2E6;
+  --color-accent: #D4AF37;
+  --color-accent-light: #F5D060;
+  --color-accent-dark: #B8960C;
+  --color-text-primary: #212529;
+  --color-text-secondary: #6C757D;
+  --scrollbar-track: #F8F9FA;
+  --scrollbar-thumb: #CED4DA;
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -28,10 +102,10 @@
     width: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0a0a0a;
+    background: var(--scrollbar-track, #0a0a0a);
   }
   ::-webkit-scrollbar-thumb {
-    background: #1f1f1f;
+    background: var(--scrollbar-thumb, #1f1f1f);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {

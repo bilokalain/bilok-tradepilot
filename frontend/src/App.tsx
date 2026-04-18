@@ -27,6 +27,12 @@ function App() {
   const [user, setUser] = useState<{ email: string; name: string } | null>(null);
   const [showProfile, setShowProfile] = useState(false);
 
+  // Charger le thème sauvegardé au démarrage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("tradepilot_theme") || "dark-gold";
+    document.documentElement.setAttribute("data-theme", savedTheme);
+  }, []);
+
   // Écouter l'événement "open-profile" du Layout
   useEffect(() => {
     const handler = () => setShowProfile(true);

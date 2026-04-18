@@ -5,18 +5,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "#000000",
-        card: "#0A0A0A",
-        surface: "#141414",
-        border: "#1F1F1F",
+        background: "var(--color-background, #000000)",
+        card: "var(--color-card, #0A0A0A)",
+        surface: "var(--color-surface, #141414)",
+        border: "var(--color-border, #1F1F1F)",
         gold: {
-          DEFAULT: "#D4AF37",
-          light: "#F5D060",
-          dark: "#B8960C",
+          DEFAULT: "var(--color-accent, #D4AF37)",
+          light: "var(--color-accent-light, #F5D060)",
+          dark: "var(--color-accent-dark, #B8960C)",
         },
         text: {
-          primary: "#FFFFFF",
-          secondary: "#A0A0A0",
+          primary: "var(--color-text-primary, #FFFFFF)",
+          secondary: "var(--color-text-secondary, #A0A0A0)",
         },
       },
       fontFamily: {
