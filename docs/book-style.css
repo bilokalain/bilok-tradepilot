@@ -1,0 +1,303 @@
+/* ============================================
+   BILOK-TRADEPILOT — Style Livre Professionnel
+   ============================================ */
+
+/* --- Page Setup --- */
+@page {
+  size: A4;
+  margin: 25mm 20mm 30mm 25mm; /* top right bottom left — marge intérieure plus large */
+}
+
+/* Pages paires : marge reliure à gauche */
+@page :left {
+  margin-left: 30mm;
+  margin-right: 20mm;
+  @bottom-left {
+    content: counter(page);
+    font-family: "Georgia", serif;
+    font-size: 9pt;
+    color: #555;
+  }
+  @bottom-right {
+    content: "Bilok-TradePilot";
+    font-family: "Georgia", serif;
+    font-size: 8pt;
+    color: #888;
+    font-style: italic;
+  }
+}
+
+/* Pages impaires : marge reliure à droite */
+@page :right {
+  margin-left: 20mm;
+  margin-right: 30mm;
+  @bottom-right {
+    content: counter(page);
+    font-family: "Georgia", serif;
+    font-size: 9pt;
+    color: #555;
+  }
+  @bottom-left {
+    content: "Bilok-TradePilot";
+    font-family: "Georgia", serif;
+    font-size: 8pt;
+    color: #888;
+    font-style: italic;
+  }
+}
+
+/* Première page sans numéro */
+@page :first {
+  margin-top: 40mm;
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+}
+
+/* --- Typographie Générale --- */
+body {
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: 11pt;
+  line-height: 1.6;
+  color: #1a1a1a;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  orphans: 3;
+  widows: 3;
+}
+
+/* --- Titres --- */
+
+/* Titre principal du livre (H1 seul en haut) */
+h1 {
+  font-family: "Helvetica Neue", "Arial", sans-serif;
+  font-size: 24pt;
+  font-weight: 700;
+  color: #0d1b2a;
+  text-align: center;
+  margin-top: 60px;
+  margin-bottom: 8px;
+  padding-bottom: 0;
+  border-bottom: none;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  page-break-before: always;
+}
+
+/* Premier H1 — pas de saut de page (couverture) */
+h1:first-of-type {
+  page-break-before: avoid;
+  margin-top: 80px;
+  font-size: 28pt;
+}
+
+/* Sous-titre du livre (H3 juste après H1 principal) */
+h1 + h3 {
+  font-family: "Georgia", serif;
+  font-size: 13pt;
+  font-weight: 400;
+  font-style: italic;
+  color: #444;
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 40px;
+  page-break-before: avoid;
+  page-break-after: avoid;
+}
+
+/* Chapitres (H2) */
+h2 {
+  font-family: "Helvetica Neue", "Arial", sans-serif;
+  font-size: 16pt;
+  font-weight: 600;
+  color: #1b2a4a;
+  margin-top: 40px;
+  margin-bottom: 16px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid #1b2a4a;
+  page-break-after: avoid;
+}
+
+/* Sections (H3) */
+h3 {
+  font-family: "Helvetica Neue", "Arial", sans-serif;
+  font-size: 13pt;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-top: 28px;
+  margin-bottom: 10px;
+  page-break-after: avoid;
+}
+
+/* Sous-sections (H4) */
+h4 {
+  font-family: "Helvetica Neue", "Arial", sans-serif;
+  font-size: 11.5pt;
+  font-weight: 600;
+  color: #34495e;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  page-break-after: avoid;
+}
+
+/* --- Paragraphes --- */
+p {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+/* --- Séparateurs — discrets --- */
+hr {
+  border: none;
+  border-top: 0.5px solid #ccc;
+  margin: 24px auto;
+  width: 40%;
+}
+
+/* --- Listes --- */
+ul, ol {
+  margin-top: 6px;
+  margin-bottom: 12px;
+  padding-left: 24px;
+}
+
+li {
+  margin-bottom: 4px;
+}
+
+/* --- Citations (blockquote) --- */
+blockquote {
+  margin: 20px 30px;
+  padding: 12px 20px;
+  border-left: 3px solid #1b2a4a;
+  background: #f8f9fa;
+  font-style: italic;
+  color: #333;
+  page-break-inside: avoid;
+}
+
+blockquote p {
+  margin-bottom: 4px;
+}
+
+/* --- Tableaux --- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+thead {
+  background-color: #1b2a4a;
+  color: #fff;
+}
+
+th {
+  font-family: "Helvetica Neue", "Arial", sans-serif;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+td {
+  padding: 7px 10px;
+  border-bottom: 0.5px solid #ddd;
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f5f6f8;
+}
+
+/* --- Blocs de code --- */
+pre {
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 8.5pt;
+  line-height: 1.5;
+  overflow-x: auto;
+  page-break-inside: avoid;
+  margin: 12px 0;
+}
+
+code {
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 9pt;
+  background: #f0f0f0;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* --- Texte en gras et italique --- */
+strong {
+  font-weight: 700;
+  color: #111;
+}
+
+em {
+  font-style: italic;
+}
+
+/* --- Liens (invisibles à l'impression) --- */
+a {
+  color: #1b2a4a;
+  text-decoration: none;
+}
+
+/* --- Images --- */
+img {
+  max-width: 100%;
+  display: block;
+  margin: 16px auto;
+  page-break-inside: avoid;
+}
+
+/* ============================================
+   Classes utilitaires pour le markdown
+   ============================================ */
+
+/* Saut de page explicite — utiliser <div class="page-break"></div> */
+.page-break {
+  page-break-before: always;
+  break-before: page;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* Page de titre centrée */
+.title-page {
+  text-align: center;
+  page-break-after: always;
+}
+
+/* Épigraphe / citation d'ouverture */
+.epigraph {
+  text-align: center;
+  font-style: italic;
+  margin: 80px 40px 40px;
+  font-size: 12pt;
+  color: #444;
+}
+
+/* Dédicace */
+.dedication {
+  text-align: center;
+  font-style: italic;
+  margin: 100px 60px;
+  font-size: 11.5pt;
+  line-height: 1.8;
+}
