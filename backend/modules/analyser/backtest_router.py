@@ -11,7 +11,11 @@ from backend.modules.analyser.backtester import run_backtest, run_walk_forward
 
 router = APIRouter()
 
-STRATEGIES = ["trend_following", "mean_reversion", "breakout", "momentum"]
+STRATEGIES = [
+    "trend_following", "mean_reversion", "breakout", "momentum",
+    "adaptive_trend", "multi_signal", "keltner_breakout",
+    "vwap_reversion", "momentum_rotation",
+]
 
 
 def _load_ohlcv(db: Session, symbol: str) -> pd.DataFrame:

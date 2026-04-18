@@ -28,6 +28,14 @@ from backend.modules.analyser.strategies import (
     strategy_trend_following, strategy_mean_reversion,
     strategy_breakout, strategy_momentum,
 )
+from backend.modules.analyser.strategies_advanced import (
+    strategy_mean_reversion_v2, strategy_fibonacci, strategy_ichimoku,
+)
+from backend.modules.analyser.strategies_pro import (
+    strategy_adaptive_trend, strategy_multi_signal,
+    strategy_keltner_breakout, strategy_vwap_reversion,
+    strategy_momentum_rotation,
+)
 
 
 # Frais de transaction réalistes
@@ -391,14 +399,36 @@ def run_walk_forward(df: pd.DataFrame, strategy_name: str, symbol: str,
 
 def _get_strategy_signal(strategy_name: str, close: pd.Series, high: pd.Series,
                           low: pd.Series, volume: pd.Series) -> dict:
-    """Appelle la bonne stratégie."""
-    if strategy_name == "trend_following":
-        return strategy_trend_following(close, high, low)
-    elif strategy_name == "mean_reversion":
-        return strategy_mean_reversion(close, high, low)
-    elif strategy_name == "breakout":
-        return strategy_breakout(close, high, low, volume)
-    elif strategy_name == "momentum":
-        return strategy_momentum(close, high, low)
-    else:
+    """Appelle la bonne stratégie — 9 stratégies supportées."""
+    try:
+        # Classiques
+        if strategy_name == "trend_following":
+            return strategy_trend_following(close, high, low)
+        elif strategy_name == "mean_reversion":
+            return strategy_mean_reversion(close, high, low)
+        elif strategy_name == "breakout":
+            return strategy_breakout(close, high, low, volume)
+        elif strategy_name == "momentum":
+            return strategy_momentum(close, high, low)
+        # Avancées
+        elif strategy_name == "mean_reversion_v2":
+            return strategy_mean_reversion_v2(close, high, low, volume)
+        elif strategy_name == "fibonacci":
+            return strategy_fibonacci(close, high, low)
+        elif strategy_name == "ichimoku":
+            return strategy_ichimoku(close, high, low)
+        # Pro
+        elif strategy_name == "adaptive_trend":
+            return strategy_adaptive_trend(close, high, low, volume)
+        elif strategy_name == "multi_signal":
+            return strategy_multi_signal(close, high, low, volume)
+        elif strategy_name == "keltner_breakout":
+            return strategy_keltner_breakout(close, high, low, volume)
+        elif strategy_name == "vwap_reversion":
+            return strategy_vwap_reversion(close, high, low, volume)
+        elif strategy_name == "momentum_rotation":
+            return strategy_momentum_rotation(close, high, low, volume)
+        else:
+            return {"direction": "NEUTRAL", "conviction": 0}
+    except Exception:
         return {"direction": "NEUTRAL", "conviction": 0}
