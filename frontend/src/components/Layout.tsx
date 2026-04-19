@@ -16,6 +16,9 @@ import {
   Settings,
   ShieldCheck,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Users } from "lucide-react";
+import api from "../services/api";
 import Notifications from "./Notifications";
 import ErrorBoundary from "./ErrorBoundary";
 
@@ -137,7 +140,8 @@ export default function Layout({ onLogout, user }: LayoutProps) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col">
-        <header className="h-11 bg-card border-b border-border flex items-center justify-end px-6">
+        <header className="h-11 bg-card border-b border-border flex items-center justify-between px-6">
+          <OnlineUsers />
           <Notifications />
         </header>
         <main className="flex-1 overflow-auto p-6 bg-background">
@@ -146,6 +150,65 @@ export default function Layout({ onLogout, user }: LayoutProps) {
           </ErrorBoundary>
         </main>
       </div>
+    </div>
+  );
+}
+
+
+function OnlineUsers() {
+  const [online, setOnline] = useState<any[]>([]);
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const fetch = () => {
+      api.get("/auth/online").then((res) => setOnline(res.data.online || [])).catch(() => {});
+    };
+    fetch();
+    const interval = setInterval(fetch, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const PAGE_LABELS: Record<string, string> = {
+    "/": "Dashboard", "/scanner": "Scanner", "/analyse": "Analyse",
+    "/scoring": "Scoring", "/execution": "Exécution", "/portfolio": "Portefeuille",
+    "/performance": "Performance", "/backtest": "Backtest", "/correlation": "Corrélation",
+    "/settings": "Paramètres", "/admin": "Admin", "/guide": "Guide", "/livres": "Livre",
+    "/theses": "Thèses",
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setShow(!show)}
+        className="flex items-center gap-2 text-xs text-text-secondary hover:text-gold transition-colors"
+      >
+        <Users size={14} />
+        <span className="font-semibold">{online.length}</span>
+        <span>en ligne</span>
+        {online.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+      </button>
+
+      {show && online.length > 0 && (
+        <div className="absolute top-8 left-0 bg-card border border-border rounded-xl p-3 shadow-lg z-50 min-w-[220px]">
+          <p className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold mb-2">
+            Utilisateurs connectés
+          </p>
+          <div className="space-y-2">
+            {online.map((u: any) => (
+              <div key={u.email} className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center text-gold text-[10px] font-bold">
+                  {(u.name || u.email)[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate">{u.name || u.email}</p>
+                  <p className="text-[9px] text-text-secondary">{PAGE_LABELS[u.page] || u.page || "—"}</p>
+                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

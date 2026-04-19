@@ -71,6 +71,37 @@ def _save_users(users: dict):
     USERS_FILE.write_text(json.dumps(users, indent=2, ensure_ascii=False))
 
 
+# ─── Tracking des utilisateurs connectés ───
+_online_users: dict[str, dict] = {}  # email → {name, last_seen, page}
+
+
+def heartbeat(email: str, name: str = "", page: str = ""):
+    """Enregistre un heartbeat — l'utilisateur est actif."""
+    _online_users[email] = {
+        "email": email,
+        "name": name,
+        "last_seen": datetime.utcnow().isoformat(),
+        "page": page,
+    }
+
+
+def get_online_users(timeout_seconds: int = 60) -> list[dict]:
+    """Retourne les utilisateurs actifs (heartbeat < timeout)."""
+    now = datetime.utcnow()
+    active = []
+    expired = []
+    for email, data in _online_users.items():
+        last = datetime.fromisoformat(data["last_seen"])
+        if (now - last).total_seconds() < timeout_seconds:
+            data["status"] = "online"
+            active.append(data)
+        else:
+            expired.append(email)
+    for e in expired:
+        del _online_users[e]
+    return active
+
+
 def hash_password(password: str) -> str:
     return hashlib.sha256(f"tradepilot_{password}".encode()).hexdigest()
 

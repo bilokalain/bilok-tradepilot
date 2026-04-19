@@ -77,6 +77,22 @@ def reset_password(req: ResetPasswordConfirm):
     return reset_password_with_token(req.token, req.new_password)
 
 
+@router.post("/heartbeat")
+async def user_heartbeat(user: dict = Depends(require_auth), page: str = ""):
+    """Heartbeat — signale que l'utilisateur est actif."""
+    from backend.auth import heartbeat
+    heartbeat(user["email"], user.get("name", ""), page)
+    return {"ok": True}
+
+
+@router.get("/online")
+def online_users():
+    """Liste les utilisateurs connectés en ce moment."""
+    from backend.auth import get_online_users
+    users = get_online_users(timeout_seconds=60)
+    return {"online": users, "count": len(users)}
+
+
 @router.get("/users")
 def list_users():
     """Liste les utilisateurs inscrits."""

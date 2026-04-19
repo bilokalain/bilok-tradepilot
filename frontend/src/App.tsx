@@ -48,6 +48,20 @@ function App() {
     }
   }, [token, user]);
 
+  // Heartbeat — signale au backend que l'utilisateur est actif (toutes les 30s)
+  useEffect(() => {
+    if (!token || !user) return;
+    const sendHeartbeat = () => {
+      import("./services/api").then(({ default: api }) => {
+        const page = window.location.pathname;
+        api.post(`/auth/heartbeat?page=${encodeURIComponent(page)}`).catch(() => {});
+      });
+    };
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30000);
+    return () => clearInterval(interval);
+  }, [token, user]);
+
   // Écouter l'événement "open-profile" du Layout
   useEffect(() => {
     const handler = () => setShowProfile(true);
