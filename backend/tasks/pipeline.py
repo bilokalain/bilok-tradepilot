@@ -655,35 +655,30 @@ def task_intraday_scan():
 # ============================================================
 
 celery_app.conf.beat_schedule = {
-    # MAJ données daily à 21h30 UTC (22h30 Paris)
+    # ─── PIPELINE NOCTURNE (22h UTC = 00h Paris) ───
+    # MAJ données daily → Scanner 500 actifs → Corrélation → Analyseur →
+    # Scoring → Exécution → Portefeuille → Performance → Monte Carlo
     "daily-data-update": {
         "task": "pipeline.update_market_data",
         "schedule": crontab(hour=21, minute=30),
     },
-    # MAJ intraday toutes les 4h (heures de marché)
-    "intraday-update": {
-        "task": "pipeline.update_intraday_data",
-        "schedule": crontab(hour="10,14,18,22", minute=0),
-    },
-    # Pipeline complet à 22h UTC : Scanner → Analyseur → Scoring → Exécution → Portefeuille → Performance
     "daily-pipeline": {
         "task": "pipeline.run_full_pipeline",
         "schedule": crontab(hour=22, minute=0),
     },
-    # TP/SL Monitor — toutes les 5 min, 24/7 — protection permanente
-    "tp-sl-monitor": {
-        "task": "pipeline.check_tp_sl",
-        "schedule": crontab(minute="*/5"),
-    },
-    # Scan intraday — 15 min après ouverture US (13h45 UTC = 15h45 Paris)
-    # + milieu de séance (16h UTC = 18h Paris)
-    # Détecte les breakouts en cours de journée
-    "intraday-scan-open": {
+
+    # ─── SCAN INTRADAY (13h45 UTC = 15h45 Paris) ───
+    # 15 min après ouverture US — détecte les breakouts de la séance
+    "intraday-scan": {
         "task": "pipeline.intraday_scan",
         "schedule": crontab(hour=13, minute=45),
     },
-    "intraday-scan-mid": {
-        "task": "pipeline.intraday_scan",
-        "schedule": crontab(hour=16, minute=0),
+
+    # ─── TP/SL MONITOR (toutes les 5 min, 24/7) ───
+    # Protection permanente : trailing stop, SL, TP, essoufflement,
+    # signal inverse, file d'attente
+    "tp-sl-monitor": {
+        "task": "pipeline.check_tp_sl",
+        "schedule": crontab(minute="*/5"),
     },
 }
