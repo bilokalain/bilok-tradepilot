@@ -199,7 +199,7 @@ Pour comprendre le système, suivons le parcours concret d'un signal — de sa n
 
 **Jour 1, 00h00 UTC** — Le pipeline nocturne se déclenche. Le Scanner passe en revue les 500 actifs de l'univers d'investissement. Pour chacun, il calcule 10 scores indépendants : technique, corrélation, sentiment, génome explosif, capital institutionnel, vélocité fondamentale, macro tailwind, topologie sociale, unicité du signal et analyse fondamentale. L'action HIMS obtient un score final de 70.1/100. Elle est promue dans la shortlist.
 
-**00h57** — L'Analyseur détecte le régime de HIMS : BULL avec 68% de confiance. Il teste les 12 stratégies disponibles et sélectionne Momentum Adaptatif, avec une conviction de 72% et une direction LONG. Entrée estimée à 28.39$, SL à 24.80$, TP à 33.77$.
+**00h57** — L'Analyseur détecte le régime de HIMS : BULL avec 68% de confiance. Il teste les 15 stratégies disponibles et sélectionne Momentum Adaptatif, avec une conviction de 72% et une direction LONG. Entrée estimée à 28.39$, SL à 24.80$, TP à 33.77$.
 
 **00h58** — Le Scoring fusionne les 8 sources : scanner 63.4, stratégie/backtest 72, régime global RISK_ON, fondamentaux 49.2, pas de catalyseur imminent, corrélation portefeuille OK, rotation sectorielle neutre, pas de lead-lag. Score V2 final : 68.2 → **GO**. Kelly sizing : 1 action (compte IBKR de 304€).
 
@@ -1077,7 +1077,7 @@ Une confiance de 80% signifie que les 4 signaux convergent — on peut être agr
 
 ### Chapitre 18 : Les Stratégies Adaptatives
 
-Bilok-TradePilot dispose de **14 stratégies** qui couvrent l'ensemble des conditions de marché. Chacune est conçue pour exploiter un type spécifique de mouvement de prix. Voici les principales.
+Bilok-TradePilot dispose de **15 stratégies** réparties en 4 niveaux (4 classiques, 3 avancées, 5 pro, 3 genius) qui couvrent l'ensemble des conditions de marché. Chacune est conçue pour exploiter un type spécifique de mouvement de prix.
 
 **1. Trend Following** — la plus ancienne et la plus éprouvée des stratégies. Documentée par Michael Covel dans *Trend Following* (2004) et pratiquée avec succès par les **Turtle Traders** de Richard Dennis et William Eckhardt (1983-1988), cette approche repose sur un principe simple : "La tendance est ton amie." Les Turtles, un groupe de novices formés en deux semaines, ont généré plus de 175 millions de dollars en 4 ans en suivant des règles mécaniques de trend following — prouvant que la discipline systématique bat l'intuition humaine. Le système utilise un croisement EMA 9/21 confirmé par la SMA 50. Quand l'EMA rapide (9) croise au-dessus de l'EMA lente (21) et que le prix est au-dessus de la SMA 50, un signal LONG est généré. La conviction augmente avec la distance entre le prix et la SMA 50 — plus le prix est au-dessus, plus la tendance est forte. Stop-Loss à 2 ATR sous l'entrée, Take-Profit à 3 ATR au-dessus.
 
@@ -1103,17 +1103,25 @@ Bilok-TradePilot dispose de **14 stratégies** qui couvrent l'ensemble des condi
 
 **12. Momentum Rotation** — détecte les rotations sectorielles en comparant la force relative de différents secteurs. Quand un secteur passe de sous-performance à surperformance, les actifs du secteur reçoivent un boost.
 
-Les deux dernières — **Microstructure** (analyse du carnet d'ordres) et **CNN Pattern Recognition** (détection de patterns graphiques par réseau neuronal) — sont des placeholders pour les phases ultérieures du développement.
+Les trois dernières stratégies — dites **Genius** — exploitent des angles morts des 12 premières :
+
+**13. Regime Cascade** — détecte un changement de régime à court terme (pente SMA 5 vs SMA 20) et trade les actifs qui n'ont pas encore rattrapé le mouvement. C'est le concept de lead-lag (Lo & MacKinlay) automatisé sur 500 actifs.
+
+**14. Volatility Compression Explosion** — quand 3+ signaux de compression simultanés (ATR percentile < 20%, Bollinger squeeze, volume en contraction, inside bars), entre dans la direction du breakout naissant. Ne prédit pas la direction — prédit que le MOUVEMENT va arriver.
+
+**15. Anti-Consensus Alpha** — la couche d'antifragilité. Quand l'euphorie est extrême (RSI > 78, volume déclinant, signal crowdé), prend la position contrariante. 5-10 trades par an mais dans les retournements majeurs. Basé sur l'overreaction hypothesis de DeBondt & Thaler.
+
+**Microstructure** (analyse du carnet d'ordres) et **CNN Pattern Recognition** (détection de patterns graphiques par réseau neuronal) sont prévus pour les phases ultérieures.
 
 ---
 
 ### Chapitre 19 : Sélection de Stratégie et Strategy Decay
 
-Avec 14 stratégies disponibles, le système doit choisir la meilleure pour chaque actif dans le contexte actuel. Ce choix repose sur deux piliers : la **matrice de performance empirique** et la **détection du decay**.
+Avec 15 stratégies disponibles, le système doit choisir la meilleure pour chaque actif dans le contexte actuel. Ce choix repose sur deux piliers : la **matrice de performance empirique** et la **détection du decay**.
 
 **La matrice de sélection**
 
-Chaque stratégie est évaluée pour chaque actif via un backtest historique massif. Le système exécute un **full backtest sur les 500 actifs × 12 stratégies = 6 000 backtests**, couvrant jusqu'à 10 ans de données. Le résultat est un Sharpe ratio par combinaison stratégie × actif. Par exemple :
+Chaque stratégie est évaluée pour chaque actif via un backtest historique massif. Le système exécute un **full backtest sur les 500 actifs × 15 stratégies = 7 500 backtests**, couvrant jusqu'à 10 ans de données. Le résultat est un Sharpe ratio par combinaison stratégie × actif. Par exemple :
 
 | Actif | Trend | Mean Rev | Breakout | Momentum | Adaptive | Multi-Sig | Keltner | VWAP | Mom.Rot | Fibonacci | Ichimoku | MR V2 |
 |-------|-------|----------|----------|----------|----------|-----------|---------|------|---------|-----------|----------|-------|
@@ -1133,11 +1141,19 @@ Pourquoi pas 15 ou 20 ans ? Parce que seuls 188 actifs sur 500 ont 20 ans d'hist
 
 Une stratégie avec un Sharpe de 1.2 sur 5 ans ET 0.9 sur 10 ans est **robuste**. Une stratégie avec 1.2 sur 5 ans mais 0.1 sur 10 ans est **fragile** — elle ne fonctionne que dans le régime récent.
 
-Les résultats réels du full backtest V2 (500 actifs × 12 stratégies) montrent que les **stratégies pro surperforment les classiques sur 68% des actifs**. Les plus grands gagnants :
+Les résultats réels du full backtest V2 (500 actifs × 15 stratégies) montrent que les **stratégies pro et genius surperforment les classiques sur 68% des actifs**. Les plus grands gagnants :
 - **Fibonacci** — la révélation, améliore le Sharpe de +0.7 à +1.4 sur de nombreux actifs (GEV, AXON, INTC, SAP)
 - **Momentum Rotation** — domine sur le forex (USDTRY Sharpe 2.83) et les actions européennes (RR.L Sharpe 1.65)
 - **Ichimoku** — excelle sur les crypto (BNB-USD) et la tech (VRT, SPOT)
 - **Multi-Signal** — le plus fiable (RNDR-USD Sharpe 1.68), réduit les faux signaux de ~60%
+
+Les trois stratégies **Genius**, ajoutées après l'analyse des résultats V2/V3, exploitent des angles morts des 12 premières :
+
+- **Regime Cascade** — détecte un changement de régime court terme (SMA 5) qui n'est pas encore reflété dans le moyen terme (SMA 20). Trade les "suiveurs" qui n'ont pas encore rattrapé le "leader". Basé sur les travaux de Lo & MacKinlay sur le lead-lag effect et de Moskowitz sur le cross-sectional momentum.
+
+- **Volatility Compression Explosion** — transforme le Génome Explosif (Module 1, critère de détection) en stratégie d'exécution. Quand ATR percentile < 20%, Bollinger width au minimum, volume en contraction et inside bars simultanés, entre dans la direction du breakout naissant. Ne prédit pas la direction — prédit que le MOUVEMENT va arriver. Basé sur Mandelbrot (volatility clustering) et Engle (GARCH, prix Nobel 2003).
+
+- **Anti-Consensus Alpha** — la couche d'antifragilité du système. Quand l'euphorie est extrême (RSI > 78, volume déclinant, signal crowdé SUS < 30, 5+ jours de hausse consécutive), prend la position inverse avec un SL serré et un TP large. Ne trade que 5-10 fois par an mais dans les retournements majeurs. Basé sur DeBondt & Thaler (overreaction hypothesis, surperformance de 8% par an pour les contrariants) et le concept d'antifragilité de Taleb.
 
 **Le chargement dynamique**
 
@@ -2421,7 +2437,7 @@ Le dashboard est l'interface entre le trader et le système. Il est organisé en
 
 **La page Dashboard** — les métriques clés du jour : nombre d'actifs scannés, shortlist du jour, signaux GO générés, Meta-Score, EWS, positions ouvertes vs maximum, equity courante.
 
-**La page Analyse Rapide** — permet d'analyser **n'importe quel actif au monde** en quelques secondes, même s'il n'est pas dans les 500 actifs du pipeline. Le trader entre un nom ou un symbole (avec autocomplete intelligent via TradingView) et le système calcule en temps réel les **10 scores** (technique, corrélation, sentiment, génome, IPI, IVF, MTS, SGI, SUS, fondamental), le régime, les **12 stratégies** avec la meilleure recommandée, le **Multi-Timeframe Analysis** (daily + hourly), le **sizing Kelly** (R:R, win rate, espérance, position recommandée), et les niveaux d'entrée avec **TP1 et TP2** (sortie progressive). Un lien permet d'accéder à l'analyse complète avec radar 10 critères pour les actifs du pipeline.
+**La page Analyse Rapide** — permet d'analyser **n'importe quel actif au monde** en quelques secondes, même s'il n'est pas dans les 500 actifs du pipeline. Le trader entre un nom ou un symbole (avec autocomplete intelligent via TradingView) et le système calcule en temps réel les **10 scores** (technique, corrélation, sentiment, génome, IPI, IVF, MTS, SGI, SUS, fondamental), le régime, les **15 stratégies** avec la meilleure recommandée, le **Multi-Timeframe Analysis** (daily + hourly), le **sizing Kelly** (R:R, win rate, espérance, position recommandée), et les niveaux d'entrée avec **TP1 et TP2** (sortie progressive). Un lien permet d'accéder à l'analyse complète avec radar 10 critères pour les actifs du pipeline.
 
 **La page Performance** — les métriques professionnelles (Sharpe, Sortino, Calmar, Profit Factor), la courbe d'equity, l'attribution P&L, le statut du calibrage, et les benchmarks.
 
