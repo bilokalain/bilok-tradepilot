@@ -62,6 +62,34 @@ export default function Settings() {
   const [notifSlTp, setNotifSlTp] = useSetting("notif_sl_tp", true);
   const [notifWeeklyReport, setNotifWeeklyReport] = useSetting("notif_weekly_report", true);
 
+  // Bias detection
+  const [fomoThreshold, setFomoThreshold] = useSetting("fomo_threshold", 25);
+  const [revengeCooldown, setRevengeCooldown] = useSetting("revenge_cooldown", 30);
+  const [revengeReduction, setRevengeReduction] = useSetting("revenge_reduction", 20);
+
+  // Scanner vetos
+  const [vetoMts, setVetoMts] = useSetting("veto_mts", 20);
+  const [vetoSus, setVetoSus] = useSetting("veto_sus", 25);
+  const [vetoIpi, setVetoIpi] = useSetting("veto_ipi", 20);
+
+  // Scaling
+  const [tranche1, setTranche1] = useSetting("tranche_1", 40);
+  const [tranche2, setTranche2] = useSetting("tranche_2", 35);
+  const [tranche3, setTranche3] = useSetting("tranche_3", 25);
+
+  // Strategy Decay
+  const [decayMinTrades, setDecayMinTrades] = useSetting("decay_min_trades", 10);
+  const [decayMinWinRate, setDecayMinWinRate] = useSetting("decay_min_winrate", 35);
+  const [decayMinPF, setDecayMinPF] = useSetting("decay_min_pf", 0.8);
+
+  // EWS
+  const [ewsDrawdownAttention, setEwsDrawdownAttention] = useSetting("ews_dd_attention", 5);
+  const [ewsLosingStreak, setEwsLosingStreak] = useSetting("ews_losing_streak", 3);
+
+  // Cache TTLs
+  const [scannerCacheTtl, setScannerCacheTtl] = useSetting("scanner_cache_ttl", 6);
+  const [correlationCacheTtl, setCorrelationCacheTtl] = useSetting("correlation_cache_ttl", 12);
+
   useEffect(() => { applyTheme(currentTheme); }, [currentTheme]);
 
   const toggle = (id: string) => {
@@ -250,6 +278,68 @@ export default function Settings() {
             Les poids sont auto-calibrés par le Scoring Calibrator (Module 6). Ils s'ajustent quotidiennement
             basé sur le taux de détection des top movers. Ajustements max ±5% par itération.
           </p>
+        </SettingsSection>
+
+        {/* ═══ BIAIS COMPORTEMENTAUX ═══ */}
+        <SettingsSection id="bias" title="Détection de Biais" icon={<Shield size={18} />} open={openSections.has("bias")} toggle={toggle}>
+          <p className="text-[10px] text-text-secondary mb-4">Le système détecte et corrige automatiquement les biais émotionnels avant chaque trade.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ParamSlider label="Seuil FOMO" value={fomoThreshold} onChange={setFomoThreshold} min={10} max={40} step={5} unit="%" explain="Si l'actif a déjà bougé de +X% avant l'entrée → alerte FOMO. Le trade est bloqué." />
+            <ParamSlider label="Cooldown Revenge" value={revengeCooldown} onChange={setRevengeCooldown} min={10} max={60} step={5} unit=" min" explain="Temps d'attente après une perte avant de pouvoir reprendre un trade." />
+            <ParamSlider label="Réduction Revenge" value={revengeReduction} onChange={setRevengeReduction} min={10} max={50} step={5} unit="%" explain="Le sizing est réduit de X% sur le trade suivant une perte (anti-revenge trading)." />
+          </div>
+        </SettingsSection>
+
+        {/* ═══ VETOS SCANNER ═══ */}
+        <SettingsSection id="vetos" title="Vetos du Scanner" icon={<Zap size={18} />} open={openSections.has("vetos")} toggle={toggle}>
+          <p className="text-[10px] text-text-secondary mb-4">Un actif est automatiquement rejeté si un critère tombe sous son seuil de veto, quel que soit son score global.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <ParamSlider label="MTS (Macro)" value={vetoMts} onChange={setVetoMts} min={10} max={40} step={5} unit="/100" explain="Vent macro trop contraire → rejet automatique." />
+            <ParamSlider label="SUS (Unicité)" value={vetoSus} onChange={setVetoSus} min={15} max={40} step={5} unit="/100" explain="Signal trop crowdé (tout le monde le voit) → rejet." />
+            <ParamSlider label="IPI (Institutionnel)" value={vetoIpi} onChange={setVetoIpi} min={10} max={40} step={5} unit="/100" explain="Distribution institutionnelle massive → rejet." />
+          </div>
+        </SettingsSection>
+
+        {/* ═══ SCALING D'ENTRÉE ═══ */}
+        <SettingsSection id="scaling" title="Scaling d'Entrée (3 tranches)" icon={<TrendingUp size={18} />} open={openSections.has("scaling")} toggle={toggle}>
+          <p className="text-[10px] text-text-secondary mb-4">Le système n'entre pas tout d'un coup — il scale progressivement pour réduire le risque de timing.</p>
+          <div className="grid grid-cols-3 gap-4">
+            <ParamSlider label="Tranche 1" value={tranche1} onChange={setTranche1} min={20} max={60} step={5} unit="%" explain="Immédiatement — pied dans la porte." />
+            <ParamSlider label="Tranche 2" value={tranche2} onChange={setTranche2} min={20} max={50} step={5} unit="%" explain="Quand le prix confirme la direction." />
+            <ParamSlider label="Tranche 3" value={tranche3} onChange={setTranche3} min={10} max={40} step={5} unit="%" explain="Quand le momentum est soutenu." />
+          </div>
+          <div className="mt-3 p-3 bg-surface rounded-lg text-[10px] text-text-secondary">
+            Total : <span className={`font-mono font-bold ${tranche1 + tranche2 + tranche3 === 100 ? "text-emerald-400" : "text-red-400"}`}>{tranche1 + tranche2 + tranche3}%</span>
+            {tranche1 + tranche2 + tranche3 !== 100 && " — doit totaliser 100%"}
+          </div>
+        </SettingsSection>
+
+        {/* ═══ STRATEGY DECAY ═══ */}
+        <SettingsSection id="decay" title="Strategy Decay (Quarantaine)" icon={<Shield size={18} />} open={openSections.has("decay")} toggle={toggle}>
+          <p className="text-[10px] text-text-secondary mb-4">Détecte les stratégies qui perdent leur edge et les met en quarantaine automatiquement.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <ParamSlider label="Trades minimum" value={decayMinTrades} onChange={setDecayMinTrades} min={5} max={30} step={5} unit="" explain="Nombre minimum de trades avant d'évaluer une stratégie." />
+            <ParamSlider label="Win Rate minimum" value={decayMinWinRate} onChange={setDecayMinWinRate} min={25} max={50} step={5} unit="%" explain="En dessous → la stratégie est suspecte." />
+            <ParamSlider label="Profit Factor min" value={decayMinPF} onChange={setDecayMinPF} min={0.5} max={1.5} step={0.1} unit="" explain="En dessous de 1.0 → la stratégie perd de l'argent." />
+          </div>
+        </SettingsSection>
+
+        {/* ═══ EWS (Early Warning) ═══ */}
+        <SettingsSection id="ews" title="Early Warning System" icon={<Bell size={18} />} open={openSections.has("ews")} toggle={toggle}>
+          <p className="text-[10px] text-text-secondary mb-4">Seuils d'alerte qui déclenchent des actions de protection automatiques.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ParamSlider label="Drawdown → Attention" value={ewsDrawdownAttention} onChange={setEwsDrawdownAttention} min={3} max={10} step={1} unit="%" explain="Premier niveau d'alerte. Au-delà → notification + sizing réduit." />
+            <ParamSlider label="Losing Streak → Attention" value={ewsLosingStreak} onChange={setEwsLosingStreak} min={2} max={8} step={1} unit=" trades" explain="Nombre de pertes consécutives avant l'alerte." />
+          </div>
+        </SettingsSection>
+
+        {/* ═══ CACHES ═══ */}
+        <SettingsSection id="caches" title="Durée de vie des Caches" icon={<Database size={18} />} open={openSections.has("caches")} toggle={toggle}>
+          <p className="text-[10px] text-text-secondary mb-4">Les caches évitent de recalculer les résultats à chaque requête. Un TTL plus long = moins de calcul, un TTL plus court = données plus fraîches.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ParamSlider label="Cache Scanner" value={scannerCacheTtl} onChange={setScannerCacheTtl} min={1} max={12} step={1} unit="h" explain="Durée de validité du scan des 500 actifs. 6h = standard." />
+            <ParamSlider label="Cache Corrélation" value={correlationCacheTtl} onChange={setCorrelationCacheTtl} min={4} max={24} step={2} unit="h" explain="Matrice 500×500. Calcul lourd (~3 min). 12h = standard." />
+          </div>
         </SettingsSection>
       </div>
     </div>
