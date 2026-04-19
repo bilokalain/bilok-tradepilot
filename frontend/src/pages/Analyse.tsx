@@ -21,6 +21,14 @@ const STRATEGY_LABELS: Record<string, string> = {
   momentum: "Momentum",
   fibonacci: "Fibonacci",
   ichimoku: "Ichimoku",
+  adaptive_trend: "Adaptive Trend",
+  multi_signal: "Multi-Signal",
+  keltner_breakout: "Keltner Breakout",
+  vwap_reversion: "VWAP Reversion",
+  momentum_rotation: "Momentum Rotation",
+  regime_cascade: "Regime Cascade",
+  volatility_explosion: "Volatility Explosion",
+  anti_consensus: "Anti-Consensus Alpha",
 };
 
 interface HistoryItem {

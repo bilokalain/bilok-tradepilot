@@ -277,6 +277,14 @@ def quick_analyse(query: str) -> dict:
         all_strategies["fibonacci"] = lambda: strategy_fibonacci(close, high, low)
     if len(close) >= 80:
         all_strategies["ichimoku"] = lambda: strategy_ichimoku(close, high, low)
+    # Genius strategies
+    if len(close) >= 100:
+        from backend.modules.analyser.strategies_genius import (
+            strategy_regime_cascade, strategy_volatility_explosion, strategy_anti_consensus,
+        )
+        all_strategies["regime_cascade"] = lambda: strategy_regime_cascade(close, high, low, volume)
+        all_strategies["volatility_explosion"] = lambda: strategy_volatility_explosion(close, high, low, volume)
+        all_strategies["anti_consensus"] = lambda: strategy_anti_consensus(close, high, low, volume)
 
     best_strategy = None
     best_conviction = 0

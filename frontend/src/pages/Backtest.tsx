@@ -17,6 +17,9 @@ const ALL_STRATEGIES: Record<string, string> = {
   mean_reversion_v2: "Mean Reversion V2",
   fibonacci: "Fibonacci",
   ichimoku: "Ichimoku",
+  regime_cascade: "Regime Cascade",
+  volatility_explosion: "Volatility Explosion",
+  anti_consensus: "Anti-Consensus Alpha",
 };
 
 type Tab = "strategies" | "correlation" | "walkforward" | "thesis" | "deepanalysis";

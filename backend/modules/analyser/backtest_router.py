@@ -15,6 +15,8 @@ STRATEGIES = [
     "trend_following", "mean_reversion", "breakout", "momentum",
     "adaptive_trend", "multi_signal", "keltner_breakout",
     "vwap_reversion", "momentum_rotation",
+    "mean_reversion_v2", "fibonacci", "ichimoku",
+    "regime_cascade", "volatility_explosion", "anti_consensus",
 ]
 
 

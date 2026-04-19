@@ -36,6 +36,10 @@ from backend.modules.analyser.strategies_pro import (
     strategy_keltner_breakout, strategy_vwap_reversion,
     strategy_momentum_rotation,
 )
+from backend.modules.analyser.strategies_genius import (
+    strategy_regime_cascade, strategy_volatility_explosion,
+    strategy_anti_consensus,
+)
 
 
 # Frais de transaction réalistes
@@ -428,6 +432,13 @@ def _get_strategy_signal(strategy_name: str, close: pd.Series, high: pd.Series,
             return strategy_vwap_reversion(close, high, low, volume)
         elif strategy_name == "momentum_rotation":
             return strategy_momentum_rotation(close, high, low, volume)
+        # Genius
+        elif strategy_name == "regime_cascade":
+            return strategy_regime_cascade(close, high, low, volume)
+        elif strategy_name == "volatility_explosion":
+            return strategy_volatility_explosion(close, high, low, volume)
+        elif strategy_name == "anti_consensus":
+            return strategy_anti_consensus(close, high, low, volume)
         else:
             return {"direction": "NEUTRAL", "conviction": 0}
     except Exception:

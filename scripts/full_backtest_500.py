@@ -44,6 +44,9 @@ STRATEGIES = [
     "mean_reversion_v2",
     "fibonacci",
     "ichimoku",
+    "regime_cascade",
+    "volatility_explosion",
+    "anti_consensus",
 ]
 
 STRATEGY_LABELS = {
@@ -56,6 +59,12 @@ STRATEGY_LABELS = {
     "keltner_breakout": "Keltner Breakout",
     "vwap_reversion": "VWAP Reversion",
     "momentum_rotation": "Momentum Rotation",
+    "mean_reversion_v2": "Mean Reversion V2",
+    "fibonacci": "Fibonacci",
+    "ichimoku": "Ichimoku",
+    "regime_cascade": "Regime Cascade",
+    "volatility_explosion": "Volatility Explosion",
+    "anti_consensus": "Anti-Consensus Alpha",
 }
 
 
