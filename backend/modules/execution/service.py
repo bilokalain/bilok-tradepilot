@@ -60,6 +60,21 @@ class ExecutionService:
 
     def execute_thesis(self, symbol: str, capital: float = 100_000) -> dict:
         """Exécute une thèse de trade : biais check → ordres → fill."""
+        # 0. Vérifier si une position est déjà ouverte sur cet actif
+        asset = self.db.query(Asset).filter_by(symbol=symbol).first()
+        if asset:
+            existing = (
+                self.db.query(Position)
+                .filter_by(asset_id=asset.id, status=PositionStatus.OPEN)
+                .first()
+            )
+            if existing:
+                return {
+                    "symbol": symbol,
+                    "executed": False,
+                    "reason": f"Position déjà ouverte sur {symbol} (id={existing.id})",
+                }
+
         # 1. Générer la thèse
         thesis = self.scoring.generate_thesis(symbol, capital)
         if "error" in thesis:
