@@ -210,6 +210,7 @@ class ScoringService:
             "asset_class": asset.asset_class.value,
             "action": action,
             "thesis_score": round(thesis_score, 2),
+            "score_v2": round(thesis_score, 2),
 
             # Direction
             "direction": direction,
