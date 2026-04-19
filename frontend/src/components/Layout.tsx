@@ -126,10 +126,10 @@ export default function Layout({ onLogout, user }: LayoutProps) {
           {onLogout && (
             <button
               onClick={onLogout}
-              className="flex items-center gap-2 text-[11px] text-text-secondary hover:text-red-400 transition-colors w-full px-1"
+              className="flex items-center gap-2 text-[11px] text-text-secondary hover:text-red-400 transition-colors w-full px-2 py-1.5 rounded hover:bg-red-400/5"
             >
-              <LogOut size={12} />
-              Déconnexion
+              <LogOut size={13} />
+              Se déconnecter
             </button>
           )}
         </div>

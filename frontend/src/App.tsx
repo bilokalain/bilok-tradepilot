@@ -33,6 +33,21 @@ function App() {
     document.documentElement.setAttribute("data-theme", savedTheme);
   }, []);
 
+  // Charger le profil utilisateur si un token existe déjà
+  useEffect(() => {
+    if (token && !user) {
+      import("./services/api").then(({ default: api }) => {
+        api.get("/auth/me").then((res) => {
+          if (res.data) setUser(res.data);
+        }).catch(() => {
+          // Token invalide — déconnecter
+          setToken(null);
+          localStorage.removeItem("tradepilot_token");
+        });
+      });
+    }
+  }, [token, user]);
+
   // Écouter l'événement "open-profile" du Layout
   useEffect(() => {
     const handler = () => setShowProfile(true);
