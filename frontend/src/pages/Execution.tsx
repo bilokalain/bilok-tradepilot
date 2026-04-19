@@ -244,26 +244,26 @@ export default function Execution() {
         </div>
       </div>
 
-      {/* Boutons d'action principaux */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      {/* Boutons d'action + métriques */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <button
           onClick={handleExecuteAll}
           disabled={executingAll || availableSignals.length === 0}
           className="flex items-center justify-center gap-3 p-5 bg-gold/10 border-2 border-gold/30 rounded-2xl text-gold hover:bg-gold/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
         >
-          <div className="w-12 h-12 rounded-xl bg-gold/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Play size={24} fill="currentColor" />
+          <div className="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Play size={20} fill="currentColor" />
           </div>
           <div className="text-left">
-            <p className="text-lg font-bold">
-              {executingAll ? "Exécution en cours..." : "Lancer le Trading"}
+            <p className="text-sm font-bold">
+              {executingAll ? "Exécution..." : "Lancer le Trading"}
             </p>
-            <p className="text-xs text-gold/70">
+            <p className="text-[10px] text-gold/70">
               {availableSignals.length > 0
-                ? `Exécuter ${availableSignals.length} nouveau${availableSignals.length > 1 ? "x" : ""} signal${availableSignals.length > 1 ? "s" : ""} GO`
+                ? `${availableSignals.length} signal${availableSignals.length > 1 ? "s" : ""} GO`
                 : signals.length > 0
-                  ? `${signals.length} signal${signals.length > 1 ? "s" : ""} déjà en position`
-                  : "Aucun signal GO disponible actuellement"}
+                  ? `${signals.length} déjà en position`
+                  : "Aucun signal GO"}
             </p>
           </div>
         </button>
@@ -276,18 +276,34 @@ export default function Execution() {
           }}
           className="flex items-center justify-center gap-3 p-5 bg-surface border border-border rounded-2xl text-text-secondary hover:text-gold hover:border-gold/30 transition-all group"
         >
-          <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <RefreshCw size={20} className="text-gold" />
+          <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <RefreshCw size={18} className="text-gold" />
           </div>
           <div className="text-left">
             <p className="text-sm font-bold">Refresh Léger</p>
-            <p className="text-[10px] text-text-secondary">Recalculer Scoring + Signaux sans rescanner (~5 min)</p>
+            <p className="text-[10px] text-text-secondary">Scoring + Signaux (~5 min)</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => {
+            api.post("/pipeline/run").then(() => {
+              alert("Pipeline complet lancé — scan des 500 actifs + analyse + scoring (~35 min)");
+            }).catch(() => alert("Erreur lancement pipeline"));
+          }}
+          className="flex items-center justify-center gap-3 p-5 bg-surface border border-border rounded-2xl text-text-secondary hover:text-gold hover:border-gold/30 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <RefreshCw size={18} className="text-blue-400" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold">Pipeline Complet</p>
+            <p className="text-[10px] text-text-secondary">Scanner 500 actifs (~35 min)</p>
           </div>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-card border border-border rounded-xl p-4">
             <p className="text-xs text-text-secondary mb-1">Positions ouvertes</p>
             <p className="text-2xl font-mono font-semibold text-gold">{positions.length}</p>
@@ -309,7 +325,6 @@ export default function Execution() {
             <p className="text-xs text-text-secondary mb-1">Valeur positions</p>
             <p className="text-2xl font-mono font-semibold">${totalValue.toFixed(0)}</p>
           </div>
-        </div>
       </div>
 
       {/* Résultat exécution globale */}
