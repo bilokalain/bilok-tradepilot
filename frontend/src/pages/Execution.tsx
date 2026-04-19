@@ -268,6 +268,25 @@ export default function Execution() {
           </div>
         </button>
 
+        <button
+          onClick={() => {
+            api.post("/pipeline/run-light").then(() => {
+              alert("Pipeline léger lancé — refresh des signaux en ~5 min (sans rescanner les 500 actifs)");
+            }).catch(() => alert("Erreur lancement pipeline"));
+          }}
+          className="flex items-center justify-center gap-3 p-5 bg-surface border border-border rounded-2xl text-text-secondary hover:text-gold hover:border-gold/30 transition-all group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <RefreshCw size={20} className="text-gold" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold">Refresh Léger</p>
+            <p className="text-[10px] text-text-secondary">Recalculer Scoring + Signaux sans rescanner (~5 min)</p>
+          </div>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-card border border-border rounded-xl p-4">
             <p className="text-xs text-text-secondary mb-1">Positions ouvertes</p>

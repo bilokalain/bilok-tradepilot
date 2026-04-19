@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 from backend.tasks.pipeline import (
-    run_full_pipeline, run_data_update,
+    run_full_pipeline, run_data_update, run_light_pipeline,
     task_run_scanner, task_update_market_data,
 )
 
@@ -28,6 +28,17 @@ def trigger_data_update():
     return {
         "status": "data_update_started",
         "task_id": result.id,
+    }
+
+
+@router.post("/run-light")
+def trigger_light_pipeline():
+    """Lance le pipeline léger (sans scanner) — Analyseur → Scoring → Exécution → Portfolio → Performance."""
+    result = run_light_pipeline()
+    return {
+        "status": "light_pipeline_started",
+        "task_id": result.id,
+        "message": "Pipeline léger lancé : Corrélation → Analyseur → Scoring → Exécution → Portefeuille → Performance (sans scanner)",
     }
 
 

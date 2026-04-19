@@ -498,6 +498,41 @@ def run_data_update():
     return pipeline.apply_async()
 
 
+@celery_app.task(name="pipeline.run_light_pipeline")
+def task_run_light_pipeline():
+    """Pipeline léger — saute le scanner, part du cache existant.
+
+    Analyseur → Scoring → Exécution → Portefeuille → Performance
+    ~5 min au lieu de 1h+ pour le pipeline complet.
+    Utile pour recalculer les signaux GO sans rescanner les 500 actifs.
+    """
+    import redis as redis_lib
+    from backend.config.settings import settings
+
+    lock_client = redis_lib.from_url(settings.REDIS_URL)
+    lock = lock_client.lock("tradepilot:pipeline_lock", timeout=600, blocking=False)
+
+    if not lock.acquire(blocking=False):
+        logger.warning("[PIPELINE] Light pipeline skip — un pipeline est déjà en cours")
+        return {"skipped": True, "reason": "pipeline already running"}
+
+    logger.info("[PIPELINE] Lancement du pipeline LÉGER (sans scanner)...")
+    pipeline = chain(
+        task_build_correlation_cache.si(),
+        task_run_analyser.si(),
+        task_run_scoring.si(),
+        task_run_execution.si(),
+        task_run_portfolio.si(),
+        task_run_performance.si(),
+    )
+    return pipeline.apply_async()
+
+
+def run_light_pipeline():
+    """Raccourci pour lancer le pipeline léger."""
+    return task_run_light_pipeline.delay()
+
+
 @celery_app.task(name="pipeline.check_tp_sl", bind=True)
 def task_check_tp_sl(self):
     """Vérifie et ferme les positions qui ont atteint leur TP ou SL.
