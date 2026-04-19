@@ -30,6 +30,8 @@ export default function Execution() {
   const [healthData, setHealthData] = useState<any[]>([]);
   const [queueData, setQueueData] = useState<any>(null);
   const [arbiter, setArbiter] = useState<any>(null);
+  const [pipelineStatus, setPipelineStatus] = useState<"idle" | "light" | "full" | "done" | "error">("idle");
+  const [pipelineTaskId, setPipelineTaskId] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -270,35 +272,68 @@ export default function Execution() {
 
         <button
           onClick={() => {
-            api.post("/pipeline/run-light").then(() => {
-              alert("Pipeline léger lancé — refresh des signaux en ~5 min (sans rescanner les 500 actifs)");
-            }).catch(() => alert("Erreur lancement pipeline"));
+            setPipelineStatus("light");
+            api.post("/pipeline/run-light").then((res) => {
+              setPipelineTaskId(res.data.task_id);
+              // Polling du statut
+              const poll = setInterval(() => {
+                api.get(`/pipeline/status/${res.data.task_id}`).then((s) => {
+                  if (s.data.status === "SUCCESS") { setPipelineStatus("done"); clearInterval(poll); loadData(); setTimeout(() => setPipelineStatus("idle"), 5000); }
+                  else if (s.data.status === "FAILURE") { setPipelineStatus("error"); clearInterval(poll); setTimeout(() => setPipelineStatus("idle"), 5000); }
+                }).catch(() => {});
+              }, 10000);
+            }).catch(() => setPipelineStatus("error"));
           }}
-          className="flex items-center justify-center gap-3 p-5 bg-surface border border-border rounded-2xl text-text-secondary hover:text-gold hover:border-gold/30 transition-all group"
+          disabled={pipelineStatus !== "idle"}
+          className={`flex items-center justify-center gap-3 p-5 rounded-2xl transition-all group ${
+            pipelineStatus === "light" ? "bg-gold/10 border-2 border-gold/30 text-gold" :
+            pipelineStatus === "done" ? "bg-emerald-400/10 border-2 border-emerald-400/30 text-emerald-400" :
+            pipelineStatus === "error" ? "bg-red-400/10 border-2 border-red-400/30 text-red-400" :
+            "bg-surface border border-border text-text-secondary hover:text-gold hover:border-gold/30"
+          } disabled:opacity-60`}
         >
           <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <RefreshCw size={18} className="text-gold" />
+            <RefreshCw size={18} className={`text-gold ${pipelineStatus === "light" ? "animate-spin" : ""}`} />
           </div>
           <div className="text-left">
-            <p className="text-sm font-bold">Refresh Léger</p>
-            <p className="text-[10px] text-text-secondary">Scoring + Signaux (~5 min)</p>
+            <p className="text-sm font-bold">
+              {pipelineStatus === "light" ? "Refresh en cours..." : pipelineStatus === "done" ? "Refresh terminé ✓" : pipelineStatus === "error" ? "Erreur" : "Refresh Léger"}
+            </p>
+            <p className="text-[10px] text-text-secondary">
+              {pipelineStatus === "light" ? "Scoring + Signaux — ~5 min" : "Scoring + Signaux (~5 min)"}
+            </p>
           </div>
         </button>
 
         <button
           onClick={() => {
-            api.post("/pipeline/run").then(() => {
-              alert("Pipeline complet lancé — scan des 500 actifs + analyse + scoring (~35 min)");
-            }).catch(() => alert("Erreur lancement pipeline"));
+            setPipelineStatus("full");
+            api.post("/pipeline/run").then((res) => {
+              setPipelineTaskId(res.data.task_id);
+              const poll = setInterval(() => {
+                api.get(`/pipeline/status/${res.data.task_id}`).then((s) => {
+                  if (s.data.status === "SUCCESS") { setPipelineStatus("done"); clearInterval(poll); loadData(); setTimeout(() => setPipelineStatus("idle"), 5000); }
+                  else if (s.data.status === "FAILURE") { setPipelineStatus("error"); clearInterval(poll); setTimeout(() => setPipelineStatus("idle"), 5000); }
+                }).catch(() => {});
+              }, 30000);
+            }).catch(() => setPipelineStatus("error"));
           }}
-          className="flex items-center justify-center gap-3 p-5 bg-surface border border-border rounded-2xl text-text-secondary hover:text-gold hover:border-gold/30 transition-all group"
+          disabled={pipelineStatus !== "idle"}
+          className={`flex items-center justify-center gap-3 p-5 rounded-2xl transition-all group ${
+            pipelineStatus === "full" ? "bg-blue-400/10 border-2 border-blue-400/30 text-blue-400" :
+            "bg-surface border border-border text-text-secondary hover:text-blue-400 hover:border-blue-400/30"
+          } disabled:opacity-60`}
         >
           <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <RefreshCw size={18} className="text-blue-400" />
+            <RefreshCw size={18} className={`text-blue-400 ${pipelineStatus === "full" ? "animate-spin" : ""}`} />
           </div>
           <div className="text-left">
-            <p className="text-sm font-bold">Pipeline Complet</p>
-            <p className="text-[10px] text-text-secondary">Scanner 500 actifs (~35 min)</p>
+            <p className="text-sm font-bold">
+              {pipelineStatus === "full" ? "Scan en cours..." : "Pipeline Complet"}
+            </p>
+            <p className="text-[10px] text-text-secondary">
+              {pipelineStatus === "full" ? "500 actifs — ~35 min" : "Scanner 500 actifs (~35 min)"}
+            </p>
           </div>
         </button>
       </div>
