@@ -387,7 +387,7 @@ def quick_analyse(query: str) -> dict:
         "mts": round(mts_score, 1),
         "sgi": round(sgi_score, 1),
         "sus": round(sus_score, 1),
-        "fundamental": round(fundamental_score, 1),
+        "fundamental": round(fundamental_score or 50, 1),
     }
 
     # 7. Score V2 (même méthode que le pipeline)
