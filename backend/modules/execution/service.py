@@ -60,7 +60,7 @@ class ExecutionService:
 
     def execute_thesis(self, symbol: str, capital: float = 100_000) -> dict:
         """Exécute une thèse de trade : biais check → ordres → fill."""
-        # 0. Vérifier si une position est déjà ouverte sur cet actif
+        # 0a. Vérifier si une position est déjà ouverte sur cet actif
         asset = self.db.query(Asset).filter_by(symbol=symbol).first()
         if asset:
             existing = (
@@ -73,6 +73,21 @@ class ExecutionService:
                     "symbol": symbol,
                     "executed": False,
                     "reason": f"Position déjà ouverte sur {symbol} (id={existing.id})",
+                }
+
+            # 0b. Cooldown — pas de nouveau trade si fermé dans les dernières 24h
+            from datetime import datetime, timedelta
+            recent_close = (
+                self.db.query(Position)
+                .filter_by(asset_id=asset.id, status=PositionStatus.CLOSED)
+                .filter(Position.closed_at >= datetime.utcnow() - timedelta(hours=24))
+                .first()
+            )
+            if recent_close:
+                return {
+                    "symbol": symbol,
+                    "executed": False,
+                    "reason": f"Cooldown 24h — {symbol} fermé récemment (id={recent_close.id})",
                 }
 
         # 1. Générer la thèse
