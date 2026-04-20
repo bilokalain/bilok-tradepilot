@@ -809,11 +809,12 @@ function StrategiesPanel({ strategies, bestName, lastPrice, symbol }: { strategi
   const others = sorted.slice(6);
   const selected = strategies.find((s) => s.strategy === selectedStrat);
 
-  // Données pour le radar — TOUTES les 15 stratégies (conviction 0 = centre)
+  // Données pour le radar — TOUTES les 15 stratégies
+  // Les NEUTRAL ont un minimum de 8 pour être visibles sur le radar
   const radarData = strategies.map((s) => ({
-    label: (STRATEGY_LABELS[s.strategy] || s.strategy).slice(0, 12),
-    value: Math.min(s.conviction || 0, 100),
-    icon: s.direction === "LONG" ? "📈" : s.direction === "SHORT" ? "📉" : "⏸",
+    label: (STRATEGY_LABELS[s.strategy] || s.strategy).slice(0, 14),
+    value: Math.max(s.conviction || 0, 8),
+    icon: s.direction === "LONG" ? "📈" : s.direction === "SHORT" ? "📉" : "—",
   }));
 
   return (
@@ -822,7 +823,7 @@ function StrategiesPanel({ strategies, bestName, lastPrice, symbol }: { strategi
       {radarData.length >= 3 && (
         <InfoCard title={`Radar des ${strategies.length} stratégies — ${symbol}`} icon={<TrendingUp size={18} />} description="Conviction de chaque stratégie (0-100). Plus la forme est large, plus les stratégies convergent. Les icônes 📈/📉 indiquent la direction LONG/SHORT.">
           <div className="flex justify-center">
-            <RadarChart data={radarData} size={350} />
+            <RadarChart data={radarData} size={420} />
           </div>
         </InfoCard>
       )}
