@@ -1,7 +1,8 @@
 """Cache persistant pour les résultats du scanner.
 
-Le scan de 218 actifs × 10 critères × 20 indicateurs prend plusieurs heures.
+Le scan de 530+ actifs × 10 critères × 20 indicateurs prend ~35 min.
 On persiste le cache sur disque pour qu'il survive aux redémarrages.
+Le cache mémoire se recharge automatiquement quand le fichier disque change.
 """
 
 import json
@@ -18,22 +19,25 @@ _cache: dict = {
     "scan_results": [],
     "last_updated": 0,
     "updating": False,
+    "_disk_mtime": 0,  # mtime du fichier disque au moment du chargement
 }
 
-CACHE_TTL = 3600 * 6  # 6 heures (au lieu de 5 minutes)
+CACHE_TTL = 3600 * 6  # 6 heures
 
 
 def _load_from_disk():
-    """Charge le cache depuis le disque au démarrage."""
+    """Charge le cache depuis le disque (toujours, sans condition)."""
     global _cache
-    if CACHE_FILE.exists() and not _cache["scan_results"]:
-        try:
-            data = json.loads(CACHE_FILE.read_text())
-            _cache["scan_results"] = data.get("results", [])
-            _cache["last_updated"] = data.get("last_updated", 0)
-            logger.info(f"Cache chargé depuis disque : {len(_cache['scan_results'])} actifs")
-        except Exception as e:
-            logger.warning(f"Erreur chargement cache disque : {e}")
+    if not CACHE_FILE.exists():
+        return
+    try:
+        data = json.loads(CACHE_FILE.read_text())
+        _cache["scan_results"] = data.get("results", [])
+        _cache["last_updated"] = data.get("last_updated", 0)
+        _cache["_disk_mtime"] = CACHE_FILE.stat().st_mtime
+        logger.info(f"Cache chargé depuis disque : {len(_cache['scan_results'])} actifs")
+    except Exception as e:
+        logger.warning(f"Erreur chargement cache disque : {e}")
 
 
 def _save_to_disk():
@@ -43,6 +47,7 @@ def _save_to_disk():
             "results": _cache["scan_results"],
             "last_updated": _cache["last_updated"],
         }, default=str))
+        _cache["_disk_mtime"] = CACHE_FILE.stat().st_mtime
     except Exception as e:
         logger.warning(f"Erreur sauvegarde cache disque : {e}")
 
@@ -52,12 +57,10 @@ _load_from_disk()
 
 
 def get_cached_results() -> list[dict]:
-    if not _cache["scan_results"]:
-        _load_from_disk()
-    # Recharger si le fichier disque est plus récent que le cache mémoire
-    elif CACHE_FILE.exists():
+    # Recharger si le fichier disque a été modifié depuis le dernier chargement
+    if CACHE_FILE.exists():
         disk_mtime = CACHE_FILE.stat().st_mtime
-        if disk_mtime > _cache["last_updated"]:
+        if disk_mtime > _cache["_disk_mtime"]:
             _load_from_disk()
     return _cache["scan_results"]
 
