@@ -178,13 +178,31 @@ function ThesisDetail({ thesis: t }: { thesis: TradeThesis }) {
   const ev = t.sizing?.expected_value || 0;
   const kelly = t.sizing?.kelly_fraction ? t.sizing.kelly_fraction * 100 : 0;
 
-  // Verdict narratif
+  const bayPost = t.bayesian?.posterior || 0;
+  const sqc = t.sqc?.sqc || 0;
+
+  // Verdict narratif complet
   const parts: string[] = [];
-  if (score >= 75) parts.push(`Signal très fort (${score.toFixed(1)}/100) — convergence rare des sources.`);
-  else if (score >= 65) parts.push(`Signal validé (${score.toFixed(1)}/100) — conditions réunies.`);
-  else parts.push(`Signal en attente (${score.toFixed(1)}/100).`);
-  if (ev > 0.1) parts.push(`Espérance positive (+${ev.toFixed(3)}) — trade statistiquement profitable.`);
-  if (rr >= 2) parts.push(`Excellent R:R de 1:${rr.toFixed(1)}.`);
+  if (score >= 75) parts.push(`Signal très fort (${score.toFixed(1)}/100) — convergence rare des 9 sources de scoring. Les conditions sont exceptionnellement favorables.`);
+  else if (score >= 65) parts.push(`Signal validé (${score.toFixed(1)}/100) — les critères convergent suffisamment pour justifier une entrée en position.`);
+  else if (score >= 50) parts.push(`Signal en attente (${score.toFixed(1)}/100) — presque prêt mais il manque de la conviction. Surveiller l'évolution.`);
+  else parts.push(`Pas de signal (${score.toFixed(1)}/100) — les conditions ne sont pas favorables.`);
+
+  if (t.direction === "LONG") parts.push(`La stratégie ${stratName} détecte un potentiel haussier sur ${t.symbol}.`);
+  else if (t.direction === "SHORT") parts.push(`La stratégie ${stratName} détecte un potentiel baissier sur ${t.symbol}.`);
+
+  if (ev > 0.1) parts.push(`L'espérance mathématique est positive (+${ev.toFixed(3)}) — pour chaque dollar risqué, le gain moyen attendu est de ${(ev * 100).toFixed(1)} centimes.`);
+  else if (ev > 0) parts.push(`L'espérance est légèrement positive (+${ev.toFixed(3)}) — avantage faible mais réel.`);
+  else if (ev <= 0 && t.action === "GO") parts.push(`Attention : l'espérance est négative (${ev.toFixed(3)}) — le R:R devrait être amélioré.`);
+
+  if (rr >= 2) parts.push(`Excellent ratio risque/récompense de 1:${rr.toFixed(1)} — chaque dollar risqué peut rapporter ${rr.toFixed(1)}$.`);
+  else if (rr >= 1.5) parts.push(`Bon ratio R:R de 1:${rr.toFixed(1)}.`);
+
+  if (bayPost >= 70) parts.push(`Le score bayésien (${bayPost.toFixed(0)}/100) confirme : l'historique ET les signaux actuels convergent.`);
+  else if (bayPost < 40 && bayPost > 0) parts.push(`Le bayésien est faible (${bayPost.toFixed(0)}/100) — l'historique ne soutient pas fortement ce signal.`);
+
+  if (sqc >= 80) parts.push(`Contexte de marché excellent (SQC ${sqc.toFixed(0)}) — bonne liquidité et timing favorable.`);
+  else if (sqc < 50 && sqc > 0) parts.push(`Attention : contexte défavorable (SQC ${sqc.toFixed(0)}) — liquidité faible ou mauvais timing.`);
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4 sticky top-6">
@@ -233,50 +251,80 @@ function ThesisDetail({ thesis: t }: { thesis: TradeThesis }) {
 
       {/* Bayesian */}
       {t.bayesian && (
-        <div className="space-y-1.5">
+        <div className="bg-surface rounded-xl p-4 space-y-2">
           <p className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">Score Bayésien</p>
-          <ScoreBar label="Prior (historique)" value={t.bayesian.prior} />
-          <ScoreBar label="Likelihood (signaux)" value={t.bayesian.likelihood} />
-          <ScoreBar label="Postérieur" value={t.bayesian.posterior} highlight />
+          <p className="text-[10px] text-text-secondary italic">Combine l'historique de l'actif (prior) avec les signaux actuels (likelihood) pour estimer la probabilité de succès.</p>
+          <ScoreBar label="Prior (historique)" value={t.bayesian.prior}
+            explain={t.bayesian.prior >= 65 ? "Historique favorable — l'actif performe bien sur 6 mois" : t.bayesian.prior >= 45 ? "Historique neutre" : "Historique défavorable — prudence"} />
+          <ScoreBar label="Likelihood (signaux actuels)" value={t.bayesian.likelihood}
+            explain={t.bayesian.likelihood >= 65 ? "Signaux actuels convergents — scanner + stratégie + régime" : "Signaux faibles ou contradictoires"} />
+          <ScoreBar label="Postérieur (fusion)" value={t.bayesian.posterior} highlight
+            explain={t.bayesian.posterior >= 70 ? "Forte conviction — historique ET signaux convergent" : t.bayesian.posterior >= 50 ? "Conviction modérée" : "Pas de conviction bayésienne"} />
         </div>
       )}
 
       {/* SQC */}
       {t.sqc && (
-        <div className="space-y-1.5">
-          <p className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">Qualité du Contexte</p>
-          <ScoreBar label="Liquidité" value={t.sqc.components?.liquidity || 0} />
-          <ScoreBar label="Timing" value={t.sqc.components?.time || 0} />
-          <ScoreBar label="Volatilité" value={t.sqc.components?.volatility_context || 0} />
-          <ScoreBar label="SQC Total" value={t.sqc.sqc || 0} highlight />
+        <div className="bg-surface rounded-xl p-4 space-y-2">
+          <p className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">Qualité du Contexte (SQC)</p>
+          <p className="text-[10px] text-text-secondary italic">Les conditions de marché sont-elles favorables pour entrer ? Un bon signal dans un mauvais contexte = mauvais trade.</p>
+          <ScoreBar label="Liquidité" value={t.sqc.components?.liquidity || 0}
+            explain={(t.sqc.components?.liquidity || 0) >= 80 ? "Volume élevé — exécution facile, spread serré" : (t.sqc.components?.liquidity || 0) >= 50 ? "Volume correct" : "Volume faible — risque de slippage"} />
+          <ScoreBar label="Timing de marché" value={t.sqc.components?.time || 0}
+            explain={(t.sqc.components?.time || 0) >= 70 ? "Heures de marché optimales" : (t.sqc.components?.time || 0) >= 40 ? "Timing acceptable" : "Hors marché ou heures creuses"} />
+          <ScoreBar label="Volatilité" value={t.sqc.components?.volatility_context || 0}
+            explain={(t.sqc.components?.volatility_context || 0) >= 70 ? "Volatilité normale — conditions stables" : (t.sqc.components?.volatility_context || 0) >= 40 ? "Volatilité modérée" : "Volatilité extrême — danger"} />
+          <ScoreBar label="SQC Total" value={t.sqc.sqc || 0} highlight
+            explain={(t.sqc.sqc || 0) >= 70 ? "Contexte favorable au trade" : (t.sqc.sqc || 0) >= 50 ? "Contexte acceptable" : "Contexte défavorable — attendre"} />
         </div>
       )}
 
       {/* Sizing Kelly */}
       {t.sizing && (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-surface rounded-lg p-3 text-center">
-            <p className="text-[9px] text-text-secondary uppercase">Position</p>
-            <p className="text-lg font-mono font-bold text-gold">${t.sizing.position_size_usd?.toFixed(0)}</p>
-            <p className="text-[9px] text-text-secondary">{t.sizing.quantity?.toFixed(2)} unités</p>
+        <div className="bg-surface rounded-xl p-4 space-y-3">
+          <p className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">Position Sizing (Kelly)</p>
+          <p className="text-[10px] text-text-secondary italic">Taille de position optimale basée sur le critère de Kelly — maximise la croissance du capital à long terme.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-card rounded-lg p-3 text-center">
+              <p className="text-[9px] text-text-secondary">Position recommandée</p>
+              <p className="text-lg font-mono font-bold text-gold">${t.sizing.position_size_usd?.toFixed(0)}</p>
+              <p className="text-[9px] text-text-secondary">{t.sizing.quantity?.toFixed(2)} unités</p>
+            </div>
+            <div className="bg-card rounded-lg p-3 text-center">
+              <p className="text-[9px] text-text-secondary">Risque maximum</p>
+              <p className="text-lg font-mono font-bold text-red-400">${t.sizing.risk_per_trade_usd?.toFixed(0)}</p>
+              <p className="text-[9px] text-text-secondary">{t.sizing.risk_pct_of_capital?.toFixed(2)}% du capital</p>
+            </div>
           </div>
-          <div className="bg-surface rounded-lg p-3 text-center">
-            <p className="text-[9px] text-text-secondary uppercase">Risque</p>
-            <p className="text-lg font-mono font-bold text-red-400">${t.sizing.risk_per_trade_usd?.toFixed(0)}</p>
-            <p className="text-[9px] text-text-secondary">{t.sizing.risk_pct_of_capital?.toFixed(2)}%</p>
+          <div className="grid grid-cols-4 gap-1.5">
+            <MiniMetric label="Kelly ¼" value={`${kelly.toFixed(1)}%`} />
+            <MiniMetric label="R:R" value={`1:${rr.toFixed(1)}`} color={rr >= 1.5 ? "text-emerald-400" : ""} />
+            <MiniMetric label="Win Rate" value={`${wr.toFixed(0)}%`} color={wr >= 55 ? "text-emerald-400" : ""} />
+            <MiniMetric label="E[R]" value={ev >= 0 ? `+${ev.toFixed(3)}` : ev.toFixed(3)} color={ev > 0 ? "text-gold" : "text-red-400"} />
           </div>
+          <p className="text-[9px] text-text-secondary italic">
+            {ev > 0
+              ? `Pour chaque dollar risqué, l'espérance de gain est de ${(ev * 100).toFixed(1)} centimes. Avec un win rate de ${wr.toFixed(0)}% et un R:R de 1:${rr.toFixed(1)}, le critère de Kelly recommande ${kelly.toFixed(1)}% du capital.`
+              : "L'espérance est négative — le sizing Kelly recommande de ne pas prendre ce trade."}
+          </p>
         </div>
       )}
 
       {/* Shelf Life */}
       {t.shelf_life && (
-        <div className="flex items-center justify-between bg-surface rounded-lg p-3 text-xs">
-          <div className="flex items-center gap-2">
-            <Clock size={14} className="text-text-secondary" />
-            <span className="text-text-secondary">Durée de vie</span>
+        <div className="bg-surface rounded-xl p-4">
+          <p className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold mb-2">Durée de vie du signal</p>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Clock size={14} className="text-gold" />
+              <span className="text-sm font-mono font-semibold">{t.shelf_life.shelf_life_label}</span>
+            </div>
+            <span className="text-sm font-mono font-bold text-gold">{t.shelf_life.order_type}</span>
           </div>
-          <span className="font-mono font-semibold">{t.shelf_life.shelf_life_label}</span>
-          <span className="font-mono text-gold">{t.shelf_life.order_type}</span>
+          <p className="text-[9px] text-text-secondary italic">
+            {t.shelf_life.order_type === "MARKET" ? "Le signal est urgent — exécution immédiate recommandée. Le prix peut bouger rapidement." :
+             "Le signal a le temps — un ordre Limit permet d'obtenir un meilleur prix d'entrée. Patience recommandée."}
+          </p>
         </div>
       )}
 
@@ -311,16 +359,26 @@ function PriceRow({ label, price, color = "", description = "" }: { label: strin
 }
 
 
-function ScoreBar({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+function ScoreBar({ label, value, highlight, explain }: { label: string; value: number; highlight?: boolean; explain?: string }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
         <span className={`text-[10px] ${highlight ? "font-semibold text-text-primary" : "text-text-secondary"}`}>{label}</span>
         <span className={`text-[10px] font-mono ${highlight ? "text-gold font-bold" : ""}`}>{value.toFixed(1)}</span>
       </div>
-      <div className="h-1 bg-background rounded-full overflow-hidden">
+      <div className="h-1.5 bg-background rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${highlight ? "bg-gold" : "bg-gold/40"}`} style={{ width: `${Math.min(value, 100)}%` }} />
       </div>
+      {explain && <p className="text-[8px] text-text-secondary mt-0.5 italic">{explain}</p>}
+    </div>
+  );
+}
+
+function MiniMetric({ label, value, color = "" }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="bg-card rounded-lg p-1.5 text-center">
+      <p className="text-[7px] text-text-secondary uppercase">{label}</p>
+      <p className={`text-xs font-mono font-bold ${color}`}>{value}</p>
     </div>
   );
 }
