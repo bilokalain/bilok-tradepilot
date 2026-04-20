@@ -154,14 +154,43 @@ export default function AssetAnalyseDetail() {
               </div>
             )}
           </div>
-          {best.stop_loss > 0 && (
-            <div className="grid grid-cols-4 gap-3 text-xs flex-1">
-              <div className="bg-surface rounded-lg p-3 text-center"><p className="text-[9px] text-text-secondary">Entrée</p><p className="font-mono font-bold">${best.entry}</p></div>
-              <div className="bg-surface rounded-lg p-3 text-center"><p className="text-[9px] text-text-secondary">SL</p><p className="font-mono font-bold text-red-400">${best.stop_loss}</p></div>
-              <div className="bg-surface rounded-lg p-3 text-center"><p className="text-[9px] text-text-secondary">TP1</p><p className="font-mono font-bold text-gold">${best.take_profit_1 || best.take_profit}</p></div>
-              <div className="bg-surface rounded-lg p-3 text-center"><p className="text-[9px] text-text-secondary">TP2</p><p className="font-mono font-bold text-emerald-400">${best.take_profit_2 || "—"}</p></div>
-            </div>
-          )}
+          {best.stop_loss > 0 && (() => {
+            const entry = best.entry || data.last_price;
+            const sl = best.stop_loss;
+            const tp1 = best.take_profit_1 || best.take_profit;
+            const tp2 = best.take_profit_2;
+            const rr = sl && tp1 ? (Math.abs(tp1 - entry) / Math.abs(entry - sl)).toFixed(1) : "—";
+            return (
+              <div className="bg-surface rounded-xl p-4 min-w-[220px]">
+                <p className="text-xs text-text-secondary mb-3">Niveaux de prix suggérés</p>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div><p className="text-xs font-semibold">Entrée</p><p className="text-[9px] text-text-secondary">Prix recommandé pour ouvrir la position</p></div>
+                    <p className="text-lg font-mono font-bold">${entry}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div><p className="text-xs font-semibold text-red-400">Stop Loss</p><p className="text-[9px] text-text-secondary">Sortie automatique si le prix va contre nous</p></div>
+                    <p className="text-lg font-mono font-bold text-red-400">${sl}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div><p className="text-xs font-semibold text-gold">Objectif 1</p><p className="text-[9px] text-text-secondary">Premier objectif de profit</p></div>
+                    <p className="text-lg font-mono font-bold text-gold">${tp1}</p>
+                  </div>
+                  {tp2 && (
+                    <div className="flex items-center justify-between">
+                      <div><p className="text-xs font-semibold text-emerald-400">Objectif 2</p><p className="text-[9px] text-text-secondary">Objectif optimiste (laisser courir)</p></div>
+                      <p className="text-lg font-mono font-bold text-emerald-400">${tp2}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 pt-3 border-t border-border/50 text-xs">
+                  <span className="text-text-secondary">Ratio risque/récompense : </span>
+                  <span className="font-mono font-semibold text-gold">1:{rr}</span>
+                  <p className="text-text-secondary mt-1">Pour chaque dollar risqué, le gain potentiel est de {rr}$.</p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
