@@ -5,6 +5,7 @@ import TradingChart from "../components/TradingChart";
 import ScoreGauge from "../components/ui/ScoreGauge";
 import InfoCard from "../components/ui/InfoCard";
 import SignalBadge from "../components/ui/SignalBadge";
+import RadarChart from "../components/ui/RadarChart";
 
 const SUGGESTIONS = [
   "AAPL", "TSLA", "NVDA", "PLTR", "COIN", "AMC", "GME",
@@ -425,6 +426,11 @@ function AnalyseResult({ data }: { data: any }) {
         </InfoCard>
       )}
 
+      {/* Stratégies — Top 3 + radar + détails cliquables */}
+      {data.all_strategies?.length > 0 && (
+        <StrategiesPanel strategies={data.all_strategies} bestName={best.name} lastPrice={data.last_price} symbol={data.symbol} />
+      )}
+
       {/* Scores — cliquables */}
       <InfoCard title="Scores d'analyse" icon={<TrendingUp size={18} />} description="Cliquez sur chaque score pour voir sa définition et l'interprétation pour cet actif.">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -475,11 +481,6 @@ function AnalyseResult({ data }: { data: any }) {
           </div>
         </InfoCard>
       </div>
-
-      {/* Stratégies — Top 3 + détails cliquables */}
-      {data.all_strategies?.length > 0 && (
-        <StrategiesPanel strategies={data.all_strategies} bestName={best.name} lastPrice={data.last_price} symbol={data.symbol} />
-      )}
 
       {/* ============ SCORES DES CRITÈRES ============ */}
       {data.scores && Object.keys(data.scores).length > 0 && (
@@ -808,8 +809,26 @@ function StrategiesPanel({ strategies, bestName, lastPrice, symbol }: { strategi
   const others = sorted.slice(3);
   const selected = strategies.find((s) => s.strategy === selectedStrat);
 
+  // Données pour le radar — toutes les stratégies avec conviction > 0
+  const radarData = strategies
+    .filter((s) => s.conviction > 0)
+    .map((s) => ({
+      label: (STRATEGY_LABELS[s.strategy] || s.strategy).slice(0, 12),
+      value: Math.min(s.conviction, 100),
+      icon: s.direction === "LONG" ? "📈" : s.direction === "SHORT" ? "📉" : "⏸",
+    }));
+
   return (
     <div className="space-y-4">
+      {/* Radar des stratégies */}
+      {radarData.length >= 3 && (
+        <InfoCard title={`Radar des ${strategies.length} stratégies — ${symbol}`} icon={<TrendingUp size={18} />} description="Conviction de chaque stratégie (0-100). Plus la forme est large, plus les stratégies convergent. Les icônes 📈/📉 indiquent la direction LONG/SHORT.">
+          <div className="flex justify-center">
+            <RadarChart data={radarData} size={350} />
+          </div>
+        </InfoCard>
+      )}
+
       {/* Top 3 stratégies */}
       <InfoCard title={`Top 3 Stratégies — ${symbol}`} icon={<TrendingUp size={18} />} description="Les 3 stratégies les plus convaincantes pour cet actif. Cliquez pour voir le détail complet.">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
