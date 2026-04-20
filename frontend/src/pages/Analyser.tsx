@@ -262,9 +262,9 @@ export default function Analyser() {
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <Link to={`/asset/${r.symbol}`} className="font-mono font-semibold text-gold w-20 hover:underline" onClick={(e) => e.stopPropagation()}>
+                  <span className="font-mono font-semibold text-gold w-20">
                     {r.symbol}
-                  </Link>
+                  </span>
                   <div>
                     <span className="text-sm">{r.name}</span>
                     <div className="flex items-center gap-2 mt-0.5">
