@@ -19,22 +19,52 @@ const STRATEGY_LABELS: Record<string, string> = {
   volatility_explosion: "Volatility Explosion", anti_consensus: "Anti-Consensus Alpha",
 };
 
-const STRAT_INFO: Record<string, { type: string; edge: string; when: string }> = {
-  trend_following: { type: "Classic", edge: "Croisement EMA 9/21 confirmé par SMA 50", when: "Marché en tendance claire" },
-  mean_reversion: { type: "Classic", edge: "Bollinger + RSI survendu/suracheté", when: "Prix en excès par rapport à sa moyenne" },
-  breakout: { type: "Classic", edge: "Cassure de range avec confirmation volume", when: "Sortie d'une zone de consolidation" },
-  momentum: { type: "Classic", edge: "RSI + MACD + Stochastic alignés", when: "Momentum fort et soutenu" },
-  mean_reversion_v2: { type: "Avancé", edge: "Z-Score + Stochastic + Keltner", when: "Excès confirmé par 3 indicateurs" },
-  fibonacci: { type: "Avancé", edge: "Rebond sur niveaux 38.2% / 50% / 61.8%", when: "Pullback dans une tendance" },
-  ichimoku: { type: "Avancé", edge: "Nuage Kumo + Tenkan/Kijun crossover", when: "Tendance confirmée par le nuage" },
-  adaptive_trend: { type: "Pro", edge: "EMA dynamiques selon la volatilité", when: "Toutes conditions — auto-ajusté" },
-  multi_signal: { type: "Pro", edge: "4/6 indicateurs d'accord — -60% faux signaux", when: "Forte convergence de signaux" },
-  keltner_breakout: { type: "Pro", edge: "Canaux ATR adaptatifs", when: "Breakout de volatilité" },
-  vwap_reversion: { type: "Pro", edge: "Retour au VWAP institutionnel", when: "Écart excessif par rapport au VWAP" },
-  momentum_rotation: { type: "Pro", edge: "Classement relatif des 500 actifs", when: "Achète top 20%, vend bottom 20%" },
-  regime_cascade: { type: "Genius", edge: "Changement régime court vs moyen terme", when: "Leader a bougé, suiveurs pas encore" },
-  volatility_explosion: { type: "Genius", edge: "3+ signaux de compression simultanés", when: "ATR + Bollinger + volume comprimés" },
-  anti_consensus: { type: "Genius", edge: "Contrarian sur euphorie/panique extrême", when: "RSI >78 + volume déclinant + crowdé" },
+const STRAT_CONFIG: Record<string, { type: string; icon: string; edge: string; when: string; description: string; interpret: (conv: number, dir: string) => string }> = {
+  trend_following: { type: "Classic", icon: "📈", edge: "Croisement EMA 9/21 confirmé par SMA 50", when: "Marché en tendance claire",
+    description: "Suit la tendance dominante via les moyennes mobiles exponentielles. Détecte les croisements EMA 9/21 confirmés par la SMA 50 et le volume.",
+    interpret: (c, d) => c >= 75 ? `Signal ${d} fort. Les moyennes mobiles sont alignées et le prix accélère dans la direction de la tendance. Forte conviction.` : c >= 50 ? `Tendance ${d} modérée. Les EMA se croisent mais la SMA 50 n'a pas encore confirmé. Signal à surveiller.` : c > 0 ? `Faible signal de tendance. Les moyennes mobiles hésitent, pas de direction claire. Attendre une confirmation.` : "Aucun signal de tendance détecté. Les moyennes mobiles sont plates ou contradictoires." },
+  mean_reversion: { type: "Classic", icon: "🔄", edge: "Bollinger + RSI survendu/suracheté", when: "Prix en excès par rapport à sa moyenne",
+    description: "Détecte les excès de prix par rapport à la moyenne via les bandes de Bollinger et le RSI. Parie sur un retour à la moyenne.",
+    interpret: (c, d) => c >= 75 ? `Excès extrême détecté — ${d === "LONG" ? "survendu" : "suracheté"} avec forte probabilité de retour à la moyenne. Signal très fiable.` : c >= 50 ? `Prix éloigné de sa moyenne. ${d === "LONG" ? "RSI en zone de survente" : "RSI en zone de surachat"}. Retour probable mais pas imminent.` : c > 0 ? "Légère déviation par rapport à la moyenne. Pas assez d'excès pour un signal fiable." : "Prix proche de sa moyenne. Aucun excès détecté — la stratégie mean reversion n'est pas applicable." },
+  breakout: { type: "Classic", icon: "💥", edge: "Cassure de range avec confirmation volume", when: "Sortie d'une zone de consolidation",
+    description: "Détecte les cassures de zones de consolidation (support/résistance) confirmées par une explosion de volume.",
+    interpret: (c, d) => c >= 75 ? `Cassure ${d} confirmée ! Volume en forte hausse et prix au-delà du range. Mouvement impulsif en cours.` : c >= 50 ? `Le prix teste les bornes du range. Volume en hausse mais la cassure n'est pas encore confirmée.` : c > 0 ? "Le prix est dans un range sans signal de cassure imminente. Volatilité en compression." : "Pas de structure de range détectée. La stratégie breakout n'est pas applicable actuellement." },
+  momentum: { type: "Classic", icon: "🚀", edge: "RSI + MACD + Stochastic alignés", when: "Momentum fort et soutenu",
+    description: "Mesure la force du mouvement en cours via RSI, MACD et Stochastic. Signal quand les 3 indicateurs convergent.",
+    interpret: (c, d) => c >= 75 ? `Momentum ${d} puissant ! RSI, MACD et Stochastic sont tous alignés dans la même direction. Mouvement fort et soutenu.` : c >= 50 ? `Momentum ${d} modéré. 2 indicateurs sur 3 convergent. Le signal se construit mais n'est pas unanime.` : c > 0 ? "Momentum faible. Les indicateurs divergent — RSI et MACD donnent des signaux contradictoires." : "Aucun momentum détecté. Les oscillateurs sont neutres et sans direction." },
+  mean_reversion_v2: { type: "Avancé", icon: "🔬", edge: "Z-Score + Stochastic + Keltner", when: "Excès confirmé par 3 indicateurs",
+    description: "Version améliorée du mean reversion. Utilise le Z-Score statistique, le Stochastic lent et les canaux de Keltner pour tripler la confirmation.",
+    interpret: (c, d) => c >= 75 ? `Triple confirmation d'excès ! Z-Score, Stochastic et Keltner s'accordent — ${d === "LONG" ? "survente" : "surachat"} extrême avec forte probabilité de rebond.` : c >= 50 ? `Excès détecté par 2 indicateurs sur 3. Signal solide mais attendre la triple confirmation pour maximiser le taux de réussite.` : c > 0 ? "Un seul indicateur détecte un excès. Pas assez de convergence pour un signal V2 fiable." : "Aucun excès détecté par les 3 indicateurs. Marché en équilibre." },
+  fibonacci: { type: "Avancé", icon: "🌀", edge: "Rebond sur niveaux 38.2% / 50% / 61.8%", when: "Pullback dans une tendance",
+    description: "Identifie les rebonds sur les niveaux de Fibonacci (38.2%, 50%, 61.8%) lors des corrections dans une tendance établie.",
+    interpret: (c, d) => c >= 75 ? `Le prix rebondit sur un niveau Fibonacci clé avec confirmation de volume. Zone de ${d === "LONG" ? "support" : "résistance"} Fibonacci respectée.` : c >= 50 ? `Le prix approche d'un niveau Fibonacci. Réaction probable mais pas encore confirmée par le volume.` : c > 0 ? "Le prix est entre deux niveaux Fibonacci. Pas de zone de rebond identifiée clairement." : "Aucune structure Fibonacci exploitable dans le mouvement actuel." },
+  ichimoku: { type: "Avancé", icon: "☁️", edge: "Nuage Kumo + Tenkan/Kijun crossover", when: "Tendance confirmée par le nuage",
+    description: "Système japonais complet : nuage Kumo (support/résistance dynamique), croisement Tenkan/Kijun et position du Chikou Span.",
+    interpret: (c, d) => c >= 75 ? `Signal Ichimoku fort ! Prix ${d === "LONG" ? "au-dessus" : "en-dessous"} du nuage, croisement Tenkan/Kijun confirmé, Chikou aligné. Tendance claire.` : c >= 50 ? `Le prix évolue dans ou près du nuage. Tendance ${d} en formation mais pas encore confirmée par tous les composants.` : c > 0 ? "Le prix est dans le nuage Kumo — zone d'indécision. Attendre une sortie claire." : "Aucun signal Ichimoku. Le prix est en zone neutre par rapport au nuage et aux lignes." },
+  adaptive_trend: { type: "Pro", icon: "🎯", edge: "EMA dynamiques selon la volatilité", when: "Toutes conditions — auto-ajusté",
+    description: "Moyennes mobiles dont la période s'adapte automatiquement à la volatilité. En haute volatilité : périodes longues. En basse volatilité : périodes courtes.",
+    interpret: (c, d) => c >= 75 ? `Tendance adaptative ${d} confirmée. Les EMA dynamiques ont convergé et le filtre de volatilité valide le signal. Stratégie auto-ajustée à la condition de marché.` : c >= 50 ? `Signal adaptatif ${d} en construction. La volatilité est en transition — les EMA s'ajustent. Conviction modérée.` : c > 0 ? "Les EMA adaptatives hésitent. La volatilité change rapidement et les périodes s'ajustent — signal instable." : "Pas de tendance détectée par les EMA adaptatives. Marché latéral ou en transition." },
+  multi_signal: { type: "Pro", icon: "🔗", edge: "4/6 indicateurs d'accord — -60% faux signaux", when: "Forte convergence de signaux",
+    description: "Combine 6 indicateurs indépendants et ne signale que si 4+ convergent. Réduit les faux signaux de 60% par rapport aux stratégies simples.",
+    interpret: (c, d) => c >= 75 ? `Convergence forte ! 5-6 indicateurs sur 6 donnent le même signal ${d}. Taux de faux signaux très bas — haute fiabilité.` : c >= 50 ? `4 indicateurs sur 6 convergent en ${d}. Signal solide avec marge de sécurité.` : c > 0 ? "Moins de 4 indicateurs convergent. Le multi-signal refuse de valider — trop de désaccord entre les sources." : "Aucune convergence. Les 6 indicateurs sont dispersés — aucun consensus directionnel." },
+  keltner_breakout: { type: "Pro", icon: "📊", edge: "Canaux ATR adaptatifs", when: "Breakout de volatilité",
+    description: "Utilise les canaux de Keltner (basés sur l'ATR) pour détecter les expansions de volatilité. Signal quand le prix sort des canaux avec volume.",
+    interpret: (c, d) => c >= 75 ? `Breakout Keltner ${d} confirmé ! Le prix a cassé le canal avec expansion de l'ATR et confirmation volume. Mouvement explosif.` : c >= 50 ? `Le prix touche les bornes du canal Keltner. Expansion de volatilité en cours mais pas encore de cassure franche.` : c > 0 ? "Le prix est dans les canaux Keltner. La volatilité est en compression — breakout possible mais pas imminent." : "Prix au centre des canaux. Aucune expansion de volatilité détectée." },
+  vwap_reversion: { type: "Pro", icon: "⚖️", edge: "Retour au VWAP institutionnel", when: "Écart excessif par rapport au VWAP",
+    description: "Le VWAP (Volume Weighted Average Price) est le prix moyen pondéré par le volume — c'est le prix de référence des institutionnels. Signal quand le prix s'en écarte trop.",
+    interpret: (c, d) => c >= 75 ? `Écart excessif au VWAP ! Le prix est ${d === "LONG" ? "très en-dessous" : "très au-dessus"} du VWAP institutionnel. Forte probabilité de retour.` : c >= 50 ? `Le prix s'éloigne du VWAP. Écart notable mais pas encore extrême. Les institutionnels pourraient intervenir.` : c > 0 ? "Léger écart au VWAP. Pas assez significatif pour un signal de reversion fiable." : "Prix collé au VWAP. Aucun écart exploitable — le marché est en équilibre institutionnel." },
+  momentum_rotation: { type: "Pro", icon: "🔄", edge: "Classement relatif des 500 actifs", when: "Achète top 20%, vend bottom 20%",
+    description: "Compare le momentum de cet actif aux 500 autres. Signal si l'actif est dans le top 20% (LONG) ou bottom 20% (SHORT) en momentum relatif.",
+    interpret: (c, d) => c >= 75 ? `L'actif est dans le top 10% en momentum relatif ! ${d === "LONG" ? "Surperformance" : "Sous-performance"} marquée par rapport au reste du marché.` : c >= 50 ? `L'actif est dans le ${d === "LONG" ? "top 20%" : "bottom 20%"} en momentum. Position relative favorable mais pas exceptionnelle.` : c > 0 ? "Momentum moyen — l'actif est dans la médiane du marché. Pas de surperformance ni de sous-performance notable." : "Aucun signal de rotation. L'actif n'est ni leader ni retardataire en momentum relatif." },
+  regime_cascade: { type: "Genius", icon: "🌊", edge: "Changement régime court vs moyen terme", when: "Leader a bougé, suiveurs pas encore",
+    description: "Détecte quand le régime de marché change sur le court terme mais pas encore sur le moyen terme — signe que les suiveurs n'ont pas encore réagi.",
+    interpret: (c, d) => c >= 75 ? `Cascade de régime détectée ! Le court terme a basculé en ${d} mais le moyen terme ne suit pas encore. Fenêtre d'opportunité avant que le consensus rattrape.` : c >= 50 ? `Divergence de régime émergente. Le court terme montre des signes de changement — les suiveurs commencent à réagir.` : c > 0 ? "Léger décalage entre régimes court et moyen terme. Pas assez de divergence pour un signal exploitable." : "Régimes alignés. Pas de cascade — le marché est en phase sur tous les horizons." },
+  volatility_explosion: { type: "Genius", icon: "🌋", edge: "3+ signaux de compression simultanés", when: "ATR + Bollinger + volume comprimés",
+    description: "Détecte les compressions extrêmes de volatilité (ATR, Bollinger, volume tous au minimum) — précurseur d'un mouvement explosif imminent.",
+    interpret: (c, d) => c >= 75 ? `Compression extrême ! ATR, Bollinger et volume sont tous au plancher. Explosion de volatilité imminente — direction ${d} probable. Mouvement majeur attendu.` : c >= 50 ? `2 signaux de compression sur 3 détectés. La volatilité se contracte — un mouvement approche mais le timing n'est pas encore optimal.` : c > 0 ? "Volatilité en légère compression. Pas assez de signaux convergents pour anticiper une explosion." : "Volatilité normale ou en expansion. Aucun setup de compression détecté." },
+  anti_consensus: { type: "Genius", icon: "🎭", edge: "Contrarian sur euphorie/panique extrême", when: "RSI >78 + volume déclinant + crowdé",
+    description: "Stratégie contrariante qui se positionne à l'opposé du consensus quand l'euphorie ou la panique est extrême (RSI extrême + volume déclinant + crowding élevé).",
+    interpret: (c, d) => c >= 75 ? `Sentiment extrême détecté ! Le marché est en ${d === "LONG" ? "panique" : "euphorie"} avec volume déclinant et position crowdée. Signal contrarian fort — le retournement approche.` : c >= 50 ? `Excès de sentiment modéré. Le consensus est ${d === "LONG" ? "trop baissier" : "trop haussier"} mais les conditions de retournement ne sont pas toutes réunies.` : c > 0 ? "Léger biais de sentiment mais pas assez extrême pour un signal contrarian fiable." : "Sentiment équilibré. Pas d'excès de consensus détecté — la stratégie anti-consensus n'est pas applicable." },
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -85,10 +115,6 @@ export default function AssetAnalyseDetail() {
   if (!data) return <div className="p-6 text-red-400">Erreur de chargement pour {symbol}</div>;
 
   const strategies = data.all_strategies || [];
-  const activeStrats = strategies.filter((s: any) => s.direction !== "NEUTRAL" && s.conviction > 0);
-  const sorted = [...activeStrats].sort((a: any, b: any) => (b.conviction || 0) - (a.conviction || 0));
-  const top6 = sorted.slice(0, 6);
-  const others = sorted.slice(6);
   const best = data.best_strategy || {};
   const scores = data.scores || {};
 
@@ -210,96 +236,69 @@ export default function AssetAnalyseDetail() {
         </InfoCard>
       </div>
 
-      {/* ═══ 4. ONGLETS STRATÉGIES (Top 6 + autres) ═══ */}
+      {/* ═══ 4. CARTES DES 15 STRATÉGIES (style Scanner) ═══ */}
       <div className="mt-6">
-        <InfoCard title={`Top ${top6.length} Stratégies`} icon={<TrendingUp size={18} />} description="Les stratégies les plus convaincantes. Cliquez pour voir le détail : edge, plan de trade, interprétation.">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-            {top6.map((s: any, i: number) => {
-              const info = STRAT_INFO[s.strategy] || { type: "?", edge: "", when: "" };
-              const typeColor = TYPE_COLORS[info.type] || TYPE_COLORS.Classic;
-              const isExpanded = expandedStrat === s.strategy;
-              return (
-                <button key={s.strategy} onClick={() => setExpandedStrat(isExpanded ? null : s.strategy)}
-                  className={`text-left p-4 rounded-xl border transition-all ${isExpanded ? "border-gold bg-gold/5 ring-1 ring-gold/30" : "border-border hover:border-gold/20"}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${typeColor}`}>{info.type}</span>
-                    <span className="text-lg font-bold text-gold">#{i + 1}</span>
-                  </div>
-                  <p className="text-sm font-semibold">{STRATEGY_LABELS[s.strategy] || s.strategy}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${s.direction === "LONG" ? "bg-gold/10 text-gold" : "bg-red-400/10 text-red-400"}`}>{s.direction}</span>
-                    <span className="text-xs text-text-secondary">Conv. {s.conviction}/100</span>
-                  </div>
-                  <p className="text-[9px] text-text-secondary mt-2 italic">{info.edge}</p>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Détail stratégie sélectionnée */}
-          {expandedStrat && (() => {
-            const s = strategies.find((st: any) => st.strategy === expandedStrat);
-            if (!s) return null;
-            const info = STRAT_INFO[s.strategy] || { type: "?", edge: "", when: "" };
+        <h3 className="text-lg font-semibold mb-1 flex items-center gap-2"><TrendingUp size={18} /> Les 15 stratégies — {symbol}</h3>
+        <p className="text-xs text-text-secondary mb-4">Cliquez sur une stratégie pour voir le détail : description, interprétation du score, plan de trade.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {strategies.map((s: any) => {
+            const config = STRAT_CONFIG[s.strategy] || { type: "?", icon: "?", edge: "", when: "", description: "", interpret: () => "" };
+            const typeColor = TYPE_COLORS[config.type] || TYPE_COLORS.Classic;
+            const conv = s.conviction || 0;
+            const isExpanded = expandedStrat === s.strategy;
+            const interpretation = config.interpret(conv, s.direction);
             return (
-              <div className="bg-surface border border-gold/10 rounded-xl p-5 space-y-3 mb-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-bold text-gold">{STRATEGY_LABELS[s.strategy]}</h4>
-                  <button onClick={() => setExpandedStrat(null)} className="text-xs text-text-secondary hover:text-text-primary">Fermer</button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-card rounded-lg p-3 text-center">
-                    <p className="text-[9px] text-text-secondary">Direction</p>
-                    <p className={`text-lg font-bold ${s.direction === "LONG" ? "text-gold" : "text-red-400"}`}>{s.direction}</p>
+              <button key={s.strategy} onClick={() => setExpandedStrat(isExpanded ? null : s.strategy)}
+                className={`text-left bg-card rounded-xl border p-5 transition-all ${isExpanded ? "border-gold bg-gold/5 ring-1 ring-gold/30" : "border-border hover:border-gold/20"}`}>
+                {/* Header : icône + titre + badge type */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{config.icon}</span>
+                    <span className="text-sm font-semibold">{STRATEGY_LABELS[s.strategy] || s.strategy}</span>
                   </div>
-                  <div className="bg-card rounded-lg p-3 text-center">
-                    <p className="text-[9px] text-text-secondary">Conviction</p>
-                    <p className="text-lg font-bold">{s.conviction}<span className="text-sm text-text-secondary">/100</span></p>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${typeColor}`}>{config.type}</span>
+                </div>
+                {/* Gauge + direction */}
+                <div className="flex items-center gap-4 mb-3">
+                  <ScoreGauge score={conv} size={70} />
+                  <div className="flex-1">
+                    {s.direction !== "NEUTRAL" ? (
+                      <span className={`text-xs px-2 py-1 rounded font-semibold ${s.direction === "LONG" ? "bg-gold/10 text-gold" : "bg-red-400/10 text-red-400"}`}>
+                        {s.direction === "LONG" ? "📈" : "📉"} {s.direction}
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-1 rounded bg-surface text-text-secondary">— NEUTRAL</span>
+                    )}
+                    <p className="text-[10px] text-text-secondary mt-1">Poids dans le score final : {s.weight ? `${(s.weight * 100).toFixed(0)}%` : "—"}</p>
                   </div>
                 </div>
-                {s.entry && s.stop_loss && (
-                  <div className="grid grid-cols-4 gap-2 text-xs">
-                    <div className="bg-card rounded-lg p-2 text-center"><p className="text-[8px] text-text-secondary">Entrée</p><p className="font-mono font-bold">${s.entry}</p></div>
-                    <div className="bg-card rounded-lg p-2 text-center"><p className="text-[8px] text-text-secondary">SL</p><p className="font-mono font-bold text-red-400">${s.stop_loss}</p></div>
-                    <div className="bg-card rounded-lg p-2 text-center"><p className="text-[8px] text-text-secondary">TP</p><p className="font-mono font-bold text-gold">${s.take_profit}</p></div>
-                    <div className="bg-card rounded-lg p-2 text-center"><p className="text-[8px] text-text-secondary">R:R</p><p className="font-mono font-bold">1:{(Math.abs(s.take_profit - s.entry) / Math.abs(s.entry - s.stop_loss)).toFixed(1)}</p></div>
+                {/* Interprétation */}
+                <p className="text-[11px] text-text-secondary leading-relaxed">{interpretation}</p>
+                {/* Détails au clic */}
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                    <p className="text-[11px] text-text-secondary">{config.description}</p>
+                    <div className="text-xs space-y-1">
+                      <p><span className="text-text-secondary">Edge :</span> {config.edge}</p>
+                      <p><span className="text-text-secondary">Fonctionne quand :</span> {config.when}</p>
+                    </div>
+                    {s.entry && s.stop_loss && (
+                      <div className="grid grid-cols-4 gap-2 text-xs">
+                        <div className="bg-surface rounded-lg p-2 text-center"><p className="text-[8px] text-text-secondary">Entrée</p><p className="font-mono font-bold">${s.entry}</p></div>
+                        <div className="bg-surface rounded-lg p-2 text-center"><p className="text-[8px] text-text-secondary">SL</p><p className="font-mono font-bold text-red-400">${s.stop_loss}</p></div>
+                        <div className="bg-surface rounded-lg p-2 text-center"><p className="text-[8px] text-text-secondary">TP</p><p className="font-mono font-bold text-gold">${s.take_profit}</p></div>
+                        <div className="bg-surface rounded-lg p-2 text-center"><p className="text-[8px] text-text-secondary">R:R</p><p className="font-mono font-bold">1:{(Math.abs(s.take_profit - s.entry) / Math.abs(s.entry - s.stop_loss)).toFixed(1)}</p></div>
+                      </div>
+                    )}
                   </div>
                 )}
-                <div className="text-xs space-y-1">
-                  <p><span className="text-text-secondary">Edge :</span> {info.edge}</p>
-                  <p><span className="text-text-secondary">Fonctionne quand :</span> {info.when}</p>
-                </div>
-              </div>
+              </button>
             );
-          })()}
-
-          {/* Autres stratégies */}
-          {others.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold mb-2">Autres stratégies ({others.length})</p>
-              {others.map((s: any) => {
-                const info = STRAT_INFO[s.strategy] || { type: "?" };
-                const typeColor = TYPE_COLORS[info.type] || TYPE_COLORS.Classic;
-                return (
-                  <button key={s.strategy} onClick={() => setExpandedStrat(expandedStrat === s.strategy ? null : s.strategy)}
-                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface text-left">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[8px] px-1 py-0.5 rounded font-bold border ${typeColor}`}>{info.type}</span>
-                      <span className="text-xs">{STRATEGY_LABELS[s.strategy]}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] px-1 py-0.5 rounded font-semibold ${s.direction === "LONG" ? "bg-gold/10 text-gold" : "bg-red-400/10 text-red-400"}`}>{s.direction}</span>
-                      <span className="text-xs font-mono">{s.conviction}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {strategies.length > activeStrats.length && (
-            <p className="text-[10px] text-text-secondary text-center mt-2">{strategies.length - activeStrats.length} stratégies sans signal</p>
-          )}
-        </InfoCard>
+          })}
+        </div>
+        {strategies.filter((s: any) => s.direction === "NEUTRAL").length > 0 && (
+          <p className="text-[10px] text-text-secondary text-center mt-3">{strategies.filter((s: any) => s.direction === "NEUTRAL").length} stratégies sans signal actif</p>
+        )}
       </div>
 
       {/* ═══ 5. RADAR 10 CRITÈRES ═══ */}
@@ -311,23 +310,44 @@ export default function AssetAnalyseDetail() {
         </InfoCard>
       </div>
 
-      {/* ═══ 6. ONGLETS CRITÈRES ═══ */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(CRITERIA_CONFIG).map(([key, config]) => {
-          const score = scores[key] ?? 50;
-          const isExpanded = expandedCriterion === key;
-          return (
-            <button key={key} onClick={() => setExpandedCriterion(isExpanded ? null : key)}
-              className={`text-left p-4 rounded-xl border transition-all ${isExpanded ? "border-gold bg-gold/5" : "border-border hover:border-gold/20"}`}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-lg">{config.icon}</span>
-                <span className={`text-xl font-mono font-bold ${score >= 70 ? "text-gold" : score >= 50 ? "text-text-primary" : "text-red-400"}`}>{score.toFixed(0)}</span>
-              </div>
-              <p className="text-sm font-semibold">{config.label}</p>
-              {isExpanded && <p className="text-[10px] text-text-secondary mt-2">{config.description}</p>}
-            </button>
-          );
-        })}
+      {/* ═══ 6. CARTES DES 10 CRITÈRES (style Scanner) ═══ */}
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-1 flex items-center gap-2"><Sparkles size={18} /> Les 10 critères — {symbol}</h3>
+        <p className="text-xs text-text-secondary mb-4">Contexte Scanner (Module 1). Cliquez pour voir la description détaillée.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(CRITERIA_CONFIG).map(([key, config]) => {
+            const score = scores[key] ?? 50;
+            const isExpanded = expandedCriterion === key;
+            return (
+              <button key={key} onClick={() => setExpandedCriterion(isExpanded ? null : key)}
+                className={`text-left bg-card rounded-xl border p-5 transition-all ${isExpanded ? "border-gold bg-gold/5 ring-1 ring-gold/30" : "border-border hover:border-gold/20"}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{config.icon}</span>
+                    <span className="text-sm font-semibold">{config.label}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 mb-3">
+                  <ScoreGauge score={score} size={70} />
+                  <div className="flex-1">
+                    <p className="text-[10px] text-text-secondary">Poids dans le score final : {((scanData?.weights?.[key] ?? 0.1) * 100).toFixed(0)}%</p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
+                  {score >= 75 ? `Score élevé — ce critère contribue fortement au signal positif.`
+                    : score >= 60 ? `Score correct — contribution modérée au signal global.`
+                    : score >= 40 ? `Score moyen — ce critère est neutre, ni positif ni négatif.`
+                    : `Score faible — ce critère tire le signal vers le bas.`}
+                </p>
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <p className="text-[11px] text-text-secondary">{config.description}</p>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
