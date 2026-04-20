@@ -476,20 +476,9 @@ function AnalyseResult({ data }: { data: any }) {
         </InfoCard>
       </div>
 
-      {/* Toutes les stratégies — cliquables */}
+      {/* Stratégies — Top 3 + détails cliquables */}
       {data.all_strategies?.length > 0 && (
-        <InfoCard title="Toutes les stratégies" icon={<TrendingUp size={18} />} description="Cliquez sur une stratégie pour comprendre comment elle fonctionne et pourquoi elle donne ce signal.">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {data.all_strategies.map((s: any) => (
-              <StrategyCard
-                key={s.strategy}
-                strategy={s}
-                isBest={s.strategy === best.name}
-                lastPrice={data.last_price}
-              />
-            ))}
-          </div>
-        </InfoCard>
+        <StrategiesPanel strategies={data.all_strategies} bestName={best.name} lastPrice={data.last_price} symbol={data.symbol} />
       )}
 
       {/* ============ SCORES DES CRITÈRES ============ */}
@@ -776,6 +765,178 @@ function ScoreCard({ name, score }: { name: string; score: number; price?: numbe
     </div>
   );
 }
+
+// ═══════════════════════════════════════════
+// Panel des 15 stratégies — Top 3 + liste cliquable
+// ═══════════════════════════════════════════
+
+const STRATEGY_DESCRIPTIONS: Record<string, { type: string; edge: string; when: string }> = {
+  trend_following: { type: "Classic", edge: "Suit la tendance via croisement EMA 9/21", when: "Marché en tendance claire (BULL/BEAR)" },
+  mean_reversion: { type: "Classic", edge: "Achat sur excès baissier (Bollinger + RSI)", when: "Prix en excès par rapport à sa moyenne" },
+  breakout: { type: "Classic", edge: "Cassure de range avec confirmation volume", when: "Sortie d'une zone de consolidation" },
+  momentum: { type: "Classic", edge: "Force relative RSI + MACD + Stochastic", when: "Momentum fort et soutenu" },
+  mean_reversion_v2: { type: "Avancé", edge: "Z-Score + Stochastic + Keltner — plus robuste que V1", when: "Excès confirmé par 3 indicateurs indépendants" },
+  fibonacci: { type: "Avancé", edge: "Rebond sur niveaux 38.2% / 50% / 61.8%", when: "Pullback dans une tendance — Golden Ratio" },
+  ichimoku: { type: "Avancé", edge: "Système japonais complet : nuage + Tenkan/Kijun", when: "Tendance confirmée par le nuage Kumo" },
+  adaptive_trend: { type: "Pro", edge: "EMA dynamiques qui s'adaptent à la volatilité", when: "Toutes conditions — paramètres auto-ajustés" },
+  multi_signal: { type: "Pro", edge: "Exige 4/6 indicateurs d'accord — réduit 60% faux signaux", when: "Forte convergence de signaux" },
+  keltner_breakout: { type: "Pro", edge: "Canaux ATR adaptatifs au lieu de range fixe", when: "Breakout de volatilité avec confirmation" },
+  vwap_reversion: { type: "Pro", edge: "Retour au prix moyen pondéré par volume", when: "Écart excessif par rapport au VWAP institutionnel" },
+  momentum_rotation: { type: "Pro", edge: "Classement relatif des 500 actifs — prouvé académiquement", when: "Achète les top 20%, vend les bottom 20%" },
+  regime_cascade: { type: "Genius", edge: "Détecte changement de régime court terme avant le moyen terme", when: "Le leader a bougé, les suiveurs n'ont pas encore réagi" },
+  volatility_explosion: { type: "Genius", edge: "3+ signaux de compression simultanés → explosion imminente", when: "ATR au plus bas + Bollinger squeeze + volume en contraction" },
+  anti_consensus: { type: "Genius", edge: "Parie contre l'euphorie/panique extrême — 5-10 trades/an", when: "RSI > 78 + volume déclinant + signal crowdé → retournement" },
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  Classic: "text-text-secondary bg-surface border-border",
+  Avancé: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+  Pro: "text-purple-400 bg-purple-400/10 border-purple-400/20",
+  Genius: "text-gold bg-gold/10 border-gold/20",
+};
+
+function StrategiesPanel({ strategies, bestName, lastPrice, symbol }: { strategies: any[]; bestName: string; lastPrice: number; symbol: string }) {
+  const [selectedStrat, setSelectedStrat] = useState<string | null>(null);
+
+  // Trier par conviction décroissante, exclure NEUTRAL
+  const sorted = [...strategies]
+    .filter((s) => s.direction !== "NEUTRAL")
+    .sort((a, b) => (b.conviction || 0) - (a.conviction || 0));
+  const neutrals = strategies.filter((s) => s.direction === "NEUTRAL");
+
+  const top3 = sorted.slice(0, 3);
+  const others = sorted.slice(3);
+  const selected = strategies.find((s) => s.strategy === selectedStrat);
+
+  return (
+    <div className="space-y-4">
+      {/* Top 3 stratégies */}
+      <InfoCard title={`Top 3 Stratégies — ${symbol}`} icon={<TrendingUp size={18} />} description="Les 3 stratégies les plus convaincantes pour cet actif. Cliquez pour voir le détail complet.">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {top3.map((s, i) => {
+            const desc = STRATEGY_DESCRIPTIONS[s.strategy] || { type: "?", edge: "", when: "" };
+            const typeColor = TYPE_COLORS[desc.type] || TYPE_COLORS.Classic;
+            const isSelected = selectedStrat === s.strategy;
+            return (
+              <button key={s.strategy} onClick={() => setSelectedStrat(isSelected ? null : s.strategy)}
+                className={`text-left p-4 rounded-xl border transition-all ${isSelected ? "border-gold bg-gold/5 ring-1 ring-gold/30" : s.strategy === bestName ? "border-gold/30 bg-gold/5" : "border-border hover:border-gold/20"}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${typeColor}`}>{desc.type}</span>
+                  <span className="text-lg font-bold text-gold">#{i + 1}</span>
+                </div>
+                <p className="text-sm font-semibold">{STRATEGY_LABELS[s.strategy] || s.strategy}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${s.direction === "LONG" ? "bg-gold/10 text-gold" : "bg-red-400/10 text-red-400"}`}>{s.direction}</span>
+                  <span className="text-xs text-text-secondary">Conv. {s.conviction}/100</span>
+                </div>
+                {s.entry && s.stop_loss && (
+                  <div className="mt-2 grid grid-cols-3 gap-1 text-[10px]">
+                    <div><span className="text-text-secondary">Entry</span><p className="font-mono">${s.entry}</p></div>
+                    <div><span className="text-text-secondary">SL</span><p className="font-mono text-red-400">${s.stop_loss}</p></div>
+                    <div><span className="text-text-secondary">TP</span><p className="font-mono text-gold">${s.take_profit}</p></div>
+                  </div>
+                )}
+                <p className="text-[9px] text-text-secondary mt-2 italic">{desc.edge}</p>
+              </button>
+            );
+          })}
+        </div>
+      </InfoCard>
+
+      {/* Détail de la stratégie sélectionnée */}
+      {selected && (
+        <div className="bg-card border border-gold/20 rounded-xl p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-lg font-bold text-gold">{STRATEGY_LABELS[selected.strategy] || selected.strategy}</h4>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${TYPE_COLORS[(STRATEGY_DESCRIPTIONS[selected.strategy] || {}).type || "Classic"]}`}>
+                {(STRATEGY_DESCRIPTIONS[selected.strategy] || {}).type}
+              </span>
+            </div>
+            <button onClick={() => setSelectedStrat(null)} className="text-text-secondary hover:text-text-primary text-xs">Fermer</button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-surface rounded-lg p-3">
+              <p className="text-[9px] text-text-secondary uppercase">Direction</p>
+              <p className={`text-lg font-bold ${selected.direction === "LONG" ? "text-gold" : selected.direction === "SHORT" ? "text-red-400" : "text-text-secondary"}`}>{selected.direction}</p>
+            </div>
+            <div className="bg-surface rounded-lg p-3">
+              <p className="text-[9px] text-text-secondary uppercase">Conviction</p>
+              <p className="text-lg font-bold">{selected.conviction}<span className="text-sm text-text-secondary">/100</span></p>
+            </div>
+          </div>
+
+          {selected.entry && selected.stop_loss && (
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              <div className="bg-surface rounded-lg p-2 text-center">
+                <p className="text-[8px] text-text-secondary">Entrée</p>
+                <p className="font-mono font-bold">${selected.entry}</p>
+              </div>
+              <div className="bg-surface rounded-lg p-2 text-center">
+                <p className="text-[8px] text-text-secondary">Stop Loss</p>
+                <p className="font-mono font-bold text-red-400">${selected.stop_loss}</p>
+                <p className="text-[8px] text-red-400">{((selected.stop_loss - selected.entry) / selected.entry * 100).toFixed(1)}%</p>
+              </div>
+              <div className="bg-surface rounded-lg p-2 text-center">
+                <p className="text-[8px] text-text-secondary">TP1</p>
+                <p className="font-mono font-bold text-gold">${selected.take_profit}</p>
+                <p className="text-[8px] text-gold">+{((selected.take_profit - selected.entry) / selected.entry * 100).toFixed(1)}%</p>
+              </div>
+              <div className="bg-surface rounded-lg p-2 text-center">
+                <p className="text-[8px] text-text-secondary">R:R</p>
+                <p className="font-mono font-bold">{selected.stop_loss && selected.take_profit ? `1:${(Math.abs(selected.take_profit - selected.entry) / Math.abs(selected.entry - selected.stop_loss)).toFixed(1)}` : "—"}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-surface rounded-lg p-3 space-y-2 text-xs">
+            <p><span className="text-text-secondary">Edge :</span> {(STRATEGY_DESCRIPTIONS[selected.strategy] || {}).edge}</p>
+            <p><span className="text-text-secondary">Fonctionne quand :</span> {(STRATEGY_DESCRIPTIONS[selected.strategy] || {}).when}</p>
+            <p className="text-text-secondary italic">
+              {selected.conviction >= 70 ? `Forte conviction (${selected.conviction}/100) — cette stratégie est très confiante sur ${symbol}. Le signal est clair et les conditions sont réunies.`
+                : selected.conviction >= 50 ? `Conviction modérée (${selected.conviction}/100) — le signal existe mais n'est pas encore pleinement confirmé. Surveiller l'évolution.`
+                : selected.conviction > 0 ? `Faible conviction (${selected.conviction}/100) — les conditions ne sont que partiellement réunies. Attendre une meilleure configuration.`
+                : `Aucun signal — les conditions requises ne sont pas remplies pour ${symbol}.`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Autres stratégies — liste compacte */}
+      {others.length > 0 && (
+        <InfoCard title={`Autres stratégies (${others.length})`} icon={<TrendingUp size={18} />} description="Stratégies avec un signal mais une conviction plus faible. Cliquez pour voir le détail.">
+          <div className="space-y-1">
+            {others.map((s) => {
+              const desc = STRATEGY_DESCRIPTIONS[s.strategy] || { type: "?", edge: "" };
+              const typeColor = TYPE_COLORS[desc.type] || TYPE_COLORS.Classic;
+              return (
+                <button key={s.strategy} onClick={() => setSelectedStrat(selectedStrat === s.strategy ? null : s.strategy)}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-all ${selectedStrat === s.strategy ? "bg-gold/5 border border-gold/20" : "hover:bg-surface"}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[8px] px-1 py-0.5 rounded font-bold border ${typeColor}`}>{desc.type}</span>
+                    <span className="text-xs font-semibold">{STRATEGY_LABELS[s.strategy] || s.strategy}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className={`px-1.5 py-0.5 rounded font-semibold ${s.direction === "LONG" ? "bg-gold/10 text-gold" : "bg-red-400/10 text-red-400"}`}>{s.direction}</span>
+                    <span className="font-mono text-text-secondary">{s.conviction}/100</span>
+                    {s.entry && <span className="font-mono">${s.entry}</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </InfoCard>
+      )}
+
+      {/* Stratégies neutres */}
+      {neutrals.length > 0 && (
+        <p className="text-[10px] text-text-secondary text-center">{neutrals.length} stratégie{neutrals.length > 1 ? "s" : ""} sans signal (NEUTRAL) — conditions non réunies</p>
+      )}
+    </div>
+  );
+}
+
 
 function StrategyCard({ strategy, isBest, lastPrice }: {
   strategy: any; isBest: boolean; lastPrice: number;
