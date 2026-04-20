@@ -272,31 +272,53 @@ export default function AssetDetail() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {/* ============ NAVIGATION ============ */}
+      <div className="flex items-center gap-2 mb-4 text-xs text-text-secondary">
+        <Link to="/" className="hover:text-gold transition-colors">Dashboard</Link>
+        <span>/</span>
+        <Link to="/scanner" className="hover:text-gold transition-colors">Scanner</Link>
+        <span>/</span>
+        <Link to="/analyse" className="hover:text-gold transition-colors">Analyse</Link>
+        <span>/</span>
+        <span className="text-gold font-semibold">{symbol}</span>
+      </div>
+
+      {/* Boutons retour rapide */}
+      <div className="flex items-center gap-2 mb-6">
+        <button onClick={() => window.history.back()} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg text-xs text-text-secondary hover:text-gold hover:border-gold/30 transition-colors">
+          <ArrowLeft size={14} /> Retour
+        </button>
+        <Link to="/scanner" className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs text-text-secondary hover:text-gold hover:border-gold/30 transition-colors">
+          Scanner
+        </Link>
+        <Link to="/analyse" className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs text-text-secondary hover:text-gold hover:border-gold/30 transition-colors">
+          Analyse Rapide
+        </Link>
+        <Link to={`/analyse?q=${symbol}`} className="px-3 py-1.5 bg-gold/10 border border-gold/20 rounded-lg text-xs text-gold font-semibold hover:bg-gold/20 transition-colors">
+          Analyser {symbol}
+        </Link>
+      </div>
+
       {/* ============ HEADER ============ */}
       <div className="flex items-start justify-between mb-8">
-        <div className="flex items-center gap-5">
-          <Link to="/scanner" className="text-text-secondary hover:text-gold transition-colors p-2 hover:bg-surface rounded-lg">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-3xl font-bold font-mono text-gold">{symbol}</h1>
-              <span className="text-xs px-2.5 py-1 bg-surface border border-border rounded-lg">{scan.asset_class}</span>
-              {analysis?.regime && (
-                <span className={`text-xs px-2.5 py-1 border rounded-lg font-semibold ${
-                  analysis.regime.regime === "BULL" ? "text-gold bg-gold/10 border-gold/20" :
-                  analysis.regime.regime === "BEAR" ? "text-red-400 bg-red-400/10 border-red-400/20" :
-                  "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
-                }`}>
-                  {analysis.regime.regime === "BULL" ? "Marché haussier" :
-                   analysis.regime.regime === "BEAR" ? "Marché baissier" :
-                   analysis.regime.regime === "RANGE" ? "Marché latéral" :
-                   analysis.regime.regime === "CRISIS" ? "Crise" : "Transition"}
-                </span>
-              )}
-            </div>
-            <p className="text-text-secondary">{scan.name}</p>
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-bold font-mono text-gold">{symbol}</h1>
+            <span className="text-xs px-2.5 py-1 bg-surface border border-border rounded-lg">{scan.asset_class}</span>
+            {analysis?.regime && (
+              <span className={`text-xs px-2.5 py-1 border rounded-lg font-semibold ${
+                analysis.regime.regime === "BULL" ? "text-gold bg-gold/10 border-gold/20" :
+                analysis.regime.regime === "BEAR" ? "text-red-400 bg-red-400/10 border-red-400/20" :
+                "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
+              }`}>
+                {analysis.regime.regime === "BULL" ? "Marché haussier" :
+                 analysis.regime.regime === "BEAR" ? "Marché baissier" :
+                 analysis.regime.regime === "RANGE" ? "Marché latéral" :
+                 analysis.regime.regime === "CRISIS" ? "Crise" : "Transition"}
+              </span>
+            )}
           </div>
+          <p className="text-text-secondary">{scan.name}</p>
         </div>
         <div className="text-right">
           <p className="text-4xl font-mono font-bold">${scan.last_close?.toFixed(2)}</p>
