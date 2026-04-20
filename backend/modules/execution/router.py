@@ -725,6 +725,24 @@ def get_notifications():
     return {"notifications": "Aucune notification", "total": 0}
 
 
+@router.get("/ibkr-candidates")
+def ibkr_candidates(db: Session = Depends(get_sync_db)):
+    """Positions Alpaca validées qu'IBKR peut copier.
+
+    Retourne les positions Alpaca en profit avec un bon score,
+    qui ne sont pas déjà en position chez IBKR.
+    """
+    from backend.modules.execution.position_manager_v2 import get_ibkr_candidates
+    candidates = get_ibkr_candidates(db)
+    eligible = [c for c in candidates if c["eligible"]]
+    return {
+        "candidates": candidates,
+        "eligible_count": len(eligible),
+        "total_count": len(candidates),
+        "message": f"{len(eligible)} positions Alpaca éligibles pour IBKR live",
+    }
+
+
 @router.get("/opportunity-arbiter")
 def opportunity_arbiter(db: Session = Depends(get_sync_db)):
     """Arbitrage d'opportunité — compare les positions IBKR vs signaux GO.

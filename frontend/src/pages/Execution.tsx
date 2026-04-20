@@ -362,6 +362,9 @@ export default function Execution() {
           </div>
       </div>
 
+      {/* IBKR Live — Candidats depuis Alpaca Lab */}
+      <IBKRCandidates />
+
       {/* Résultat exécution globale */}
       {allResults && (
         <div className="mb-6">
@@ -762,6 +765,83 @@ export default function Execution() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════
+// IBKR Candidats — positions Alpaca éligibles pour le live
+// ═══════════════════════════════════════════
+
+function IBKRCandidates() {
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get("/execution/ibkr-candidates")
+      .then((res) => setCandidates(res.data?.candidates || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const eligible = candidates.filter((c) => c.eligible);
+
+  if (loading || candidates.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <div className="bg-card border border-blue-400/20 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-400" />
+            <h3 className="text-sm font-semibold">IBKR Live — Candidats depuis Alpaca Lab</h3>
+          </div>
+          <span className="text-xs px-2 py-1 bg-blue-400/10 text-blue-400 border border-blue-400/20 rounded-lg font-semibold">
+            {eligible.length} éligibles
+          </span>
+        </div>
+        <p className="text-[10px] text-text-secondary mb-3">
+          Positions Alpaca validées (en profit + score ≥ 60) que vous pouvez copier sur votre compte IBKR réel.
+        </p>
+
+        {eligible.length === 0 ? (
+          <p className="text-xs text-text-secondary text-center py-3">Aucune position Alpaca éligible pour IBKR actuellement</p>
+        ) : (
+          <div className="space-y-1.5">
+            {eligible.map((c: any) => (
+              <div key={c.symbol} className={`flex items-center justify-between p-3 rounded-lg ${c.pnl_pct >= 0 ? "bg-emerald-400/5 border border-emerald-400/10" : "bg-surface border border-border"}`}>
+                <div className="flex items-center gap-3">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${c.direction === "LONG" ? "bg-gold/10 text-gold" : "bg-red-400/10 text-red-400"}`}>
+                    {c.direction}
+                  </span>
+                  <div>
+                    <span className="font-mono font-semibold text-gold text-sm">{c.symbol}</span>
+                    <span className="text-[10px] text-text-secondary ml-2">Score {c.score_v2?.toFixed(0) || "—"}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="text-right">
+                    <p className="font-mono">${c.current_price?.toFixed(2)}</p>
+                    <p className={`font-mono font-semibold ${c.pnl_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {c.pnl_pct >= 0 ? "+" : ""}{c.pnl_pct}%
+                    </p>
+                  </div>
+                  <span className="text-[9px] px-2 py-1 bg-blue-400/10 text-blue-400 border border-blue-400/20 rounded font-semibold">
+                    COPIER
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {candidates.filter((c) => !c.eligible).length > 0 && (
+          <p className="text-[9px] text-text-secondary text-center mt-2">
+            {candidates.filter((c) => !c.eligible).length} positions non éligibles (en perte ou score trop bas)
+          </p>
+        )}
+      </div>
     </div>
   );
 }

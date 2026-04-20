@@ -19,7 +19,9 @@ from backend.database.models import OrderSide as DBOrderSide, OrderStatus as DBO
 
 logger = logging.getLogger("tradepilot.position_manager_v2")
 
-MAX_POSITIONS = 20
+MAX_POSITIONS_ALPACA = 15   # Lab — entraîne le modèle
+MAX_POSITIONS_IBKR = 10     # Live — argent réel, plus conservateur
+MAX_POSITIONS = MAX_POSITIONS_ALPACA  # Default pour compatibilité
 QUEUE_FILE = Path("data/signal_queue.json")
 QUEUE_FILE.parent.mkdir(exist_ok=True)
 
@@ -43,17 +45,20 @@ def _save_queue(queue: list[dict]):
 
 
 def add_to_queue(signal: dict):
-    """Ajoute un signal GO à la file d'attente."""
+    """Ajoute un signal GO à la file d'attente avec broker tag."""
     queue = _load_queue()
     # Éviter les doublons
     if any(s.get("symbol") == signal.get("symbol") for s in queue):
         return
     signal["queued_at"] = datetime.utcnow().isoformat()
+    # Tag broker — par défaut ALPACA (lab), IBKR piochera dedans
+    if "broker" not in signal:
+        signal["broker"] = "alpaca"
     queue.append(signal)
     # Trier par score décroissant
     queue.sort(key=lambda x: x.get("score", 0), reverse=True)
     _save_queue(queue)
-    logger.info(f"[QUEUE] {signal.get('symbol')} ajouté à la file d'attente (score {signal.get('score', 0)})")
+    logger.info(f"[QUEUE] {signal.get('symbol')} ajouté (score {signal.get('score', 0)}, broker={signal.get('broker')})")
 
 
 def remove_from_queue(symbol: str):
@@ -68,10 +73,86 @@ def get_queue() -> list[dict]:
     return _load_queue()
 
 
-def get_next_in_queue() -> dict | None:
-    """Retourne le meilleur signal en attente."""
+def get_next_in_queue(broker: str = "alpaca") -> dict | None:
+    """Retourne le meilleur signal en attente pour un broker donné."""
     queue = _load_queue()
+    for s in queue:
+        if s.get("broker", "alpaca") == broker or s.get("broker") == "both":
+            return s
     return queue[0] if queue else None
+
+
+def get_ibkr_candidates(db: Session) -> list[dict]:
+    """Retourne les positions Alpaca validées qu'IBKR peut copier.
+
+    Critères pour qu'une position Alpaca soit éligible IBKR :
+    1. Position OPEN avec un score_v2 >= 65
+    2. Pas déjà en position chez IBKR
+    3. En profit ou neutre (pas copier une position en perte)
+    """
+    from backend.modules.execution.broker_alpaca import alpaca_broker
+
+    # Positions Alpaca actuelles
+    try:
+        alpaca_positions = alpaca_broker.get_positions()
+    except Exception:
+        alpaca_positions = []
+
+    # Positions IBKR actuelles (via BDD avec tag broker)
+    ibkr_symbols = set()
+    try:
+        from backend.modules.execution.broker_ibkr import IBKRBroker
+        ibkr = IBKRBroker()
+        if ibkr.is_connected:
+            for p in ibkr.get_positions():
+                ibkr_symbols.add(p.contract.symbol)
+    except Exception:
+        pass
+
+    candidates = []
+    for p in alpaca_positions:
+        sym = p.get("symbol", "")
+        qty = float(p.get("qty", 0))
+        if qty <= 0:
+            continue
+        if sym in ibkr_symbols:
+            continue  # Déjà chez IBKR
+
+        pnl_pct = float(p.get("unrealized_plpc", 0)) * 100
+        entry = float(p.get("avg_entry_price", 0))
+        current = float(p.get("current_price", 0))
+
+        # Chercher le score dans le cache signaux
+        score = 0
+        try:
+            import json
+            from pathlib import Path
+            sig_file = Path("data/signals_cache.json")
+            if sig_file.exists():
+                sigs = json.loads(sig_file.read_text())
+                sigs = sigs if isinstance(sigs, list) else sigs.get("signals", [])
+                for s in sigs:
+                    if s.get("symbol") == sym:
+                        score = s.get("score_v2", s.get("thesis_score", 0))
+                        break
+        except Exception:
+            pass
+
+        candidates.append({
+            "symbol": sym,
+            "direction": "LONG" if qty > 0 else "SHORT",
+            "qty_alpaca": abs(qty),
+            "entry_alpaca": entry,
+            "current_price": current,
+            "pnl_pct": round(pnl_pct, 2),
+            "score_v2": score,
+            "eligible": pnl_pct >= -2 and score >= 60,  # En profit ou presque + bon score
+            "source": "alpaca_validated",
+        })
+
+    # Trier : éligibles d'abord, puis par score
+    candidates.sort(key=lambda x: (-int(x["eligible"]), -x["score_v2"]))
+    return candidates
 
 
 # ============================================================
