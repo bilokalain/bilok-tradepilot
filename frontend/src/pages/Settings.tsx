@@ -10,7 +10,7 @@ const THEMES = [
   { id: "dark-blue", name: "Ocean Blue", icon: <Moon size={16} />, description: "Style Bloomberg", preview: { bg: "#0B1120", card: "#111827", accent: "#3B82F6" } },
   { id: "dark-emerald", name: "Matrix Green", icon: <Leaf size={16} />, description: "Trading desk", preview: { bg: "#021A0A", card: "#062E16", accent: "#10B981" } },
   { id: "dark-purple", name: "Crypto Purple", icon: <Gem size={16} />, description: "Style DeFi", preview: { bg: "#0C0014", card: "#1A0033", accent: "#A855F7" } },
-  { id: "light", name: "Light Mode", icon: <Sun size={16} />, description: "Fond clair", preview: { bg: "#F8F9FA", card: "#FFFFFF", accent: "#D4AF37" } },
+  { id: "light", name: "Light Mode", icon: <Sun size={16} />, description: "Noir sur blanc — élégant et lisible", preview: { bg: "#F5F5F5", card: "#FFFFFF", accent: "#1A1A1A" } },
 ];
 
 function applyTheme(themeId: string) {
