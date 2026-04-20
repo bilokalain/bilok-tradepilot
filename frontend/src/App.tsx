@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Scanner from "./pages/Scanner";
 import AssetDetail from "./pages/AssetDetail";
 import Analyser from "./pages/Analyser";
+import AssetAnalyseDetail from "./pages/AssetAnalyseDetail";
 import Scoring from "./pages/Scoring";
 import Execution from "./pages/Execution";
 import Backtest from "./pages/Backtest";
@@ -102,6 +103,7 @@ function App() {
         <Route path="/theses" element={<Theses />} />
         <Route path="/asset/:symbol" element={<AssetDetail />} />
         <Route path="/analyser" element={<Analyser />} />
+        <Route path="/analyser/:symbol" element={<AssetAnalyseDetail />} />
         <Route path="/scoring" element={<Scoring />} />
         <Route path="/execution" element={<Execution />} />
         <Route path="/backtest" element={<Backtest />} />

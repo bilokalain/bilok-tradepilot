@@ -251,8 +251,9 @@ export default function Analyser() {
             {filteredResults.length === 0 ? (
               <p className="text-text-secondary text-sm text-center py-8">Aucun actif ne correspond à vos filtres</p>
             ) : filteredResults.map((r) => (
-              <button
+              <Link
                 key={r.symbol}
+                to={`/analyser/${r.symbol}`}
                 onClick={() => setSelected(r)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors text-left ${
                   selected?.symbol === r.symbol
@@ -296,7 +297,7 @@ export default function Analyser() {
                     <span className="text-xs text-text-secondary">Aucun signal</span>
                   )}
                 </div>
-              </button>
+              </Link>
             ))}
             </div>
           </div>
