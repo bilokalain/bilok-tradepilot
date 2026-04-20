@@ -336,7 +336,11 @@ def quick_analyse(query: str) -> dict:
     # 6. Scores détaillés — les 9 critères complets
     novelty = compute_novelty_score(close) if len(close) >= 252 else 50
     complexity = compute_complexity_premium(close, high, low) if len(close) >= 50 else 50
-    sus_score = compute_sus_score(close, high, low, volume) if len(close) >= 50 else 50
+    try:
+        sus_result = compute_sus_score(close, high, low, {}, symbol) if len(close) >= 50 else {"score": 50}
+        sus_score = sus_result.get("score", 50) if isinstance(sus_result, dict) else float(sus_result)
+    except Exception:
+        sus_score = 50
 
     # MTS (Macro Tailwind)
     if "-USD" in symbol:
