@@ -805,18 +805,16 @@ function StrategiesPanel({ strategies, bestName, lastPrice, symbol }: { strategi
     .sort((a, b) => (b.conviction || 0) - (a.conviction || 0));
   const neutrals = strategies.filter((s) => s.direction === "NEUTRAL");
 
-  const top3 = sorted.slice(0, 3);
-  const others = sorted.slice(3);
+  const top6 = sorted.slice(0, 6);
+  const others = sorted.slice(6);
   const selected = strategies.find((s) => s.strategy === selectedStrat);
 
-  // Données pour le radar — toutes les stratégies avec conviction > 0
-  const radarData = strategies
-    .filter((s) => s.conviction > 0)
-    .map((s) => ({
-      label: (STRATEGY_LABELS[s.strategy] || s.strategy).slice(0, 12),
-      value: Math.min(s.conviction, 100),
-      icon: s.direction === "LONG" ? "📈" : s.direction === "SHORT" ? "📉" : "⏸",
-    }));
+  // Données pour le radar — TOUTES les 15 stratégies (conviction 0 = centre)
+  const radarData = strategies.map((s) => ({
+    label: (STRATEGY_LABELS[s.strategy] || s.strategy).slice(0, 12),
+    value: Math.min(s.conviction || 0, 100),
+    icon: s.direction === "LONG" ? "📈" : s.direction === "SHORT" ? "📉" : "⏸",
+  }));
 
   return (
     <div className="space-y-4">
@@ -830,9 +828,9 @@ function StrategiesPanel({ strategies, bestName, lastPrice, symbol }: { strategi
       )}
 
       {/* Top 3 stratégies */}
-      <InfoCard title={`Top 3 Stratégies — ${symbol}`} icon={<TrendingUp size={18} />} description="Les 3 stratégies les plus convaincantes pour cet actif. Cliquez pour voir le détail complet.">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {top3.map((s, i) => {
+      <InfoCard title={`Top 6 Stratégies — ${symbol}`} icon={<TrendingUp size={18} />} description="Les 6 stratégies les plus convaincantes pour cet actif. Cliquez pour voir le détail complet.">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {top6.map((s, i) => {
             const desc = STRATEGY_DESCRIPTIONS[s.strategy] || { type: "?", edge: "", when: "" };
             const typeColor = TYPE_COLORS[desc.type] || TYPE_COLORS.Classic;
             const isSelected = selectedStrat === s.strategy;
