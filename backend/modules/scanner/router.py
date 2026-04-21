@@ -1089,6 +1089,158 @@ async def get_sentiment(symbol: str):
     return result
 
 
+# ============================================================
+# Asset Info — carte d'identité pro (cache 24h)
+# ============================================================
+
+_asset_info_cache: dict = {}
+_ASSET_INFO_TTL = 86400  # 24h
+
+
+@router.get("/asset-info/{symbol}")
+def get_asset_info(symbol: str, db: Session = Depends(get_sync_db)):
+    """Retourne la carte d'identité complète d'un actif : description, secteur,
+    valorisation, top holdings (ETF), supply (crypto), etc.
+
+    Cache 24h pour éviter de spammer Yahoo Finance.
+    """
+    import time
+    import yfinance as yf
+
+    # Cache check
+    cached = _asset_info_cache.get(symbol)
+    if cached and (time.time() - cached.get("_cached_at", 0)) < _ASSET_INFO_TTL:
+        return cached["data"]
+
+    asset = db.query(Asset).filter_by(symbol=symbol).first()
+    asset_class = asset.asset_class.value if asset else None
+
+    result = {
+        "symbol": symbol,
+        "name": asset.name if asset else symbol,
+        "asset_class": asset_class,
+        "description": None,
+        "key_info": {},
+        "valuation": {},
+        "holdings": [],
+        "crypto": {},
+        "error": None,
+    }
+
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.info or {}
+
+        # Description
+        result["description"] = info.get("longBusinessSummary") or info.get("description")
+
+        # Infos clés (universelles)
+        mc = info.get("marketCap")
+        if mc:
+            result["key_info"]["market_cap"] = mc
+            result["key_info"]["market_cap_formatted"] = _fmt_big_number(mc)
+        if info.get("sector"):
+            result["key_info"]["sector"] = info["sector"]
+        if info.get("industry"):
+            result["key_info"]["industry"] = info["industry"]
+        if info.get("country"):
+            result["key_info"]["country"] = info["country"]
+        if info.get("website"):
+            result["key_info"]["website"] = info["website"]
+        if info.get("fullTimeEmployees"):
+            result["key_info"]["employees"] = info["fullTimeEmployees"]
+        if info.get("beta") is not None:
+            result["key_info"]["beta"] = round(info["beta"], 2)
+        if info.get("fiftyTwoWeekHigh"):
+            result["key_info"]["high_52w"] = info["fiftyTwoWeekHigh"]
+        if info.get("fiftyTwoWeekLow"):
+            result["key_info"]["low_52w"] = info["fiftyTwoWeekLow"]
+
+        # Valorisation (actions surtout)
+        if info.get("trailingPE") is not None:
+            result["valuation"]["pe"] = round(info["trailingPE"], 2)
+        if info.get("forwardPE") is not None:
+            result["valuation"]["forward_pe"] = round(info["forwardPE"], 2)
+        if info.get("dividendYield") is not None:
+            result["valuation"]["dividend_yield"] = round(info["dividendYield"], 2)
+        if info.get("profitMargins") is not None:
+            result["valuation"]["profit_margin"] = round(info["profitMargins"] * 100, 2)
+        if info.get("grossMargins") is not None:
+            result["valuation"]["gross_margin"] = round(info["grossMargins"] * 100, 2)
+        if info.get("totalRevenue"):
+            result["valuation"]["revenue"] = info["totalRevenue"]
+            result["valuation"]["revenue_formatted"] = _fmt_big_number(info["totalRevenue"])
+        if info.get("trailingEps") is not None:
+            result["valuation"]["eps"] = round(info["trailingEps"], 2)
+        if info.get("priceToBook") is not None:
+            result["valuation"]["price_to_book"] = round(info["priceToBook"], 2)
+        if info.get("debtToEquity") is not None:
+            result["valuation"]["debt_to_equity"] = round(info["debtToEquity"], 2)
+        if info.get("returnOnEquity") is not None:
+            result["valuation"]["roe"] = round(info["returnOnEquity"] * 100, 2)
+
+        # Spécifique ETF
+        if asset_class == "ETF" or info.get("category"):
+            result["key_info"]["category"] = info.get("category")
+            if info.get("totalAssets"):
+                result["key_info"]["aum"] = info["totalAssets"]
+                result["key_info"]["aum_formatted"] = _fmt_big_number(info["totalAssets"])
+            if info.get("annualReportExpenseRatio") is not None:
+                result["key_info"]["expense_ratio"] = round(info["annualReportExpenseRatio"] * 100, 2)
+            if info.get("fundFamily"):
+                result["key_info"]["fund_family"] = info["fundFamily"]
+            # Top holdings si disponibles
+            try:
+                holdings = ticker.funds_data.top_holdings
+                if holdings is not None and not holdings.empty:
+                    result["holdings"] = [
+                        {"symbol": h, "name": row.get("Name", ""), "weight": round(float(row.get("Holding Percent", 0)) * 100, 2)}
+                        for h, row in holdings.head(10).iterrows()
+                    ]
+            except Exception:
+                pass
+
+        # Spécifique Crypto
+        if asset_class == "CRYPTO":
+            if info.get("circulatingSupply"):
+                result["crypto"]["circulating_supply"] = info["circulatingSupply"]
+                result["crypto"]["circulating_supply_formatted"] = _fmt_big_number(info["circulatingSupply"])
+            if info.get("totalSupply"):
+                result["crypto"]["total_supply"] = info["totalSupply"]
+                result["crypto"]["total_supply_formatted"] = _fmt_big_number(info["totalSupply"])
+            if info.get("maxSupply"):
+                result["crypto"]["max_supply"] = info["maxSupply"]
+                result["crypto"]["max_supply_formatted"] = _fmt_big_number(info["maxSupply"])
+            if info.get("volume24Hr"):
+                result["crypto"]["volume_24h"] = info["volume24Hr"]
+                result["crypto"]["volume_24h_formatted"] = _fmt_big_number(info["volume24Hr"])
+
+    except Exception as e:
+        logger.warning(f"[ASSET-INFO] Erreur Yahoo Finance pour {symbol}: {e}")
+        result["error"] = str(e)
+
+    # Cache
+    _asset_info_cache[symbol] = {"_cached_at": time.time(), "data": result}
+    return result
+
+
+def _fmt_big_number(n) -> str:
+    """Formate un grand nombre : 3942571311104 → 3.94T"""
+    try:
+        n = float(n)
+        if n >= 1e12:
+            return f"{n / 1e12:.2f}T"
+        elif n >= 1e9:
+            return f"{n / 1e9:.2f}B"
+        elif n >= 1e6:
+            return f"{n / 1e6:.2f}M"
+        elif n >= 1e3:
+            return f"{n / 1e3:.1f}K"
+        return f"{n:.0f}"
+    except Exception:
+        return str(n)
+
+
 @router.get("/ohlcv-1h/{symbol}")
 def get_ohlcv_1h(symbol: str, limit: int = 168, db: Session = Depends(get_sync_db)):
     """Données OHLCV intraday 1H d'un actif."""

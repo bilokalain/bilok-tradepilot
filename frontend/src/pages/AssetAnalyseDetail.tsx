@@ -7,6 +7,7 @@ import ScoreGauge from "../components/ui/ScoreGauge";
 import RadarChart from "../components/ui/RadarChart";
 import InfoCard from "../components/ui/InfoCard";
 import SignalBadge from "../components/ui/SignalBadge";
+import AssetInfoCard from "../components/AssetInfoCard";
 import { scannerApi } from "../services/api";
 
 // ─── Labels et descriptions des 15 stratégies ───
@@ -165,6 +166,9 @@ export default function AssetAnalyseDetail() {
           <p className="text-xs text-text-secondary mt-1">{data.data_points} jours de données</p>
         </div>
       </div>
+
+      {/* ═══ CARTE D'IDENTITÉ ═══ */}
+      <AssetInfoCard symbol={symbol!} />
 
       {/* ═══ 1. VERDICT ═══ */}
       <div className="bg-card border border-border rounded-xl p-6 mb-6">

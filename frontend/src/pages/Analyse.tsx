@@ -6,6 +6,7 @@ import ScoreGauge from "../components/ui/ScoreGauge";
 import InfoCard from "../components/ui/InfoCard";
 import SignalBadge from "../components/ui/SignalBadge";
 import RadarChart from "../components/ui/RadarChart";
+import AssetInfoCard from "../components/AssetInfoCard";
 
 const SUGGESTIONS = [
   "AAPL", "TSLA", "NVDA", "PLTR", "COIN", "AMC", "GME",
@@ -346,6 +347,9 @@ function AnalyseResult({ data }: { data: any }) {
           <p className="text-[10px] text-text-secondary">{data.data_points} jours de données</p>
         </div>
       </div>
+
+      {/* Carte d'identité de l'actif */}
+      <AssetInfoCard symbol={data.symbol} compact />
 
       {/* Verdict + Score */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

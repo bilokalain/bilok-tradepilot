@@ -7,6 +7,7 @@ import ScoreGauge from "../components/ui/ScoreGauge";
 import RadarChart from "../components/ui/RadarChart";
 import InfoCard from "../components/ui/InfoCard";
 import SignalBadge from "../components/ui/SignalBadge";
+import AssetInfoCard from "../components/AssetInfoCard";
 import { scannerApi } from "../services/api";
 
 // ============================================================
@@ -325,6 +326,9 @@ export default function AssetDetail() {
           <p className="text-xs text-text-secondary mt-1">{scan.data_points} jours de données historiques</p>
         </div>
       </div>
+
+      {/* ============ CARTE D'IDENTITÉ ============ */}
+      <AssetInfoCard symbol={symbol!} />
 
       {/* ============ VERDICT ============ */}
       <InfoCard
