@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Shield, TrendingUp, AlertTriangle, PieChart, Activity } from "lucide-react";
+import { RefreshCw, Shield, TrendingUp, AlertTriangle, PieChart, Activity, Briefcase } from "lucide-react";
 import api from "../services/api";
 
 interface StressResult {
@@ -19,6 +19,7 @@ const REGIME_CONFIG: Record<string, { color: string; bg: string; label: string; 
 export default function Portfolio() {
   const [summary, setSummary] = useState<any>(null);
   const [stress, setStress] = useState<StressResult[]>([]);
+  const [ibkr, setIbkr] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -27,10 +28,12 @@ export default function Portfolio() {
     Promise.all([
       api.get("/portfolio/summary"),
       api.get("/portfolio/stress-test"),
+      api.get("/execution/ibkr-analysis").catch(() => ({ data: null })),
     ])
-      .then(([sumRes, stressRes]) => {
+      .then(([sumRes, stressRes, ibkrRes]) => {
         setSummary(sumRes.data);
         setStress(stressRes.data);
+        setIbkr(ibkrRes.data);
       })
       .catch(console.error)
       .finally(() => {
@@ -224,6 +227,9 @@ export default function Portfolio() {
         </div>
       </div>
 
+      {/* Bilan IBKR Live — évaluation post-pipeline */}
+      {ibkr && ibkr.count > 0 && <IBKRAnalysisPanel ibkr={ibkr} />}
+
       {/* Stress Tests — version pro */}
       <div className="bg-card border border-border rounded-xl p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
@@ -350,6 +356,162 @@ function RiskMetric({ label, value, explain, color = "" }: { label: string; valu
       <p className="text-[9px] text-text-secondary uppercase tracking-wider">{label}</p>
       <p className={`text-lg font-mono font-bold mt-1 ${color}`}>{value}</p>
       <p className="text-[8px] text-text-secondary mt-1 italic">{explain}</p>
+    </div>
+  );
+}
+
+
+// ============================================================
+// Panneau IBKR — Analyse des positions live
+// ============================================================
+
+const VERDICT_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string; emoji: string }> = {
+  solide: { label: "Solide", color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20", icon: "✓", emoji: "🟢" },
+  surveiller: { label: "À surveiller", color: "text-yellow-400", bg: "bg-yellow-400/10 border-yellow-400/20", icon: "⚠", emoji: "🟡" },
+  fermer: { label: "À fermer", color: "text-red-400", bg: "bg-red-400/10 border-red-400/20", icon: "✗", emoji: "🔴" },
+};
+
+function IBKRAnalysisPanel({ ibkr }: { ibkr: any }) {
+  const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
+  const pnlColor = ibkr.total_pnl >= 0 ? "text-emerald-400" : "text-red-400";
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-6 mb-6">
+      <div className="flex items-center gap-2 mb-2">
+        <Briefcase size={16} className="text-gold" />
+        <h3 className="text-sm font-semibold">Bilan IBKR Live — {ibkr.count} positions</h3>
+      </div>
+      <p className="text-xs text-text-secondary mb-4">
+        Évaluation post-pipeline des trades en cours chez Interactive Brokers. Chaque position est croisée avec le scanner et les signaux pour donner un verdict : solide, à surveiller ou à fermer.
+      </p>
+
+      {/* KPIs top */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        <div className="bg-surface rounded-lg p-3 text-center">
+          <p className="text-[9px] text-text-secondary uppercase">Positions</p>
+          <p className="text-xl font-mono font-bold mt-1">{ibkr.count}</p>
+        </div>
+        <div className="bg-surface rounded-lg p-3 text-center">
+          <p className="text-[9px] text-text-secondary uppercase">Capital investi</p>
+          <p className="text-xl font-mono font-bold mt-1">${ibkr.total_invested.toFixed(0)}</p>
+        </div>
+        <div className="bg-surface rounded-lg p-3 text-center">
+          <p className="text-[9px] text-text-secondary uppercase">P&L</p>
+          <p className={`text-xl font-mono font-bold mt-1 ${pnlColor}`}>
+            {ibkr.total_pnl >= 0 ? "+" : ""}${ibkr.total_pnl.toFixed(2)}
+          </p>
+          <p className={`text-[9px] ${pnlColor}`}>{ibkr.total_pnl_pct >= 0 ? "+" : ""}{ibkr.total_pnl_pct.toFixed(2)}%</p>
+        </div>
+        <div className="bg-surface rounded-lg p-3 text-center border border-emerald-400/20">
+          <p className="text-[9px] text-emerald-400 uppercase">🟢 Solides</p>
+          <p className="text-xl font-mono font-bold mt-1 text-emerald-400">{ibkr.verdicts.solide}</p>
+        </div>
+        <div className="bg-surface rounded-lg p-3 text-center border border-yellow-400/20">
+          <p className="text-[9px] text-yellow-400 uppercase">🟡 À surveiller</p>
+          <p className="text-xl font-mono font-bold mt-1 text-yellow-400">{ibkr.verdicts.surveiller}</p>
+          {ibkr.verdicts.fermer > 0 && <p className="text-[9px] text-red-400 mt-0.5">🔴 {ibkr.verdicts.fermer} à fermer</p>}
+        </div>
+      </div>
+
+      {/* Tableau des positions */}
+      <div className="space-y-2">
+        {ibkr.positions.map((p: any) => {
+          const config = VERDICT_CONFIG[p.verdict] || VERDICT_CONFIG.solide;
+          const isExpanded = expandedSymbol === p.symbol;
+          const pnlPctColor = p.pnl_pct >= 0 ? "text-emerald-400" : "text-red-400";
+          const distSL = p.stop_loss > 0 ? (p.direction === "LONG"
+            ? (p.current_price - p.stop_loss) / p.current_price * 100
+            : (p.stop_loss - p.current_price) / p.current_price * 100) : null;
+          return (
+            <button
+              key={p.symbol}
+              onClick={() => setExpandedSymbol(isExpanded ? null : p.symbol)}
+              className={`w-full text-left rounded-lg border p-3 transition-all ${isExpanded ? "border-gold bg-gold/5" : "border-border hover:border-gold/20 bg-surface"}`}
+            >
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                {/* Verdict + Symbole */}
+                <div className="flex items-center gap-3 min-w-[140px]">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${config.bg} ${config.color}`}>
+                    {config.emoji} {config.label}
+                  </span>
+                  <div>
+                    <p className="font-mono font-bold">{p.symbol}</p>
+                    <p className="text-[9px] text-text-secondary">{p.name}</p>
+                  </div>
+                </div>
+                {/* Direction + Qty */}
+                <div className="text-center min-w-[80px]">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${p.direction === "LONG" ? "bg-gold/10 text-gold" : "bg-red-400/10 text-red-400"}`}>
+                    {p.direction === "LONG" ? "📈" : "📉"} {p.direction}
+                  </span>
+                  <p className="text-[9px] text-text-secondary mt-1">× {p.quantity}</p>
+                </div>
+                {/* PnL */}
+                <div className="text-center min-w-[80px]">
+                  <p className={`text-sm font-mono font-bold ${pnlPctColor}`}>
+                    {p.pnl_pct >= 0 ? "+" : ""}{p.pnl_pct.toFixed(1)}%
+                  </p>
+                  <p className={`text-[9px] ${pnlPctColor}`}>
+                    {p.pnl_usd >= 0 ? "+" : ""}${p.pnl_usd.toFixed(2)}
+                  </p>
+                </div>
+                {/* Scanner */}
+                <div className="text-center min-w-[70px]">
+                  <p className="text-[9px] text-text-secondary uppercase">Scanner</p>
+                  <p className={`text-sm font-mono font-bold ${p.scanner_score >= 65 ? "text-gold" : p.scanner_score >= 50 ? "text-text-primary" : "text-red-400"}`}>
+                    {p.scanner_score.toFixed(0)}
+                  </p>
+                </div>
+                {/* Technique */}
+                <div className="text-center min-w-[70px]">
+                  <p className="text-[9px] text-text-secondary uppercase">Tech</p>
+                  <p className={`text-sm font-mono font-bold ${p.technical_score >= 65 ? "text-gold" : p.technical_score >= 50 ? "text-text-primary" : "text-red-400"}`}>
+                    {p.technical_score.toFixed(0)}
+                  </p>
+                </div>
+                {/* Prix */}
+                <div className="text-center min-w-[90px] text-xs font-mono">
+                  <p>{p.entry_price.toFixed(2)} → <span className="font-bold">{p.current_price.toFixed(2)}</span></p>
+                </div>
+              </div>
+              {/* Raisons */}
+              {p.reasons.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {p.reasons.map((r: string, i: number) => (
+                    <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-surface border border-border text-text-secondary">
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Détail déployé */}
+              {isExpanded && (
+                <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div className="bg-card rounded p-2"><p className="text-[9px] text-text-secondary">Entrée</p><p className="font-mono font-bold">${p.entry_price.toFixed(2)}</p></div>
+                  <div className="bg-card rounded p-2"><p className="text-[9px] text-text-secondary">Stop Loss</p><p className="font-mono font-bold text-red-400">${p.stop_loss.toFixed(2)}</p>{distSL !== null && <p className="text-[8px] text-text-secondary">{distSL.toFixed(1)}% away</p>}</div>
+                  <div className="bg-card rounded p-2"><p className="text-[9px] text-text-secondary">Take Profit</p><p className="font-mono font-bold text-gold">${p.take_profit.toFixed(2)}</p></div>
+                  <div className="bg-card rounded p-2"><p className="text-[9px] text-text-secondary">SUS Score</p><p className="font-mono font-bold">{p.sus_score.toFixed(0)}</p></div>
+                  {p.new_signal && p.new_signal.direction && (
+                    <div className="col-span-2 md:col-span-4 bg-card rounded p-2 border border-blue-400/20">
+                      <p className="text-[9px] text-blue-400 font-semibold">Nouveau signal scanner</p>
+                      <p className="text-xs">{p.new_signal.action} {p.new_signal.direction} — Score {p.new_signal.score}</p>
+                    </div>
+                  )}
+                  {p.opened_at && (
+                    <div className="col-span-2 md:col-span-4 text-[9px] text-text-secondary">
+                      Ouverte le {new Date(p.opened_at).toLocaleString("fr-FR")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="text-[10px] text-text-secondary italic mt-3">
+        Verdict automatique basé sur : score scanner (baissier/haussier contre la position), P&L (seuils -5% / -8%), signal inverse GO ≥ 65, score technique. Les positions vétoées ou avec perte importante passent en "à fermer".
+      </p>
     </div>
   );
 }

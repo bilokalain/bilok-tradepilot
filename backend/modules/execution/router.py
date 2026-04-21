@@ -752,3 +752,148 @@ def opportunity_arbiter(db: Session = Depends(get_sync_db)):
     """
     from backend.modules.execution.opportunity_arbiter import run_opportunity_arbitrage
     return run_opportunity_arbitrage(db)
+
+
+@router.get("/ibkr-analysis")
+def ibkr_analysis(db: Session = Depends(get_sync_db)):
+    """Analyse des positions IBKR live — croise avec scanner + signaux pour donner un verdict.
+
+    Retourne pour chaque position IBKR : prix actuel, P&L, scanner score, verdict (solide/surveiller/fermer)
+    et raison du verdict.
+    """
+    import json
+    from pathlib import Path
+    from backend.database.models import Order as OrderModel
+
+    # 1. Charger les caches
+    scanner_data = {}
+    try:
+        with open(Path("data/scanner_cache.json")) as f:
+            scanner_data = {r["symbol"]: r for r in json.load(f).get("results", [])}
+    except Exception as e:
+        logger.warning(f"[IBKR-ANALYSIS] Scanner cache unavailable: {e}")
+
+    signals_data = {}
+    try:
+        with open(Path("data/signals_cache.json")) as f:
+            raw = json.load(f)
+            signals_list = raw if isinstance(raw, list) else raw.get("signals", [])
+            signals_data = {s["symbol"]: s for s in signals_list}
+    except Exception as e:
+        logger.warning(f"[IBKR-ANALYSIS] Signals cache unavailable: {e}")
+
+    # 2. Identifier les positions IBKR (via ordres broker=ibkr OR qty petites)
+    ibkr_asset_ids = set()
+    for o in db.query(OrderModel).filter_by(broker="ibkr").all():
+        ibkr_asset_ids.add(o.asset_id)
+
+    positions = db.query(Position).filter_by(status=PositionStatus.OPEN).all()
+
+    results = []
+    totals = {"invested": 0.0, "pnl": 0.0, "count": 0}
+    verdict_counts = {"solide": 0, "surveiller": 0, "fermer": 0}
+
+    for p in positions:
+        is_ibkr = p.asset_id in ibkr_asset_ids and float(p.quantity) <= 50
+        if not is_ibkr:
+            continue
+
+        asset = db.query(Asset).filter_by(id=p.asset_id).first()
+        if not asset:
+            continue
+
+        # Prix actuel depuis OHLCV daily
+        last = db.query(OHLCVDaily).filter_by(asset_id=asset.id).order_by(OHLCVDaily.date.desc()).first()
+        cur = float(last.close) if last else float(p.entry_price)
+        entry = float(p.entry_price)
+        qty = float(p.quantity)
+        direction = p.direction.value
+
+        if direction == "LONG":
+            pnl_pct = (cur - entry) / entry * 100 if entry else 0
+            pnl_usd = (cur - entry) * qty
+        else:
+            pnl_pct = (entry - cur) / entry * 100 if entry else 0
+            pnl_usd = (entry - cur) * qty
+
+        # Données scanner
+        sc = scanner_data.get(asset.symbol, {})
+        sc_scores = sc.get("scores", {})
+        sc_final = sc_scores.get("final", 50)
+        sc_tech = sc_scores.get("technical", 50)
+        sc_sus = sc_scores.get("sus", 50)
+        vetoed = sc.get("vetoed", False)
+
+        # Signal inverse ?
+        sig = signals_data.get(asset.symbol, {})
+        new_direction = sig.get("direction")
+        new_score = sig.get("score_v2", sig.get("score"))
+        has_opposite = (new_direction and new_direction != direction and new_score and new_score >= 65)
+
+        # Verdict
+        reasons = []
+        if vetoed:
+            reasons.append("VETO scanner")
+        if direction == "LONG" and sc_final < 45:
+            reasons.append(f"scanner baissier ({sc_final:.0f})")
+        elif direction == "SHORT" and sc_final > 60:
+            reasons.append(f"scanner haussier ({sc_final:.0f})")
+        if pnl_pct < -8:
+            reasons.append(f"perte importante ({pnl_pct:.1f}%)")
+        elif pnl_pct < -5:
+            reasons.append(f"perte notable ({pnl_pct:.1f}%)")
+        if has_opposite:
+            reasons.append(f"signal inverse {new_direction} ({new_score:.0f})")
+        if sc_tech < 45 and direction == "LONG":
+            reasons.append(f"technique faible ({sc_tech:.0f})")
+
+        # Classification
+        if vetoed or pnl_pct < -8 or (direction == "LONG" and sc_final < 45) or has_opposite:
+            verdict = "fermer"
+        elif reasons:
+            verdict = "surveiller"
+        else:
+            verdict = "solide"
+
+        verdict_counts[verdict] += 1
+        totals["invested"] += entry * qty
+        totals["pnl"] += pnl_usd
+        totals["count"] += 1
+
+        results.append({
+            "symbol": asset.symbol,
+            "name": asset.name,
+            "direction": direction,
+            "quantity": qty,
+            "entry_price": entry,
+            "current_price": cur,
+            "pnl_usd": round(pnl_usd, 2),
+            "pnl_pct": round(pnl_pct, 2),
+            "stop_loss": float(p.stop_loss) if p.stop_loss else 0,
+            "take_profit": float(p.take_profit) if p.take_profit else 0,
+            "scanner_score": round(sc_final, 1),
+            "technical_score": round(sc_tech, 1),
+            "sus_score": round(sc_sus, 1),
+            "vetoed": vetoed,
+            "new_signal": {
+                "direction": new_direction,
+                "score": round(new_score, 1) if new_score else None,
+                "action": sig.get("action"),
+            } if sig else None,
+            "verdict": verdict,
+            "reasons": reasons,
+            "opened_at": p.opened_at.isoformat() if p.opened_at else None,
+        })
+
+    # Trier par verdict (fermer > surveiller > solide) puis par pnl
+    verdict_order = {"fermer": 0, "surveiller": 1, "solide": 2}
+    results.sort(key=lambda x: (verdict_order.get(x["verdict"], 3), -x["pnl_pct"]))
+
+    return {
+        "count": totals["count"],
+        "total_invested": round(totals["invested"], 2),
+        "total_pnl": round(totals["pnl"], 2),
+        "total_pnl_pct": round(totals["pnl"] / totals["invested"] * 100, 2) if totals["invested"] > 0 else 0,
+        "verdicts": verdict_counts,
+        "positions": results,
+    }
