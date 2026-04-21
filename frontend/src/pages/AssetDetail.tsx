@@ -271,6 +271,9 @@ export default function AssetDetail() {
     icon: config.icon,
   }));
 
+  // Critères triés par score décroissant pour les cartes
+  const criteriaEntries = Object.entries(CRITERIA_CONFIG).sort(([a], [b]) => (scores[b] ?? 50) - (scores[a] ?? 50));
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* ============ NAVIGATION ============ */}
@@ -435,9 +438,9 @@ export default function AssetDetail() {
         </InfoCard>
       </div>
 
-      {/* ============ DÉTAIL DES 9 CRITÈRES ============ */}
+      {/* ============ DÉTAIL DES 9 CRITÈRES (triés par score) ============ */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(CRITERIA_CONFIG).map(([key, config]) => {
+        {criteriaEntries.map(([key, config]) => {
           const score = scores[key] ?? 0;
           const weight = (scan.weights?.[key] ?? 0) * 100;
           const interpretation = config.interpret(score);

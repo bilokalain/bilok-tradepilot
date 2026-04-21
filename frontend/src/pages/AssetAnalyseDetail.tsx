@@ -37,9 +37,17 @@ export default function AssetAnalyseDetail() {
   if (loading) return <div className="flex items-center justify-center h-64 text-text-secondary">Analyse en cours...</div>;
   if (!data) return <div className="p-6 text-red-400">Erreur de chargement pour {symbol}</div>;
 
-  const strategies = data.all_strategies || [];
+  // Stratégies triées par conviction décroissante (NEUTRAL à 0 en bas)
+  const strategies = [...(data.all_strategies || [])].sort((a: any, b: any) => {
+    const ca = a.direction === "NEUTRAL" ? -1 : (a.conviction || 0);
+    const cb = b.direction === "NEUTRAL" ? -1 : (b.conviction || 0);
+    return cb - ca;
+  });
   const best = data.best_strategy || {};
   const scores = data.scores || {};
+
+  // Critères triés par score décroissant
+  const criteriaEntries = Object.entries(CRITERIA_CONFIG).sort(([a], [b]) => (scores[b] ?? 50) - (scores[a] ?? 50));
 
   // Radar stratégies
   const stratRadar = strategies.map((s: any) => ({
@@ -239,9 +247,9 @@ export default function AssetAnalyseDetail() {
       {/* ═══ 6. CARTES DES 10 CRITÈRES (style Scanner) ═══ */}
       <div className="mt-6">
         <h3 className="text-lg font-semibold mb-1 flex items-center gap-2"><Sparkles size={18} /> Les 10 critères — {symbol}</h3>
-        <p className="text-xs text-text-secondary mb-4">Contexte Scanner (Module 1). Cliquez pour voir la description détaillée.</p>
+        <p className="text-xs text-text-secondary mb-4">Contexte Scanner (Module 1). Triés par score décroissant. Cliquez pour voir la description détaillée.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(CRITERIA_CONFIG).map(([key, config]) => {
+          {criteriaEntries.map(([key, config]) => {
             const score = scores[key] ?? 50;
             const isExpanded = expandedCriterion === key;
             return (
