@@ -19,7 +19,7 @@ from backend.database.models import OrderSide as DBOrderSide, OrderStatus as DBO
 
 logger = logging.getLogger("tradepilot.position_manager_v2")
 
-MAX_POSITIONS_ALPACA = 15   # Lab — entraîne le modèle
+MAX_POSITIONS_ALPACA = 30   # Lab — entraîne le modèle (LGN : 20-30 positions pour variance faible)
 MAX_POSITIONS_IBKR = 10     # Live — argent réel, plus conservateur
 MAX_POSITIONS = MAX_POSITIONS_ALPACA  # Default pour compatibilité
 QUEUE_FILE = Path("data/signal_queue.json")

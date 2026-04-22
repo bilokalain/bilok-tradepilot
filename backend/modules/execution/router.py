@@ -330,6 +330,21 @@ def execute_all(
     from backend.modules.scoring.router import _signals_cache
 
     signals = _signals_cache.get("data", [])
+    # Fallback : charger depuis le disque si cache mémoire vide
+    if not signals:
+        try:
+            import json
+            from pathlib import Path
+            fp = Path("data/signals_cache.json")
+            if fp.exists():
+                raw = json.loads(fp.read_text())
+                signals = raw if isinstance(raw, list) else raw.get("signals", raw.get("data", []))
+                if signals:
+                    _signals_cache["data"] = signals
+                    logger.info(f"[EXEC] Signaux rechargés depuis disque : {len(signals)}")
+        except Exception as e:
+            logger.warning(f"[EXEC] Erreur rechargement signaux: {e}")
+
     if not signals:
         return {"total_signals": 0, "executed": 0, "skipped": 0, "results": [],
                 "message": "Aucun signal en cache."}
@@ -368,9 +383,9 @@ def execute_all(
     results = []
     remaining = capital
 
-    # Mapping position ouverte → direction
+    # Mapping position ouverte → direction (depuis BDD)
     open_positions_map = {}
-    for p in open_positions:
+    for p in db.query(Position).filter_by(status=PositionStatus.OPEN).all():
         asset = db.query(Asset).filter_by(id=p.asset_id).first()
         if asset:
             open_positions_map[asset.symbol] = p.direction.value
