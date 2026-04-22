@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     IBKR_PORT: int = 7497  # 7497 = paper, 7496 = live
     IBKR_CLIENT_ID: int = 1
     IBKR_ACCOUNT_ID: str = ""
-    IBKR_DEFAULT_EQUITY: float = 300.0     # Fallback si lecture compte IBKR échoue
-    IBKR_INITIAL_CAPITAL: float = 300.0   # Capital initial déposé (pour calcul rendement)
+    IBKR_DEFAULT_EQUITY: float = 320.0     # Fallback si lecture compte IBKR échoue
+    IBKR_INITIAL_CAPITAL: float = 320.0   # Capital initial déposé (pour calcul rendement)
 
     # --- Sentiment ---
     REDDIT_CLIENT_ID: str = ""
