@@ -776,6 +776,179 @@ def opportunity_arbiter(db: Session = Depends(get_sync_db)):
     return run_opportunity_arbitrage(db)
 
 
+@router.post("/execute-all-ibkr")
+def execute_all_ibkr(
+    capital: float = Query(500),
+    db: Session = Depends(get_sync_db),
+):
+    """Exécute tous les signaux GO sur IBKR live (séparé d'Alpaca).
+
+    Filtre uniquement les positions IBKR existantes (ignore Alpaca).
+    Respecte MAX_POSITIONS_IBKR (10) pour protéger l'argent réel.
+    """
+    import json
+    from pathlib import Path
+    from backend.config.settings import settings
+    from backend.modules.execution.broker_ibkr import IBKRBroker
+
+    # 1. Charger les signaux
+    from backend.modules.scoring.router import _signals_cache
+    signals = _signals_cache.get("data", [])
+    if not signals:
+        try:
+            fp = Path("data/signals_cache.json")
+            if fp.exists():
+                raw = json.loads(fp.read_text())
+                signals = raw if isinstance(raw, list) else raw.get("signals", raw.get("data", []))
+                if signals:
+                    _signals_cache["data"] = signals
+        except Exception as e:
+            logger.warning(f"[EXEC-IBKR] Erreur chargement signaux: {e}")
+
+    if not signals:
+        return {"total_signals": 0, "executed": 0, "skipped": 0, "results": [],
+                "message": "Aucun signal en cache."}
+
+    # Filtrer GO uniquement, trier par score
+    go_signals = [s for s in signals if s.get("action") == "GO"]
+    go_signals.sort(key=lambda x: x.get("score_v2", x.get("score", 0)), reverse=True)
+
+    # 2. Vérifier IBKR configuré
+    if not settings.IBKR_ACCOUNT_ID:
+        return {"error": "IBKR non configuré"}
+
+    # 3. Récupérer positions IBKR via thread (event loop isolé)
+    import concurrent.futures as _cf
+    import asyncio as _aio
+
+    def _ibkr_fetch():
+        loop = _aio.new_event_loop()
+        _aio.set_event_loop(loop)
+        try:
+            from ib_insync import IB
+            ib = IB()
+            ib.connect(settings.IBKR_HOST, settings.IBKR_PORT, clientId=71, timeout=10)
+            syms = {p.contract.symbol for p in ib.positions(settings.IBKR_ACCOUNT_ID) if p.position != 0}
+            ib.disconnect()
+            return syms
+        finally:
+            loop.close()
+
+    try:
+        with _cf.ThreadPoolExecutor() as ex:
+            ibkr_syms = ex.submit(_ibkr_fetch).result(timeout=15)
+    except Exception as e:
+        logger.warning(f"[EXEC-IBKR] Impossible de récupérer les positions IBKR: {e}")
+        return {"error": f"Connexion IBKR échouée: {e}. Vérifie que TWS/IB Gateway est ouvert sur le port {settings.IBKR_PORT}."}
+
+    # 4. Vérifier le nombre max de positions IBKR
+    from backend.modules.execution.position_manager_v2 import MAX_POSITIONS_IBKR
+    slots_available = MAX_POSITIONS_IBKR - len(ibkr_syms)
+    if slots_available <= 0:
+        return {
+            "total_signals": len(go_signals),
+            "executed": 0, "skipped": len(go_signals),
+            "message": f"IBKR full: {len(ibkr_syms)}/{MAX_POSITIONS_IBKR} positions. Fermer une position avant d'ajouter.",
+            "results": [],
+        }
+
+    # 5. Exécuter les GO (limité à slots_available)
+    results = []
+    remaining = capital
+    executed_count = 0
+
+    for signal in go_signals:
+        if executed_count >= slots_available:
+            results.append({"symbol": signal.get("symbol"), "executed": False,
+                          "reason": f"Slot limit IBKR ({MAX_POSITIONS_IBKR}) atteint"})
+            continue
+
+        sym = signal.get("symbol", "")
+        direction = signal.get("direction", "LONG")
+
+        # Skip si déjà chez IBKR
+        if sym in ibkr_syms:
+            results.append({"symbol": sym, "executed": False, "reason": "Déjà en position IBKR"})
+            continue
+
+        # Récupérer asset + prix
+        asset = db.query(Asset).filter_by(symbol=sym).first()
+        if not asset:
+            results.append({"symbol": sym, "executed": False, "reason": "Actif non trouvé en BDD"})
+            continue
+
+        entry_price, atr_val = _get_price_and_atr(db, asset.id)
+        if not entry_price:
+            results.append({"symbol": sym, "executed": False, "reason": "Pas de données OHLCV"})
+            continue
+
+        # Calcul Entry/SL/TP via signal
+        entry = signal.get("entry") or entry_price
+        sl = signal.get("stop_loss") or (round(entry - 2 * atr_val, 2) if direction == "LONG" else round(entry + 2 * atr_val, 2))
+        tp = signal.get("take_profit") or signal.get("take_profit_1") or (round(entry + 3 * atr_val, 2) if direction == "LONG" else round(entry - 3 * atr_val, 2))
+
+        # Sizing conservateur pour IBKR (max 15% du capital par position)
+        max_pos_capital = min(remaining / max(slots_available - executed_count, 1), capital * 0.15)
+        qty = max(1, int(max_pos_capital / entry))
+
+        # Placer l'ordre bracket sur IBKR (via thread pour event loop)
+        try:
+            def _place():
+                loop = _aio.new_event_loop()
+                _aio.set_event_loop(loop)
+                try:
+                    broker = IBKRBroker()
+                    return broker.place_bracket_order(
+                        symbol=sym, side="BUY" if direction == "LONG" else "SELL",
+                        quantity=qty, stop_loss=sl, take_profit=tp,
+                    )
+                finally:
+                    loop.close()
+            with _cf.ThreadPoolExecutor() as ex:
+                result = ex.submit(_place).result(timeout=30)
+            if "error" in result:
+                results.append({"symbol": sym, "executed": False, "reason": result["error"]})
+                continue
+
+            # Enregistrer en BDD
+            db.add(Order(
+                asset_id=asset.id,
+                side=DBOrderSide.BUY if direction == "LONG" else DBOrderSide.SELL,
+                quantity=float(qty), price=entry, filled_price=entry,
+                status=DBOrderStatus.FILLED, tranche=1,
+                broker="ibkr",
+            ))
+            db.add(Position(
+                asset_id=asset.id,
+                direction=SignalDirection.LONG if direction == "LONG" else SignalDirection.SHORT,
+                entry_price=entry, quantity=float(qty),
+                stop_loss=sl, take_profit=tp, status=PositionStatus.OPEN,
+            ))
+            db.commit()
+
+            remaining -= qty * entry
+            executed_count += 1
+            results.append({
+                "symbol": sym, "executed": True, "direction": direction,
+                "entry_price": entry, "quantity": qty,
+                "stop_loss": sl, "take_profit": tp,
+                "broker_order_id": result.get("broker_order_id"),
+            })
+        except Exception as e:
+            logger.warning(f"[EXEC-IBKR] Erreur {sym}: {e}")
+            results.append({"symbol": sym, "executed": False, "reason": f"Erreur IBKR: {e}"})
+
+    return {
+        "total_signals": len(go_signals),
+        "executed": executed_count,
+        "skipped": len(results) - executed_count,
+        "capital_deployed": round(capital - remaining, 2),
+        "capital_remaining": round(remaining, 2),
+        "slots_remaining": MAX_POSITIONS_IBKR - len(ibkr_syms) - executed_count,
+        "results": results,
+    }
+
+
 @router.post("/clean-data")
 def clean_data_manual(db: Session = Depends(get_sync_db)):
     """Nettoyage manuel — ferme les zombies BDD et annule les doublons Alpaca.
