@@ -26,6 +26,15 @@ def check_and_close_positions(db: Session) -> dict:
     if not alpaca_broker.is_configured:
         return {"checked": 0, "closed": [], "message": "Alpaca non configuré"}
 
+    # Nettoyage préventif : zombies + doublons (garanti propre avant le check)
+    try:
+        from backend.modules.execution.data_cleaner import full_clean
+        clean_result = full_clean(db)
+        if clean_result["zombies_removed"] > 0 or clean_result["duplicates_cancelled"] > 0:
+            logger.info(f"[TP/SL] Auto-clean: {clean_result['zombies_removed']} zombies, {clean_result['duplicates_cancelled']} doublons")
+    except Exception as e:
+        logger.warning(f"[TP/SL] Auto-clean échoué: {e}")
+
     # Trailing stops d'abord — remonter les SL avant de vérifier
     trailing_result = {"updated": 0}
     try:

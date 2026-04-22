@@ -24,7 +24,14 @@ def _place_bracket_order(symbol: str, side: str, quantity: float,
     """Place un Bracket Order Alpaca : entry + SL + TP en une commande.
 
     Même si le Mac s'éteint, Alpaca exécutera le SL et TP automatiquement.
+    Garantie anti-doublon : vérifie qu'aucun ordre pending n'existe déjà.
     """
+    # Guard anti-doublon : si un ordre pending existe déjà pour ce symbole/côté, skip
+    from backend.modules.execution.data_cleaner import has_pending_order
+    if has_pending_order(symbol, side):
+        logger.warning(f"[BRACKET] Skip {symbol} {side} — ordre pending déjà en attente")
+        return {"error": f"Ordre {side} déjà en attente pour {symbol}"}
+
     try:
         from alpaca.trading.client import TradingClient
         from alpaca.trading.requests import MarketOrderRequest
@@ -767,6 +774,23 @@ def opportunity_arbiter(db: Session = Depends(get_sync_db)):
     """
     from backend.modules.execution.opportunity_arbiter import run_opportunity_arbitrage
     return run_opportunity_arbitrage(db)
+
+
+@router.post("/clean-data")
+def clean_data_manual(db: Session = Depends(get_sync_db)):
+    """Nettoyage manuel — ferme les zombies BDD et annule les doublons Alpaca.
+
+    Garantit l'intégrité des données pour l'entraînement du modèle.
+    """
+    from backend.modules.execution.data_cleaner import full_clean
+    result = full_clean(db)
+    return {
+        "status": "clean",
+        "zombies_removed": result["zombies_removed"],
+        "duplicates_cancelled": result["duplicates_cancelled"],
+        "alpaca_live_count": result["alpaca_live_count"],
+        "ibkr_live_count": result["ibkr_live_count"],
+    }
 
 
 @router.get("/ibkr-analysis")
