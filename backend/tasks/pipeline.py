@@ -400,6 +400,44 @@ def task_run_performance(portfolio_results: dict = None):
         except Exception as e:
             logger.warning(f"[PIPELINE] Erreur notification Monte Carlo: {e}")
 
+
+@celery_app.task(name="pipeline.run_repositioning")
+def task_run_repositioning(performance_results: dict = None):
+    """Module 7 — Repositionnement automatique.
+
+    Ferme les positions fatiguées (perte + scanner faiblissant + signal inverse).
+    Ouvre les nouveaux GO non déjà en portefeuille.
+    Appelé à la fin du pipeline complet.
+    """
+    logger.info("[PIPELINE] Repositionnement automatique...")
+    from sqlalchemy.orm import Session
+    from backend.modules.execution.repositioner import run_repositioning
+
+    with Session(_engine) as db:
+        try:
+            result = run_repositioning(db)
+            summary = result.get("summary", {})
+            logger.info(
+                f"[PIPELINE] Reposition done — "
+                f"Fermé: {summary.get('closed_count', 0)}, "
+                f"Ouvert: {summary.get('opened_count', 0)}, "
+                f"Gardé: {summary.get('skipped_count', 0)}, "
+                f"Erreurs: {summary.get('errors_count', 0)}"
+            )
+
+            # Sauvegarder le cache
+            try:
+                import json
+                from pathlib import Path
+                Path("data/repositioning_last.json").write_text(json.dumps(result, default=str, indent=2))
+            except Exception as e:
+                logger.warning(f"[PIPELINE] Sauvegarde reposition cache échouée: {e}")
+
+            return result
+        except Exception as e:
+            logger.error(f"[PIPELINE] Erreur repositionnement: {e}")
+            return {"error": str(e)}
+
         # Rapport hebdomadaire (si dimanche)
         from datetime import date
         if date.today().weekday() == 6:  # Dimanche
@@ -480,6 +518,7 @@ def task_run_full_pipeline():
         task_run_execution.si(),
         task_run_portfolio.si(),
         task_run_performance.si(),
+        task_run_repositioning.si(),
     )
     return pipeline.apply_async()
 
@@ -524,6 +563,7 @@ def task_run_light_pipeline():
         task_run_execution.si(),
         task_run_portfolio.si(),
         task_run_performance.si(),
+        task_run_repositioning.si(),
     )
     return pipeline.apply_async()
 

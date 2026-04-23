@@ -828,7 +828,9 @@ def execute_all_ibkr(
             from ib_insync import IB
             ib = IB()
             ib.connect(settings.IBKR_HOST, settings.IBKR_PORT, clientId=71, timeout=10)
-            syms = {p.contract.symbol for p in ib.positions(settings.IBKR_ACCOUNT_ID) if p.position != 0}
+            # Utiliser portfolio() qui ne retourne que les positions actives avec market value
+            # (évite les "fantômes" de ib.positions() où qty != 0 mais position morte)
+            syms = {p.contract.symbol for p in ib.portfolio() if p.position != 0 and p.marketValue != 0}
             ib.disconnect()
             return syms
         finally:
@@ -840,6 +842,22 @@ def execute_all_ibkr(
     except Exception as e:
         logger.warning(f"[EXEC-IBKR] Impossible de récupérer les positions IBKR: {e}")
         return {"error": f"Connexion IBKR échouée: {e}. Vérifie que TWS/IB Gateway est ouvert sur le port {settings.IBKR_PORT}."}
+
+    # 3b. Récupérer aussi les positions Alpaca (pour éviter les doublons en BDD)
+    alpaca_syms = set()
+    if alpaca_broker.is_configured:
+        try:
+            alpaca_syms = {p["symbol"] for p in alpaca_broker.get_positions()}
+        except Exception as e:
+            logger.warning(f"[EXEC-IBKR] Alpaca positions: {e}")
+
+    # Positions "bloquées" (déjà ouvertes sur un broker OU en BDD OPEN)
+    bdd_open_syms = set()
+    for p in db.query(Position).filter_by(status=PositionStatus.OPEN).all():
+        a = db.query(Asset).filter_by(id=p.asset_id).first()
+        if a:
+            bdd_open_syms.add(a.symbol)
+    blocked_syms = ibkr_syms | alpaca_syms | bdd_open_syms
 
     # 4. Vérifier le nombre max de positions IBKR
     from backend.modules.execution.position_manager_v2 import MAX_POSITIONS_IBKR
@@ -866,9 +884,10 @@ def execute_all_ibkr(
         sym = signal.get("symbol", "")
         direction = signal.get("direction", "LONG")
 
-        # Skip si déjà chez IBKR
-        if sym in ibkr_syms:
-            results.append({"symbol": sym, "executed": False, "reason": "Déjà en position IBKR"})
+        # Skip si déjà bloqué (IBKR, Alpaca ou BDD)
+        if sym in blocked_syms:
+            reason = "Déjà en position IBKR" if sym in ibkr_syms else ("Déjà en position Alpaca" if sym in alpaca_syms else "Déjà en position BDD")
+            results.append({"symbol": sym, "executed": False, "reason": reason})
             continue
 
         # Récupérer asset + prix
@@ -947,6 +966,31 @@ def execute_all_ibkr(
         "slots_remaining": MAX_POSITIONS_IBKR - len(ibkr_syms) - executed_count,
         "results": results,
     }
+
+
+@router.post("/repositioning")
+def trigger_repositioning(db: Session = Depends(get_sync_db)):
+    """Déclenche manuellement le repositionnement (sans attendre le pipeline).
+
+    Compare les signaux GO avec les positions ouvertes, ferme les fatiguées,
+    ouvre les nouveaux GO. Appelé aussi automatiquement en fin de pipeline.
+    """
+    from backend.modules.execution.repositioner import run_repositioning
+    return run_repositioning(db)
+
+
+@router.get("/repositioning/last")
+def get_last_repositioning():
+    """Retourne le résultat du dernier repositionnement automatique."""
+    import json
+    from pathlib import Path
+    fp = Path("data/repositioning_last.json")
+    if not fp.exists():
+        return {"message": "Aucun repositionnement encore exécuté"}
+    try:
+        return json.loads(fp.read_text())
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @router.post("/clean-data")
