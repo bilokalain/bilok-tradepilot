@@ -138,7 +138,8 @@ def run_repositioning(db: Session) -> dict:
 
     for pos in alpaca_positions:
         sym = pos["symbol"]
-        direction = pos["direction"]
+        side = pos.get("side", "long")
+        direction = "LONG" if side.lower() == "long" else "SHORT"
         pnl_pct = float(pos.get("pnl_pct", 0))
 
         sc = scanner.get(sym, {})
@@ -157,6 +158,21 @@ def run_repositioning(db: Session) -> dict:
 
         if fatigued:
             try:
+                # Annuler d'abord les ordres pending (OCO/brackets) qui bloquent la qty
+                try:
+                    from alpaca.trading.client import TradingClient
+                    from alpaca.trading.requests import GetOrdersRequest
+                    from alpaca.trading.enums import QueryOrderStatus
+                    from backend.config.settings import settings
+                    client = TradingClient(settings.ALPACA_API_KEY, settings.ALPACA_SECRET_KEY, paper=True)
+                    pending = client.get_orders(GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[sym], limit=20))
+                    for o in pending:
+                        try: client.cancel_order_by_id(o.id)
+                        except: pass
+                    import time; time.sleep(1)  # laisser propager
+                except Exception as e:
+                    logger.debug(f"[REPOSITION] Cancel pending {sym} échoué: {e}")
+
                 close_res = alpaca_broker.close_position(sym)
                 if close_res and "error" not in close_res:
                     # Fermer en BDD
@@ -185,16 +201,22 @@ def run_repositioning(db: Session) -> dict:
             })
 
     # 5. Ouvrir les nouveaux GO non couverts
-    # Re-récupérer positions après les fermetures
+    # Attendre que les fermetures se propagent avant de recompter
+    if result["closed"]:
+        import time
+        time.sleep(3)
+
     try:
         alpaca_positions = alpaca_broker.get_positions()
         alpaca_syms_after = {p["symbol"] for p in alpaca_positions}
     except Exception:
         alpaca_syms_after = alpaca_syms
 
-    # Compter les slots disponibles
+    # Compter les slots disponibles — basé sur le REAL post-close count
     from backend.modules.execution.position_manager_v2 import MAX_POSITIONS_ALPACA
-    slots_available = MAX_POSITIONS_ALPACA - len(alpaca_syms_after)
+    # Si on vient de fermer N positions, on a au moins N slots libres
+    closed_count = len(result["closed"])
+    slots_available = max(MAX_POSITIONS_ALPACA - len(alpaca_syms_after), closed_count)
 
     if slots_available <= 0:
         result["opened_skipped"] = f"Slots Alpaca pleins ({len(alpaca_syms_after)}/{MAX_POSITIONS_ALPACA})"
