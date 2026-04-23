@@ -1005,6 +1005,7 @@ def clean_data_manual(db: Session = Depends(get_sync_db)):
         "status": "clean",
         "zombies_removed": result["zombies_removed"],
         "duplicates_cancelled": result["duplicates_cancelled"],
+        "brackets_restored": result.get("brackets_restored", 0),
         "alpaca_live_count": result["alpaca_live_count"],
         "ibkr_live_count": result["ibkr_live_count"],
     }

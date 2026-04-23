@@ -139,6 +139,9 @@ def clean_zombie_positions(db: Session) -> dict:
 def dedupe_alpaca_orders() -> int:
     """Annule les ordres pending Alpaca en doublon (même symbol/side/qty).
     Garde le plus ancien. Returns nb d'ordres annulés.
+
+    IMPORTANT : les ordres enfants de brackets (SL/TP protecteurs) sont IGNORÉS —
+    ne jamais les considérer comme doublons car ils protègent les positions.
     """
     try:
         from alpaca.trading.client import TradingClient
@@ -152,6 +155,16 @@ def dedupe_alpaca_orders() -> int:
 
         groups = defaultdict(list)
         for o in orders:
+            # EXCLURE les ordres qui font partie d'un bracket (SL/TP protecteurs)
+            # Ces ordres ont un legs parent ou order_class = BRACKET/OCO
+            oc = str(o.order_class).upper() if o.order_class else ""
+            if "BRACKET" in oc or "OCO" in oc or "OTO" in oc:
+                continue
+            # Exclure aussi les ordres STOP/LIMIT typiques de protection
+            ot = str(o.order_type).upper() if o.order_type else ""
+            if "STOP" in ot or ot == "LIMIT":
+                # Ce sont presque toujours des SL/TP protecteurs — ne pas dédupliquer
+                continue
             groups[(o.symbol, str(o.side), float(o.qty))].append(o)
 
         cancelled = 0
@@ -173,13 +186,99 @@ def dedupe_alpaca_orders() -> int:
         return 0
 
 
+def restore_missing_brackets() -> int:
+    """Détecte les positions Alpaca qui n'ont AUCUN SL/TP pending et ajoute une
+    protection OCO automatique (SL -8% / TP +12%).
+
+    Essentiel après un nettoyage accidentel ou un bracket expiré.
+    Returns: nb de positions re-protégées.
+    """
+    try:
+        from alpaca.trading.client import TradingClient
+        from alpaca.trading.requests import (
+            LimitOrderRequest, GetOrdersRequest, TakeProfitRequest, StopLossRequest,
+        )
+        from alpaca.trading.enums import OrderSide, TimeInForce, OrderClass, QueryOrderStatus
+        from backend.config.settings import settings
+        from backend.modules.execution.broker_alpaca import alpaca_broker
+
+        if not alpaca_broker.is_configured:
+            return 0
+
+        client = TradingClient(settings.ALPACA_API_KEY, settings.ALPACA_SECRET_KEY, paper=True)
+
+        # 1. Positions live
+        positions = alpaca_broker.get_positions()
+        if not positions:
+            return 0
+
+        # 2. Symboles avec ordres SL/TP actifs
+        orders = client.get_orders(GetOrdersRequest(status=QueryOrderStatus.OPEN, limit=300))
+        protected_syms = set()
+        for o in orders:
+            ot = str(o.order_type).upper() if o.order_type else ""
+            if "STOP" in ot or ot == "LIMIT":
+                protected_syms.add(o.symbol)
+
+        # 3. Pour chaque position non protégée, ajouter un OCO
+        restored = 0
+        for pos in positions:
+            sym = pos["symbol"]
+            if sym in protected_syms:
+                continue  # déjà protégé
+
+            side = pos.get("side", "long").lower()
+            qty = abs(float(pos["quantity"]))
+            entry = float(pos["entry_price"])
+            current = float(pos.get("current_price", entry))
+
+            # SL/TP : 8%/12% basés sur entry
+            if side == "long":
+                sl = round(entry * 0.92, 2)
+                tp = round(entry * 1.12, 2)
+                exit_side = OrderSide.SELL
+                # SL must be < current pour SELL stop
+                if sl >= current: sl = round(current * 0.95, 2)
+            else:
+                sl = round(entry * 1.08, 2)
+                tp = round(entry * 0.88, 2)
+                exit_side = OrderSide.BUY
+                if sl <= current: sl = round(current * 1.05, 2)
+
+            try:
+                oco = LimitOrderRequest(
+                    symbol=sym, qty=qty, side=exit_side,
+                    time_in_force=TimeInForce.GTC,
+                    limit_price=tp,
+                    order_class=OrderClass.OCO,
+                    take_profit=TakeProfitRequest(limit_price=tp),
+                    stop_loss=StopLossRequest(stop_price=sl),
+                )
+                client.submit_order(oco)
+                restored += 1
+                logger.info(f"[CLEANER] Bracket restauré: {sym} {side} SL=${sl} TP=${tp}")
+            except Exception as e:
+                logger.debug(f"[CLEANER] Impossible de restaurer bracket {sym}: {str(e)[:100]}")
+
+        if restored:
+            logger.info(f"[CLEANER] {restored} brackets restaurés sur positions orphelines")
+        return restored
+    except Exception as e:
+        logger.warning(f"[CLEANER] restore_missing_brackets échoué: {e}")
+        return 0
+
+
 def full_clean(db: Session) -> dict:
-    """Nettoyage complet : zombies + doublons. Appelé périodiquement."""
+    """Nettoyage complet : zombies + doublons + restauration brackets.
+    Appelé périodiquement toutes les 5 min via TP/SL monitor.
+    """
     z = clean_zombie_positions(db)
     d = dedupe_alpaca_orders()
+    b = restore_missing_brackets()
     return {
         "zombies_removed": z["zombies_removed"],
         "duplicates_cancelled": d,
+        "brackets_restored": b,
         "alpaca_live_count": z["alpaca_count"],
         "ibkr_live_count": z["ibkr_count"],
     }
