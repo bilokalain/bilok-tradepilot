@@ -133,3 +133,17 @@ def execute_protection(db: Session = Depends(get_sync_db)):
     """Exécute les actions de protection (réduction ou clôture des positions)."""
     from backend.modules.portfolio.reversal_guard import auto_protect
     return auto_protect(db)
+
+
+@router.get("/balance/analysis")
+def balance_analysis():
+    """Analyse l'équilibre actuel du portefeuille (LONG/SHORT, secteurs, levier)."""
+    from backend.modules.portfolio.balancer import analyze_portfolio
+    return analyze_portfolio()
+
+
+@router.get("/balance/recommend")
+def balance_recommend():
+    """Recommande des ajustements LONG/SHORT pour rééquilibrer."""
+    from backend.modules.portfolio.balancer import recommend_rebalance
+    return recommend_rebalance()
