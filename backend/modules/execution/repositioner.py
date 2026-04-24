@@ -19,12 +19,15 @@ logger = logging.getLogger("tradepilot.repositioner")
 # ─────────────────────── CONFIGURATION ───────────────────────
 
 # Seuils de détection "fatigué"
-LOSS_THRESHOLD_PCT = -5.0           # Perte > -5% = candidat à fermer
+LOSS_THRESHOLD_PCT = -3.0           # Perte > -3% = candidat à fermer (assoupli de -5)
 LOSS_CRITICAL_PCT = -8.0            # Perte > -8% = fermeture forcée
-SCANNER_LOW_LONG = 45               # LONG avec scanner < 45 = baissier contre nous
-SCANNER_HIGH_SHORT = 60             # SHORT avec scanner > 60 = haussier contre nous
-TECH_LOW = 40                       # Tech < 40 = technique défavorable
+SCANNER_LOW_LONG = 55               # LONG avec scanner < 55 = perd son edge (assoupli de 45)
+SCANNER_HIGH_SHORT = 55             # SHORT avec scanner > 55 = perd son edge (assoupli de 60)
+TECH_LOW = 50                       # Tech < 50 = technique défavorable (assoupli de 40)
 INVERSE_SIGNAL_MIN_SCORE = 65       # Signal inverse avec score >= 65 = retournement confirmé
+
+# Rotation par OPPORTUNITÉ (nouveau)
+OPPORTUNITY_GAP = 10                # Position à fermer si score_GO - scanner_position >= 10
 
 # Protection des gagnants
 PROTECT_PROFIT_PCT = 3.0            # Ne jamais fermer une position en profit > +3%
@@ -36,6 +39,7 @@ def is_position_fatigued(
     symbol: str, direction: str, pnl_pct: float,
     scanner_score: float, tech_score: float,
     inverse_signal_score: float | None = None,
+    worst_go_score: float | None = None,
 ) -> tuple[bool, list[str]]:
     """Détermine si une position est "fatiguée" (à fermer).
 
@@ -64,6 +68,13 @@ def is_position_fatigued(
 
     # Perte modérée + raisons scanner
     if pnl_pct <= LOSS_THRESHOLD_PCT and reasons:
+        return True, [f"perte {pnl_pct:.1f}%"] + reasons
+
+    # RÈGLE D'OPPORTUNITÉ : perte quelconque + position nettement inférieure au pire GO
+    # → on libère pour ouvrir un meilleur signal
+    if pnl_pct < 0 and worst_go_score is not None and scanner_score + OPPORTUNITY_GAP < worst_go_score:
+        gap = worst_go_score - scanner_score
+        reasons.append(f"opportunité : GO disponibles ont +{gap:.0f} vs scanner position ({scanner_score:.0f})")
         return True, [f"perte {pnl_pct:.1f}%"] + reasons
 
     # Signal inverse fort
@@ -133,6 +144,13 @@ def run_repositioning(db: Session) -> dict:
 
     alpaca_syms = {p["symbol"] for p in alpaca_positions}
 
+    # Calculer le "worst GO score" pour la règle d'opportunité
+    worst_go_score = None
+    if go_signals:
+        go_scores = [s.get("score_v2", s.get("score", 0)) for s in go_signals]
+        worst_go_score = min(go_scores) if go_scores else None
+        logger.info(f"[REPOSITION] GO scores : min={min(go_scores):.1f}, max={max(go_scores):.1f}")
+
     # 4. Analyser et fermer les fatigués
     logger.info(f"[REPOSITION] Analyse de {len(alpaca_positions)} positions Alpaca")
 
@@ -153,7 +171,8 @@ def run_repositioning(db: Session) -> dict:
             inverse_score = new_sig.get("score_v2", new_sig.get("score", 0))
 
         fatigued, reasons = is_position_fatigued(
-            sym, direction, pnl_pct, scanner_score, tech_score, inverse_score
+            sym, direction, pnl_pct, scanner_score, tech_score, inverse_score,
+            worst_go_score=worst_go_score,
         )
 
         if fatigued:
@@ -299,18 +318,213 @@ def run_repositioning(db: Session) -> dict:
                 logger.warning(f"[REPOSITION] Erreur ouverture {sym}: {e}")
                 result["errors"].append(f"Open {sym}: {str(e)[:100]}")
 
+    # ═════════════════════════════════════════════════════════════
+    # 6. PHASE REBALANCE — rééquilibrage LONG/SHORT
+    # ═════════════════════════════════════════════════════════════
+    result["rebalance"] = _auto_rebalance(db, go_signals, scanner)
+
     result["finished_at"] = datetime.utcnow().isoformat()
     result["summary"] = {
         "closed_count": len(result["closed"]),
         "opened_count": len(result["opened"]),
         "skipped_count": len(result["skipped"]),
         "errors_count": len(result["errors"]),
+        "rebalance_closed": len(result["rebalance"].get("closed", [])),
+        "rebalance_opened": len(result["rebalance"].get("opened", [])),
     }
 
     logger.info(
         f"[REPOSITION] Terminé — "
         f"Fermé: {len(result['closed'])}, Ouvert: {len(result['opened'])}, "
-        f"Gardé: {len(result['skipped'])}, Erreurs: {len(result['errors'])}"
+        f"Rebal-Fermé: {len(result['rebalance'].get('closed', []))}, "
+        f"Rebal-Ouvert: {len(result['rebalance'].get('opened', []))}, "
+        f"Erreurs: {len(result['errors'])}"
     )
 
     return result
+
+
+# ─────────────────────── REBALANCE LONG/SHORT ───────────────────────
+
+# Cibles de risque
+REBAL_NET_MAX_PCT = 80        # Si net > 80% equity → rebalance forcé
+REBAL_SHORT_MIN_RATIO = 0.20  # Si < 20% du gross en SHORT → ouvrir SHORT
+REBAL_MAX_CLOSURES = 3        # Max 3 fermetures par cycle de rebalance (progressif)
+REBAL_MAX_OPENINGS = 3        # Max 3 ouvertures SHORT par cycle
+
+
+def _auto_rebalance(db: Session, go_signals: list, scanner: dict) -> dict:
+    """Rééquilibrage automatique LONG/SHORT basé sur l'exposition nette.
+
+    Si net exposure > seuil critique :
+    1. Ferme les LONG les plus faibles (bas scanner + faible profit)
+    2. Ouvre les meilleurs GO SHORT disponibles
+    """
+    out = {"closed": [], "opened": [], "errors": [], "triggered": False}
+
+    try:
+        from backend.modules.execution.broker_alpaca import alpaca_broker
+        from backend.database.models import Asset, Position, PositionStatus
+        from backend.database.models import Order, SignalDirection
+        from backend.database.models import OrderSide as DBOrderSide, OrderStatus as DBOrderStatus
+
+        positions = alpaca_broker.get_positions()
+        if not positions:
+            return out
+
+        # Calculer expositions
+        long_pos = [p for p in positions if p.get("side", "long").lower() == "long"]
+        short_pos = [p for p in positions if p.get("side", "long").lower() != "long"]
+        long_mv = sum(abs(float(p.get("market_value", 0))) for p in long_pos)
+        short_mv = sum(abs(float(p.get("market_value", 0))) for p in short_pos)
+        gross = long_mv + short_mv
+        net = long_mv - short_mv
+
+        account = alpaca_broker.get_account()
+        equity = float(account.get("equity", 100_000)) if account else 100_000
+
+        net_pct = (net / equity * 100) if equity else 0
+        short_ratio = (short_mv / gross) if gross else 0
+
+        out["metrics"] = {
+            "net_pct": round(net_pct, 1),
+            "short_ratio": round(short_ratio, 3),
+            "gross_mv": round(gross, 0),
+            "net_mv": round(net, 0),
+        }
+
+        need_rebalance = net_pct > REBAL_NET_MAX_PCT or short_ratio < REBAL_SHORT_MIN_RATIO
+        if not need_rebalance:
+            logger.info(f"[REBAL] Pas de rebalance nécessaire (net={net_pct:.0f}%, short_ratio={short_ratio*100:.0f}%)")
+            return out
+
+        out["triggered"] = True
+        logger.info(
+            f"[REBAL] DÉCLENCHÉ — net={net_pct:.0f}% (max {REBAL_NET_MAX_PCT}), "
+            f"short_ratio={short_ratio*100:.0f}% (min {REBAL_SHORT_MIN_RATIO*100:.0f}%)"
+        )
+
+        # 1. FERMER les LONG les plus faibles (bas scanner + faible profit/perte légère)
+        #    Protection : jamais de gain > PROTECT_PROFIT_PCT
+        candidates_close = []
+        for p in long_pos:
+            sym = p["symbol"]
+            pnl_pct = float(p.get("pnl_pct", 0))
+            if pnl_pct >= PROTECT_PROFIT_PCT:
+                continue
+            sc = scanner.get(sym, {})
+            score = sc.get("scores", {}).get("final", 50)
+            candidates_close.append((sym, score, pnl_pct, abs(float(p.get("market_value", 0)))))
+
+        # Trier : scanner ASC (pires d'abord), puis pnl ASC
+        candidates_close.sort(key=lambda x: (x[1], x[2]))
+
+        closed_here = 0
+        for sym, score, pnl_pct, mv in candidates_close[:REBAL_MAX_CLOSURES]:
+            # Annuler pending
+            try:
+                from alpaca.trading.client import TradingClient
+                from alpaca.trading.requests import GetOrdersRequest
+                from alpaca.trading.enums import QueryOrderStatus
+                from backend.config.settings import settings
+                client = TradingClient(settings.ALPACA_API_KEY, settings.ALPACA_SECRET_KEY, paper=True)
+                pending = client.get_orders(GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[sym], limit=20))
+                for o in pending:
+                    try: client.cancel_order_by_id(o.id)
+                    except: pass
+                import time; time.sleep(1)
+            except Exception as e:
+                logger.debug(f"[REBAL] Cancel pending {sym} échoué: {e}")
+
+            close_res = alpaca_broker.close_position(sym)
+            if close_res and "error" not in close_res:
+                asset = db.query(Asset).filter_by(symbol=sym).first()
+                if asset:
+                    for po in db.query(Position).filter_by(asset_id=asset.id, status=PositionStatus.OPEN).all():
+                        po.status = PositionStatus.CLOSED
+                        po.closed_at = datetime.utcnow()
+                    db.commit()
+                out["closed"].append({
+                    "symbol": sym, "direction": "LONG",
+                    "pnl_pct": round(pnl_pct, 2), "scanner": round(score, 1),
+                    "mv_usd": round(mv, 0),
+                    "reason": f"rebalance LONG (scanner {score:.0f}, pnl {pnl_pct:+.1f}%)",
+                })
+                logger.info(f"[REBAL] Fermé LONG {sym} scanner={score:.0f} pnl={pnl_pct:.1f}%")
+                closed_here += 1
+            else:
+                err = close_res.get("error", "unknown") if close_res else "no response"
+                out["errors"].append(f"Rebal close {sym}: {err}")
+
+        # 2. OUVRIR les meilleurs GO SHORT
+        if closed_here > 0:
+            import time; time.sleep(3)  # laisser propager
+
+        # Symboles déjà pris
+        alpaca_syms_now = {p["symbol"] for p in alpaca_broker.get_positions()}
+        go_shorts = sorted(
+            [s for s in go_signals if s.get("direction") == "SHORT" and s["symbol"] not in alpaca_syms_now],
+            key=lambda x: -x.get("score_v2", x.get("score", 0))
+        )[:REBAL_MAX_OPENINGS]
+
+        if not go_shorts:
+            logger.info("[REBAL] Aucun GO SHORT disponible")
+            return out
+
+        # Sizing : répartir le capital libéré
+        capital_freed = sum(c["mv_usd"] for c in out["closed"])
+        per_position = max(capital_freed / max(len(go_shorts), 1), 1000)  # min $1000
+        per_position = min(per_position, equity * 0.05)  # max 5% equity
+
+        for sig in go_shorts:
+            sym = sig["symbol"]
+            try:
+                from backend.modules.execution.router import _place_bracket_order, _get_price_and_atr
+                asset = db.query(Asset).filter_by(symbol=sym).first()
+                if not asset:
+                    out["errors"].append(f"Rebal open {sym}: asset non trouvé")
+                    continue
+
+                entry_price, atr_val = _get_price_and_atr(db, asset.id)
+                if not entry_price or not atr_val:
+                    out["errors"].append(f"Rebal open {sym}: pas de données OHLCV")
+                    continue
+
+                # SHORT : SL > entry, TP < entry
+                sl = round(entry_price + 2 * atr_val, 2)
+                tp = round(entry_price - 3 * atr_val, 2)
+
+                qty = max(1, int(per_position / entry_price))
+
+                bracket_res = _place_bracket_order(sym, "sell", float(qty), sl, tp)
+                if "error" in bracket_res:
+                    out["errors"].append(f"Rebal open {sym}: {bracket_res['error']}")
+                    continue
+
+                db.add(Order(
+                    asset_id=asset.id, side=DBOrderSide.SELL,
+                    quantity=float(qty), price=entry_price, filled_price=entry_price,
+                    status=DBOrderStatus.FILLED, tranche=1, broker="alpaca_bracket",
+                ))
+                db.add(Position(
+                    asset_id=asset.id, direction=SignalDirection.SHORT,
+                    entry_price=entry_price, quantity=float(qty),
+                    stop_loss=sl, take_profit=tp, status=PositionStatus.OPEN,
+                ))
+                db.commit()
+
+                out["opened"].append({
+                    "symbol": sym, "direction": "SHORT",
+                    "score": sig.get("score_v2", sig.get("score", 0)),
+                    "qty": qty, "entry": entry_price, "sl": sl, "tp": tp,
+                })
+                logger.info(f"[REBAL] Ouvert SHORT {sym} × {qty} @ ${entry_price}")
+            except Exception as e:
+                out["errors"].append(f"Rebal open {sym}: {str(e)[:100]}")
+                logger.warning(f"[REBAL] Erreur ouverture {sym}: {e}")
+
+    except Exception as e:
+        logger.error(f"[REBAL] Erreur globale: {e}")
+        out["errors"].append(f"Rebalance global: {e}")
+
+    return out
