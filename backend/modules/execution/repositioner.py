@@ -421,7 +421,7 @@ def _auto_rebalance(db: Session, go_signals: list, scanner: dict) -> dict:
 
         closed_here = 0
         for sym, score, pnl_pct, mv in candidates_close[:REBAL_MAX_CLOSURES]:
-            # Annuler pending
+            # Annuler tous les ordres pending (OCO/brackets) qui retiennent la qty
             try:
                 from alpaca.trading.client import TradingClient
                 from alpaca.trading.requests import GetOrdersRequest
@@ -429,14 +429,24 @@ def _auto_rebalance(db: Session, go_signals: list, scanner: dict) -> dict:
                 from backend.config.settings import settings
                 client = TradingClient(settings.ALPACA_API_KEY, settings.ALPACA_SECRET_KEY, paper=True)
                 pending = client.get_orders(GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[sym], limit=20))
+                cancelled_n = 0
                 for o in pending:
-                    try: client.cancel_order_by_id(o.id)
+                    try:
+                        client.cancel_order_by_id(o.id)
+                        cancelled_n += 1
                     except: pass
-                import time; time.sleep(1)
+                if cancelled_n:
+                    import time; time.sleep(3)  # laisser propager (OCO peut être lent)
             except Exception as e:
                 logger.debug(f"[REBAL] Cancel pending {sym} échoué: {e}")
 
+            # Retry close_position : 1ère tentative + 1 retry après wait
             close_res = alpaca_broker.close_position(sym)
+            if not close_res or "error" in (close_res or {}):
+                # Retry après 3s supplémentaires (au cas où OCO pas encore annulés)
+                import time; time.sleep(3)
+                close_res = alpaca_broker.close_position(sym)
+
             if close_res and "error" not in close_res:
                 asset = db.query(Asset).filter_by(symbol=sym).first()
                 if asset:
