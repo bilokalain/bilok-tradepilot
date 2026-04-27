@@ -16,6 +16,58 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger("tradepilot.repositioner")
 
 
+# ─────────────────────── COMPATIBILITÉ BROKER ───────────────────────
+
+# Suffixes de bourses NON supportées par Alpaca paper (actions ex-US)
+NON_ALPACA_SUFFIXES = (
+    ".L",     # London
+    ".DE",    # Xetra (Allemagne)
+    ".PA",    # Paris (Euronext)
+    ".AS",    # Amsterdam
+    ".BR",    # Brussels
+    ".ST",    # Stockholm
+    ".OL",    # Oslo
+    ".HE",    # Helsinki
+    ".CO",    # Copenhagen
+    ".MI",    # Milan
+    ".MC",    # Madrid
+    ".LS",    # Lisbon
+    ".SW",    # Switzerland (SIX)
+    ".VI",    # Vienna
+    ".IR",    # Ireland
+    ".TO",    # Toronto
+    ".V",     # TSX Venture
+    ".HK",    # Hong Kong
+    ".T",     # Tokyo
+    ".KS",    # Korea
+    ".AX",    # Australia
+    ".JO",    # Johannesburg
+    ".SA",    # Sao Paulo
+    ".IS",    # Istanbul
+)
+
+
+def is_alpaca_compatible(symbol: str) -> bool:
+    """Retourne True si le symbole est tradable sur Alpaca paper.
+
+    Exclut :
+    - Actions ex-US (suffixes .L, .DE, .PA, etc.)
+    - Crypto (BTC-USD, etc.) — dépend du compte mais souvent KO en paper
+    - Forex (=X)
+    - Futures (=F)
+    """
+    s = symbol.upper()
+    if any(s.endswith(suf) for suf in NON_ALPACA_SUFFIXES):
+        return False
+    if s.endswith("=X") or s.endswith("=F"):
+        return False
+    if s.endswith("-USD"):  # crypto Yahoo
+        return False
+    if s.startswith("^"):  # indices
+        return False
+    return True
+
+
 # ─────────────────────── CONFIGURATION ───────────────────────
 
 # Seuils de détection "fatigué"
@@ -241,10 +293,17 @@ def run_repositioning(db: Session) -> dict:
         result["opened_skipped"] = f"Slots Alpaca pleins ({len(alpaca_syms_after)}/{MAX_POSITIONS_ALPACA})"
         logger.info(f"[REPOSITION] Slots Alpaca pleins — pas d'ouverture")
     else:
-        # Prendre les top GO non déjà en position
-        gos_to_open = [s for s in go_signals if s["symbol"] not in alpaca_syms_after]
+        # Prendre les top GO non déjà en position ET compatibles Alpaca
+        gos_to_open = [
+            s for s in go_signals
+            if s["symbol"] not in alpaca_syms_after
+            and is_alpaca_compatible(s["symbol"])
+        ]
         gos_to_open.sort(key=lambda x: x.get("score_v2", x.get("score", 0)), reverse=True)
         gos_to_open = gos_to_open[:slots_available]
+        if len(gos_to_open) < slots_available:
+            n_skipped = sum(1 for s in go_signals if not is_alpaca_compatible(s["symbol"]))
+            logger.info(f"[REPOSITION] {n_skipped} GO incompatibles Alpaca filtrés (UK/EU/crypto/forex)")
 
         logger.info(f"[REPOSITION] Tentative ouverture {len(gos_to_open)} nouveaux GO (slots={slots_available})")
 
@@ -315,6 +374,9 @@ def run_repositioning(db: Session) -> dict:
                 })
                 logger.info(f"[REPOSITION] Ouvert {sym} {direction} × {qty} @ ${entry_price}")
             except Exception as e:
+                # Rollback impératif pour libérer la transaction et permettre la suite
+                try: db.rollback()
+                except: pass
                 logger.warning(f"[REPOSITION] Erreur ouverture {sym}: {e}")
                 result["errors"].append(f"Open {sym}: {str(e)[:100]}")
 
@@ -422,6 +484,7 @@ def _auto_rebalance(db: Session, go_signals: list, scanner: dict) -> dict:
         closed_here = 0
         for sym, score, pnl_pct, mv in candidates_close[:REBAL_MAX_CLOSURES]:
             # Annuler tous les ordres pending (OCO/brackets) qui retiennent la qty
+            cancelled_n = 0
             try:
                 from alpaca.trading.client import TradingClient
                 from alpaca.trading.requests import GetOrdersRequest
@@ -429,23 +492,28 @@ def _auto_rebalance(db: Session, go_signals: list, scanner: dict) -> dict:
                 from backend.config.settings import settings
                 client = TradingClient(settings.ALPACA_API_KEY, settings.ALPACA_SECRET_KEY, paper=True)
                 pending = client.get_orders(GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[sym], limit=20))
-                cancelled_n = 0
                 for o in pending:
                     try:
                         client.cancel_order_by_id(o.id)
                         cancelled_n += 1
                     except: pass
-                if cancelled_n:
-                    import time; time.sleep(3)  # laisser propager (OCO peut être lent)
             except Exception as e:
                 logger.debug(f"[REBAL] Cancel pending {sym} échoué: {e}")
 
-            # Retry close_position : 1ère tentative + 1 retry après wait
-            close_res = alpaca_broker.close_position(sym)
-            if not close_res or "error" in (close_res or {}):
-                # Retry après 3s supplémentaires (au cas où OCO pas encore annulés)
-                import time; time.sleep(3)
+            # Multi-retry close_position : jusqu'à 3 tentatives, sleep progressif
+            import time
+            close_res = None
+            for attempt in range(3):
+                if cancelled_n > 0 or attempt > 0:
+                    time.sleep(5)  # laisser propager les annulations OCO
                 close_res = alpaca_broker.close_position(sym)
+                if close_res and "error" not in close_res:
+                    break
+                err_msg = (close_res or {}).get("error", "")
+                # Si pas "held_for_orders", inutile de retry
+                if "held_for_orders" not in err_msg:
+                    break
+                logger.info(f"[REBAL] Close {sym} retry {attempt+1}/3 — {err_msg[:60]}")
 
             if close_res and "error" not in close_res:
                 asset = db.query(Asset).filter_by(symbol=sym).first()
@@ -470,10 +538,13 @@ def _auto_rebalance(db: Session, go_signals: list, scanner: dict) -> dict:
         if closed_here > 0:
             import time; time.sleep(3)  # laisser propager
 
-        # Symboles déjà pris
+        # Symboles déjà pris + filtre Alpaca-compatible
         alpaca_syms_now = {p["symbol"] for p in alpaca_broker.get_positions()}
         go_shorts = sorted(
-            [s for s in go_signals if s.get("direction") == "SHORT" and s["symbol"] not in alpaca_syms_now],
+            [s for s in go_signals
+             if s.get("direction") == "SHORT"
+             and s["symbol"] not in alpaca_syms_now
+             and is_alpaca_compatible(s["symbol"])],
             key=lambda x: -x.get("score_v2", x.get("score", 0))
         )[:REBAL_MAX_OPENINGS]
 
@@ -530,6 +601,9 @@ def _auto_rebalance(db: Session, go_signals: list, scanner: dict) -> dict:
                 })
                 logger.info(f"[REBAL] Ouvert SHORT {sym} × {qty} @ ${entry_price}")
             except Exception as e:
+                # Rollback impératif après erreur DB
+                try: db.rollback()
+                except: pass
                 out["errors"].append(f"Rebal open {sym}: {str(e)[:100]}")
                 logger.warning(f"[REBAL] Erreur ouverture {sym}: {e}")
 
